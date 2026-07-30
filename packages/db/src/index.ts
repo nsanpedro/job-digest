@@ -6,6 +6,8 @@ export {
   getUnreadEmails,
   NoActiveRulesetError,
 } from './queries/digest';
+export { getDismissedAds, getSavedAds, getSavedCount } from './queries/history';
+export { getAccountOverview, type AccountOverview } from './queries/account';
 export { previousWeekWindow, weekWindow, type Window } from './queries/window';
 export type {
   Digest,

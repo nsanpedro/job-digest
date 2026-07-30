@@ -4,7 +4,7 @@
 // already-seeded db converges rather than duplicating (I1, I2).
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Ruleset } from '@job-digest/core';
+import { DEFAULT_RULESET } from '@job-digest/core';
 import { accounts, mailboxes, rulesets, runs } from '@job-digest/db';
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -14,16 +14,7 @@ import { ingestEmail, withTenant, PARSER_VERSION } from '../src/index';
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error('DATABASE_URL is not set');
 
-const SEED_EMAIL = 'nico@example.com';
-
-// Mirrors the prototype's DEFAULT_CFG (Job Digest.dc.html) exactly.
-const DEFAULT_RULES: Ruleset = {
-  Shift: { key: 'Shift', severity: 'hard', condition: { noRotating: true, noWeekend: true } },
-  German: { key: 'German', severity: 'preference', condition: { maxDemanded: 'B2' } },
-  Onsite: { key: 'Onsite', severity: 'preference', condition: { minHomeDays: 2 } },
-  Pay: { key: 'Pay', severity: 'hard', condition: { minMonthly: 2600, basis: 'fte' } },
-  Contract: { key: 'Contract', severity: 'preference', condition: { permanentOnly: true } },
-};
+const SEED_EMAIL = process.env.SEED_EMAIL ?? 'nico@example.com';
 
 const client = postgres(url, { max: 1 });
 const db = drizzle(client);
@@ -94,7 +85,7 @@ async function main() {
     .where(and(eq(rulesets.userId, userId), eq(rulesets.isActive, true)))
     .limit(1);
   if (active.length === 0) {
-    await db.insert(rulesets).values({ userId, version: 1, rules: DEFAULT_RULES, isActive: true });
+    await db.insert(rulesets).values({ userId, version: 1, rules: DEFAULT_RULESET, isActive: true });
     console.log('activated default ruleset (v1)');
   } else {
     console.log('ruleset already active, left untouched');

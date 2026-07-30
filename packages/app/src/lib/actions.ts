@@ -13,7 +13,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { revalidatePath } from 'next/cache';
-import { adUserState, mailboxes, runs } from '@job-digest/db';
+import type { Ruleset } from '@job-digest/core';
+import { adUserState, mailboxes, rulesets, runs } from '@job-digest/db';
 import { and, desc, eq } from 'drizzle-orm';
 import { ingestEmail, PARSER_VERSION } from '@job-digest/worker';
 import { currentUserId, withTenant } from './session';
@@ -131,4 +132,35 @@ export async function lastRunAt(): Promise<Date | null> {
       .limit(1),
   );
   return rows[0]?.finishedAt ?? rows[0]?.startedAt ?? null;
+}
+
+/**
+ * Saves a new ruleset version and activates it (design §7.2, §9 — rulesets
+ * are versioned so Profile can diff draft against saved and §7.4's rule
+ * accountability can replay history under a named version). Never mutates a
+ * past version: an edit is a new row, with the old one deactivated in the
+ * same transaction.
+ *
+ * No delta preview yet (design §5's gained/lost ads on save) — that needs
+ * re-running getDigest against the draft without persisting it, which is a
+ * reasonable next increment, cut from this pass to keep it shippable.
+ */
+export async function saveRuleset(rules: Ruleset): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, async (tx) => {
+    const current = await tx
+      .select({ version: rulesets.version })
+      .from(rulesets)
+      .where(eq(rulesets.userId, userId))
+      .orderBy(desc(rulesets.version))
+      .limit(1);
+    const nextVersion = (current[0]?.version ?? 0) + 1;
+
+    await tx.update(rulesets).set({ isActive: false }).where(eq(rulesets.userId, userId));
+    await tx.insert(rulesets).values({ userId, version: nextVersion, rules, isActive: true });
+  });
+  revalidatePath('/digest');
+  revalidatePath('/profile');
+  revalidatePath('/saved');
+  revalidatePath('/dismissed');
 }

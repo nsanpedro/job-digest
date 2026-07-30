@@ -1,21 +1,24 @@
-import { getUnreadEmails, weekWindow } from '@job-digest/db';
+import { getSavedCount, getUnreadEmails, weekWindow } from '@job-digest/db';
 import { TopBar } from '@/components/Chrome';
 import { UnreadCard } from '@/components/UnreadCard';
-import { currentUserId, withTenant } from '@/lib/session';
+import { currentUser, withTenant } from '@/lib/session';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
 
 export default async function UnreadPage() {
-  const userId = await currentUserId();
+  const user = await currentUser();
   const window = weekWindow(new Date());
-  const unread = await withTenant(userId, (tx) => getUnreadEmails(tx, userId, window));
+  const [unread, savedCount] = await withTenant(user.id, async (tx) => [
+    await getUnreadEmails(tx, user.id, window),
+    await getSavedCount(tx, user.id),
+  ]);
 
   const partial = unread.filter((u) => u.inDigest).length;
 
   return (
     <>
-      <TopBar active="unread" unreadCount={unread.length} />
+      <TopBar active="unread" unreadCount={unread.length} savedCount={savedCount} userEmail={user.email} />
       <div className="container">
         <h1 className={styles.h1}>Emails we couldn't read</h1>
         <p className={styles.subtitle}>

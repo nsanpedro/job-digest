@@ -9,6 +9,12 @@ function cellValue(v: Verdict, wording: Partial<Wording>): string {
   return v.state === 'unknown' ? 'not read' : '—';
 }
 
+/**
+ * Chips treatment (design's three explorations — Nico's pick, 30 Jul, over
+ * the doc's own `lane` recommendation). Always renders all five rules, in
+ * the fixed order, even the ones that pass: seeing a rule pass is
+ * information (design principle).
+ */
 export function RuleLane({
   verdicts,
   wording,
@@ -19,43 +25,23 @@ export function RuleLane({
   compact?: boolean;
 }) {
   return (
-    <div className={`${styles.lane} ${compact ? styles.laneCompact : ''}`}>
+    <div className={styles.lane}>
       {verdicts.map((v) => {
         const sv = STATE_VISUALS[v.state];
-        const detail = `${v.key}: ${sv.label} — ${cellValue(v, wording)}`;
-        if (compact) {
-          return (
-            <div
-              key={v.key}
-              className={`${styles.cell} ${styles.cellCompact}`}
-              style={{ background: sv.bg, borderColor: sv.bd }}
-              title={detail}
-            >
-              <span className={styles.glyphCompact} style={{ color: sv.fg }} aria-label={sv.label}>
-                {sv.glyph}
-              </span>
-            </div>
-          );
-        }
+        const value = cellValue(v, wording);
         return (
-          <div
+          <span
             key={v.key}
-            className={styles.cell}
-            style={{ background: sv.bg, borderColor: sv.bd }}
-            title={detail}
+            className={`${styles.chip} ${compact ? styles.chipCompact : ''}`}
+            style={{ background: sv.bg, borderColor: sv.bd, color: sv.fg }}
+            title={`${v.key}: ${sv.label} — ${value}`}
           >
-            <div className={styles.top}>
-              <span className={styles.glyph} style={{ background: sv.fg, color: sv.bg }} aria-label={sv.label}>
-                {sv.glyph}
-              </span>
-              <span className={styles.name} style={{ color: sv.fg }}>
-                {v.key}
-              </span>
-            </div>
-            <div className={styles.value} style={{ color: sv.fg }}>
-              {cellValue(v, wording)}
-            </div>
-          </div>
+            <span className={styles.glyph} style={{ background: sv.fg, color: sv.bg }} aria-label={sv.label}>
+              {sv.glyph}
+            </span>
+            <span className={styles.name}>{v.key}:</span>
+            {value}
+          </span>
         );
       })}
     </div>

@@ -1,0 +1,52 @@
+.rule {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.ruleHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.ruleName {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.saveRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.saveBtn {
+  padding: 9px 18px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.saveHint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.saveHintOk {
+  color: var(--pass-fg);
+}
