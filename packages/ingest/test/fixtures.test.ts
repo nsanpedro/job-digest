@@ -10,11 +10,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { classify } from '../src/classify';
-import { declaredCount } from '../src/declare';
-import { parseEml } from '../src/eml';
-import { extractorFor } from '../src/extract/registry';
-import { layoutHash } from '../src/layout-hash';
+// Import via the package index: that is where built-in extractors register.
+import { classify, declaredCount, extractorFor, layoutHash, parseEml } from '../src/index';
 
 interface Expected {
   platform: string;

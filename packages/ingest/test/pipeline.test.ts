@@ -48,9 +48,11 @@ describe('layoutHash — structural fingerprint (§5.3)', () => {
     expect(layoutHash(changed)).not.toBe(layoutHash(template('T', 'C')));
   });
 
-  it('is insensitive to class order', () => {
-    expect(layoutHash('<div class="a b"><p>x</p></div>')).toBe(
-      layoutHash('<div class="b a"><p>y</p></div>'),
+  it('ignores classes entirely — measured: LinkedIn varies utility classes per send', () => {
+    // With classes in the hash, the real corpus produced one hash per email —
+    // a fingerprint with no repeat sightings identifies nothing.
+    expect(layoutHash('<div class="a b"><p class="x">x</p></div>')).toBe(
+      layoutHash('<div class="c"><p>y</p></div>'),
     );
   });
 });

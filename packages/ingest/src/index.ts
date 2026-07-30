@@ -5,3 +5,9 @@ export { layoutHash } from './layout-hash';
 export { normalizeWhitespace, verifyQuote } from './verify-quote';
 export { extractorFor, registerExtractor, registeredExtractors } from './extract/registry';
 export type { ExtractResult, ExtractedAd, Extractor, FieldSpan } from './extract/types';
+
+// Built-in extractors register on import, explicitly and in one place.
+import { linkedInCards } from './extract/linkedin';
+import { registerExtractor as register } from './extract/registry';
+register(linkedInCards);
+export { linkedInCards };
