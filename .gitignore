@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+
+# Environment — credentials and keys never enter the repo
+.env
+.env.*
+!.env.example
+
+# Local tooling state
+.claude/settings.local.json
+
+# Test artifacts
+coverage/
+
+# OS noise
+.DS_Store
