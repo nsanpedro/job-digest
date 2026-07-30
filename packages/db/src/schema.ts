@@ -231,8 +231,17 @@ export const ads = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: userId(),
-    /** Platform ad id, or content hash — never parser-quality-dependent (§6.7). */
+    /**
+     * Content hash over title/company/city — never parser-quality-dependent,
+     * and cross-platform by construction (§6.7).
+     */
     dedupeKey: text('dedupe_key').notNull(),
+    /**
+     * Platform ad id where one genuinely exists ("linkedin:4444332346").
+     * Null for Xing, whose links are per-send tracking tokens. Secondary
+     * match: catches a platform rewording a title between sends.
+     */
+    externalId: text('external_id'),
     externalUrl: text('external_url'),
     /** German, untouched. */
     title: text('title').notNull(),
@@ -245,7 +254,8 @@ export const ads = pgTable(
      * Collapsing them would couple the rule engine to presentation.
      */
     facts: jsonb('facts').notNull().$type<Facts>(),
-    wording: jsonb('wording').notNull().$type<Wording>(),
+    /** Partial: an alert email rarely carries wording for all five rules. */
+    wording: jsonb('wording').notNull().$type<Partial<Wording>>(),
     /** Enriched facts (§6.6): commute etc. — no quote, marked as inferred. */
     enriched: jsonb('enriched').$type<Record<string, unknown>>(),
     /** Per-field provenance: method (deterministic|llm), extractor version. */
@@ -258,6 +268,7 @@ export const ads = pgTable(
   },
   (t) => [
     uniqueIndex('ads_user_dedupe').on(t.userId, t.dedupeKey),
+    uniqueIndex('ads_user_external_id').on(t.userId, t.externalId).where(sql`${t.externalId} IS NOT NULL`),
     index('ads_user_first_seen').on(t.userId, t.firstSeenAt),
     tenantPolicy('ads'),
   ],
