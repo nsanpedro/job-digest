@@ -24,7 +24,9 @@
  */
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { encryptSecret } from '@job-digest/core';
+// Subpath import, not the main barrel — see the comment in
+// @job-digest/core/src/index.ts for why credentials.ts lives outside it.
+import { encryptSecret } from '@job-digest/core/credentials';
 import { accounts, mailboxes } from '@job-digest/db';
 import NextAuth from 'next-auth';
 import postgres from 'postgres';

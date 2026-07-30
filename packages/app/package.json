@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no unit tests in @job-digest/app yet — this app is a thin RSC layer over the tested query/rule/worker packages' && exit 0"
   },
   "dependencies": {
     "@job-digest/core": "*",

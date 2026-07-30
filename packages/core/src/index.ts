@@ -1,5 +1,12 @@
 export * from './types';
 export { eur, describeCondition, describePredicate, predicateFactName } from './describe';
 export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked } from './evaluate';
-export { encryptSecret, decryptSecret } from './credentials';
 export { DEFAULT_RULESET } from './default-ruleset';
+
+// credentials.ts is deliberately NOT re-exported here. It needs node:crypto,
+// and this barrel is imported by client components (RulesEditor,
+// DismissedRow, ...) that webpack bundles for the browser — pulling
+// node:crypto into that graph breaks the build outright ("Unhandled
+// scheme"), found live the moment a page rendering those components
+// compiled. Import from '@job-digest/core/credentials' instead — that
+// subpath is only ever reached from server-only code (auth.ts).
