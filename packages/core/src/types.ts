@@ -112,6 +112,21 @@ export interface Rule<K extends RuleKey = RuleKey> {
 export type Ruleset = { [K in RuleKey]: Rule<K> };
 
 /**
+ * The ad's own wording per rule — the presentation side of the facts/wording
+ * split (design §9). `quote` is the I5-verified literal German text, or '—'
+ * when the field could not be read. Facts feed evaluation; this feeds the UI.
+ */
+export interface WordingEntry {
+  /** Short chip text: "Mo–Fr, Gleitzeit", "C1 asked", "not read". */
+  value: string;
+  /** Literal quote from the ad, German, verified substring of the source (I5). */
+  quote: string;
+  /** English gloss: why this passes / hurts / blocks. */
+  note: string;
+}
+export type Wording = Record<RuleKey, WordingEntry>;
+
+/**
  * One step of the reasoning that produced a verdict, ordered, rendered as
  * prose in the expanded panel (design §7.3).
  */

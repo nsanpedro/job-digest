@@ -1,0 +1,401 @@
+/**
+ * Schema for Job Digest (design §9), multi-tenant from the first migration
+ * (design §2): every per-tenant table carries user_id and an RLS policy.
+ * Isolation is enforced by Postgres for the app roles, not by a WHERE clause
+ * anyone can forget — both `app_user` (web) and `worker` are subject to RLS
+ * and scope themselves with `SET LOCAL app.user_id` per unit of work.
+ *
+ * Grants live in the hand-written migration 0001 (drizzle-kit does not manage
+ * them), including the I13 column-level rule: `app_user` cannot SELECT
+ * credential ciphertext at all.
+ */
+import type { Facts, Ruleset, Wording } from '@job-digest/core';
+import { sql } from 'drizzle-orm';
+import {
+  bigint,
+  boolean,
+  customType,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgPolicy,
+  pgRole,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
+
+const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
+
+/** Web process role. No credential ciphertext access (I13, migration 0001). */
+export const appUser = pgRole('app_user');
+/** Ingestion worker role. Subject to RLS like everyone else (design §2). */
+export const worker = pgRole('worker');
+
+/**
+ * The tenant scope: rows are visible iff user_id matches the session setting.
+ * NULLIF matters: set_config(..., NULL) stores an empty string, and ''::uuid
+ * is an error — an unset or cleared scope must mean zero rows, never a crash.
+ */
+const tenantScope = sql`user_id = NULLIF(current_setting('app.user_id', true), '')::uuid`;
+
+const tenantPolicy = (table: string) =>
+  pgPolicy(`${table}_tenant_isolation`, {
+    for: 'all',
+    to: [appUser, worker],
+    using: tenantScope,
+    withCheck: tenantScope,
+  });
+
+export const platformEnum = pgEnum('platform', ['LinkedIn', 'Xing', 'Indeed', 'StepStone']);
+export const authKindEnum = pgEnum('auth_kind', ['app_password', 'oauth', 'imap', 'forwarding']);
+export const mailboxStatusEnum = pgEnum('mailbox_status', [
+  'pending_verification',
+  'active',
+  'auth_failed',
+  'disabled',
+]);
+export const runStatusEnum = pgEnum('run_status', ['running', 'ok', 'error']);
+export const runErrorKindEnum = pgEnum('run_error_kind', ['auth', 'network', 'internal']);
+export const parseOutcomeEnum = pgEnum('parse_outcome', [
+  'ok',
+  'partial',
+  'none',
+  'not_an_alert',
+  'unknown_layout',
+]);
+/** Closed enum: each cause has an authored, mechanism-naming explanation (design §9). */
+export const causeCodeEnum = pgEnum('cause_code', [
+  'layout_changed',
+  'unknown_layout',
+  'no_text_part',
+  'unknown_block',
+  'field_not_provided_by_platform',
+  'not_an_alert',
+]);
+
+// ── Tenancy root ────────────────────────────────────────────────────────────
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull().unique(),
+    /** Billing is metering hooks, not a pricing model yet (design §2). */
+    subscriptionStatus: text('subscription_status'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // accounts has no user_id column; its id IS the tenant id.
+    pgPolicy('accounts_self', {
+      for: 'all',
+      to: [appUser, worker],
+      using: sql`${t.id} = NULLIF(current_setting('app.user_id', true), '')::uuid`,
+      withCheck: sql`${t.id} = NULLIF(current_setting('app.user_id', true), '')::uuid`,
+    }),
+  ],
+);
+
+const userId = () =>
+  uuid('user_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' });
+
+// ── Acquisition (design §4, §6.1) ───────────────────────────────────────────
+
+export const mailboxes = pgTable(
+  'mailboxes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    /** e.g. 'gmail', 'gmx', 'web.de', 'manual' — display + IMAP presets. */
+    provider: text('provider').notNull(),
+    authKind: authKindEnum('auth_kind').notNull(),
+    emailAddress: text('email_address').notNull(),
+    /** Forwarding path only (§4.5): the per-user high-entropy inbound address. */
+    inboundAddress: text('inbound_address'),
+    /**
+     * Sealed credential ciphertext (§4.2). The web role can write this but
+     * never read it — enforced by column grants in migration 0001 (I13).
+     * Null for forwarding mailboxes: no credentials exist at all.
+     */
+    credentialsEnc: bytea('credentials_enc'),
+    keyVersion: integer('key_version'),
+    lastUidSeen: bigint('last_uid_seen', { mode: 'number' }),
+    /** IMAP UIDVALIDITY — a change invalidates lastUidSeen and forces a re-scan (§6.1). */
+    uidValidity: bigint('uid_validity', { mode: 'number' }),
+    status: mailboxStatusEnum('status').notNull().default('pending_verification'),
+    /** What makes "the app password expired on 27 Jul" a stored date, not a guess. */
+    credentialExpiresAt: timestamp('credential_expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('mailboxes_user_address').on(t.userId, t.emailAddress),
+    uniqueIndex('mailboxes_inbound_address').on(t.inboundAddress),
+    tenantPolicy('mailboxes'),
+  ],
+);
+
+export const rawEmails = pgTable(
+  'raw_emails',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    mailboxId: uuid('mailbox_id')
+      .notNull()
+      .references(() => mailboxes.id, { onDelete: 'cascade' }),
+    messageId: text('message_id').notNull(),
+    /** IMAP UID; null on the forwarding path. */
+    uid: bigint('uid', { mode: 'number' }),
+    fromAddr: text('from_addr').notNull(),
+    subject: text('subject').notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
+    /**
+     * Immutable once written (I1). Nothing mutates this row; deletion happens
+     * only via the retention job or account deletion. Everything downstream
+     * is derived and rebuildable from these bytes.
+     */
+    rawBytes: bytea('raw_bytes').notNull(),
+    bodyText: text('body_text'),
+    bodyHtml: text('body_html'),
+    /** Which MIME parts existed — how the image-only email case is diagnosed (§6.1). */
+    mimeParts: jsonb('mime_parts').notNull().$type<Record<string, unknown>>(),
+    /** Structural fingerprint (§5.3); null until computed. */
+    layoutHash: text('layout_hash'),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('raw_emails_user_message').on(t.userId, t.messageId),
+    index('raw_emails_user_received').on(t.userId, t.receivedAt),
+    index('raw_emails_layout_hash').on(t.layoutHash),
+    tenantPolicy('raw_emails'),
+  ],
+);
+
+export const runs = pgTable(
+  'runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    mailboxId: uuid('mailbox_id').references(() => mailboxes.id, { onDelete: 'set null' }),
+    status: runStatusEnum('status').notNull().default('running'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    /** emailsProcessed / emailsTotal is literally the "Reading the inbox… 4 of 12" label. */
+    emailsTotal: integer('emails_total'),
+    emailsProcessed: integer('emails_processed').notNull().default(0),
+    parserVersion: integer('parser_version').notNull(),
+    errorKind: runErrorKindEnum('error_kind'),
+    errorDetail: jsonb('error_detail').$type<Record<string, unknown>>(),
+  },
+  (t) => [index('runs_user_started').on(t.userId, t.startedAt), tenantPolicy('runs')],
+);
+
+// ── Extraction (design §6, screen 2) ────────────────────────────────────────
+
+export const emailParses = pgTable(
+  'email_parses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    rawEmailId: uuid('raw_email_id')
+      .notNull()
+      .references(() => rawEmails.id, { onDelete: 'cascade' }),
+    /** One row per (email, parser version); a re-parse inserts, never updates (I2). */
+    parserVersion: integer('parser_version').notNull(),
+    outcome: parseOutcomeEnum('outcome').notNull(),
+    /** The email's own declaration of its payload; null recorded with a reason (I3). */
+    declaredCount: integer('declared_count'),
+    declaredCountReason: text('declared_count_reason'),
+    extractedCount: integer('extracted_count').notNull().default(0),
+    causeCode: causeCodeEnum('cause_code'),
+    /** Per-field success/failure — the right column of screen 2's cards. */
+    fieldReport: jsonb('field_report').$type<Array<{ name: string; ok: boolean; value: string }>>(),
+    parsedAt: timestamp('parsed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('email_parses_email_version').on(t.rawEmailId, t.parserVersion),
+    index('email_parses_user_parsed').on(t.userId, t.parsedAt),
+    tenantPolicy('email_parses'),
+  ],
+);
+
+// ── Ads (design §6.7, §9) ───────────────────────────────────────────────────
+
+export const ads = pgTable(
+  'ads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    /** Platform ad id, or content hash — never parser-quality-dependent (§6.7). */
+    dedupeKey: text('dedupe_key').notNull(),
+    externalUrl: text('external_url'),
+    /** German, untouched. */
+    title: text('title').notNull(),
+    company: text('company'),
+    locationRaw: text('location_raw'),
+    source: platformEnum('source').notNull(),
+    /**
+     * facts and wording are separate on purpose, mirroring the prototype's
+     * `f` and `r`: facts feed evaluation (I6), wording feeds the UI.
+     * Collapsing them would couple the rule engine to presentation.
+     */
+    facts: jsonb('facts').notNull().$type<Facts>(),
+    wording: jsonb('wording').notNull().$type<Wording>(),
+    /** Enriched facts (§6.6): commute etc. — no quote, marked as inferred. */
+    enriched: jsonb('enriched').$type<Record<string, unknown>>(),
+    /** Per-field provenance: method (deterministic|llm), extractor version. */
+    extraction: jsonb('extraction').$type<Record<string, unknown>>(),
+    score: integer('score'),
+    incomplete: boolean('incomplete').notNull().default(false),
+    incompleteNote: text('incomplete_note'),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('ads_user_dedupe').on(t.userId, t.dedupeKey),
+    index('ads_user_first_seen').on(t.userId, t.firstSeenAt),
+    tenantPolicy('ads'),
+  ],
+);
+
+export const adSightings = pgTable(
+  'ad_sightings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    adId: uuid('ad_id')
+      .notNull()
+      .references(() => ads.id, { onDelete: 'cascade' }),
+    rawEmailId: uuid('raw_email_id')
+      .notNull()
+      .references(() => rawEmails.id, { onDelete: 'cascade' }),
+    /** "Where this came from" in the expanded panel. */
+    alertName: text('alert_name'),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
+    /** A later sighting disagreeing with a stored field is recorded, never overwritten (§6.7). */
+    conflicts: jsonb('conflicts').$type<Record<string, unknown>>(),
+  },
+  (t) => [index('ad_sightings_ad').on(t.adId), tenantPolicy('ad_sightings')],
+);
+
+export const adNarratives = pgTable(
+  'ad_narratives',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    adId: uuid('ad_id')
+      .notNull()
+      .references(() => ads.id, { onDelete: 'cascade' }),
+    profileVersion: integer('profile_version').notNull(),
+    promptVersion: integer('prompt_version').notNull(),
+    fit: text('fit').notNull(),
+    gap: text('gap').notNull(),
+    model: text('model').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // A cache keyed by version, not TTL (§6.8).
+    uniqueIndex('ad_narratives_cache_key').on(t.adId, t.profileVersion, t.promptVersion),
+    tenantPolicy('ad_narratives'),
+  ],
+);
+
+// ── User-authored state (I10: orthogonal to rule outcomes) ──────────────────
+
+export const rulesets = pgTable(
+  'rulesets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    /** Versioned: Profile diffs draft vs saved, and §7.4 replays history under a version. */
+    version: integer('version').notNull(),
+    rules: jsonb('rules').notNull().$type<Ruleset>(),
+    isActive: boolean('is_active').notNull().default(false),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('rulesets_user_version').on(t.userId, t.version),
+    uniqueIndex('rulesets_one_active_per_user').on(t.userId).where(sql`${t.isActive}`),
+    tenantPolicy('rulesets'),
+  ],
+);
+
+export const profiles = pgTable(
+  'profiles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    version: integer('version').notNull(),
+    /** CV facts, skills, targets, address. Shape firms up with screen 3. */
+    data: jsonb('data').notNull().$type<Record<string, unknown>>(),
+    isActive: boolean('is_active').notNull().default(false),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('profiles_user_version').on(t.userId, t.version),
+    uniqueIndex('profiles_one_active_per_user').on(t.userId).where(sql`${t.isActive}`),
+    tenantPolicy('profiles'),
+  ],
+);
+
+export const adUserState = pgTable(
+  'ad_user_state',
+  {
+    /** One row per ad; the worker owns `ads`, the user owns this (I10). */
+    adId: uuid('ad_id')
+      .primaryKey()
+      .references(() => ads.id, { onDelete: 'cascade' }),
+    userId: userId(),
+    saved: boolean('saved').notNull().default(false),
+    seen: boolean('seen').notNull().default(false),
+    dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+    /** "Show anyway" on a rule-blocked ad — the §7.5 self-revision signal. */
+    overriddenAt: timestamp('overridden_at', { withTimezone: true }),
+    overrideRulesetVersion: integer('override_ruleset_version'),
+    overrideRuleKey: text('override_rule_key'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('ad_user_state_user').on(t.userId), tenantPolicy('ad_user_state')],
+);
+
+// ── Global reference data (no tenant, read-only to app roles) ───────────────
+
+/**
+ * Which fields each platform's alert emails ever contain — what lets the UI
+ * distinguish "we failed to read the salary" from "LinkedIn does not send
+ * one" (design §9).
+ */
+export const platformCapabilities = pgTable('platform_capabilities', {
+  platform: platformEnum('platform').primaryKey(),
+  fields: jsonb('fields').notNull().$type<Record<string, boolean>>(),
+});
+
+/** Known layouts per platform (§5.3); the regression detector reads this. */
+export const layouts = pgTable(
+  'layouts',
+  {
+    platform: platformEnum('platform').notNull(),
+    layoutHash: text('layout_hash').notNull(),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Which extractor handles this layout; null = we know we are blind. */
+    parserId: text('parser_id'),
+    notes: text('notes'),
+  },
+  (t) => [primaryKey({ columns: [t.platform, t.layoutHash] })],
+);
+
+/** TVöD pay-group reference (§6.5): "Vergütung nach TVöD E5" is a lookup, not parsing. */
+export const tvoedRates = pgTable(
+  'tvoed_rates',
+  {
+    groupCode: text('group_code').notNull(),
+    monthlyEur: integer('monthly_eur').notNull(),
+    validFrom: timestamp('valid_from', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.groupCode, t.validFrom] })],
+);
