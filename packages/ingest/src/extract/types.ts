@@ -25,6 +25,8 @@ export interface ExtractedAd {
   pay?: FieldSpan;
   workingTime?: FieldSpan;
   contract?: FieldSpan;
+  /** "Vollzeit" / "Teilzeit" / "Selbstständig" — Xing sends this per card. */
+  employmentType?: FieldSpan;
 }
 
 export interface ExtractResult {

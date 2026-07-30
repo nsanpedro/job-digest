@@ -35,9 +35,9 @@ export const linkedInCards: Extractor = {
   id: 'linkedin-cards@1',
   layoutHashes: [
     // "jobalerts-noreply" template: headline + similar jobs, 3 anchors/job.
-    '3a7c02b7b63dcebf',
+    '02f90eda08093b26',
     // "jobs-noreply" digest template: one card anchor per job.
-    '180333c623f95727',
+    '60069ab6374969dc',
   ],
 
   extract(email): ExtractResult {

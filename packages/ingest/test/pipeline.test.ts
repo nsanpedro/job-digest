@@ -55,6 +55,18 @@ describe('layoutHash — structural fingerprint (§5.3)', () => {
       layoutHash('<div class="c"><p>y</p></div>'),
     );
   });
+
+  it('ignores inline formatting tags — measured: Xing wraps greetings in span/br per send', () => {
+    expect(layoutHash('<td><h1>Hallo<br><span>Nico</span></h1></td>')).toBe(
+      layoutHash('<td><h1>Hallo</h1></td>'),
+    );
+  });
+
+  it('still moves when text rows become an image — the Xing failure mode stays detectable', () => {
+    expect(layoutHash('<tr><td><span>Ort: Hamburg</span></td></tr>')).not.toBe(
+      layoutHash('<tr><td><img src="header.png"></td></tr>'),
+    );
+  });
 });
 
 describe('verifyQuote — the I5 gate', () => {

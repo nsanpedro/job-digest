@@ -7,7 +7,7 @@
  * With no fixtures present the suite reports itself as skipped, loudly:
  * parsers are only written against real emails, never invented ones.
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 // Import via the package index: that is where built-in extractors register.
@@ -23,12 +23,19 @@ interface Expected {
 const fixturesRoot = new URL('./fixtures', import.meta.url).pathname;
 
 const fixtures: Array<{ name: string; emlPath: string; expected: Expected }> = [];
+const missingExpectations: string[] = [];
 for (const dir of readdirSync(fixturesRoot, { withFileTypes: true })) {
   if (!dir.isDirectory()) continue;
   const dirPath = join(fixturesRoot, dir.name);
   for (const file of readdirSync(dirPath)) {
     if (!file.endsWith('.eml')) continue;
     const expectedPath = join(dirPath, file.replace(/\.eml$/, '.expected.json'));
+    if (!existsSync(expectedPath)) {
+      // A fixture without expectations is a named failure, not a collection
+      // crash that hides every other fixture.
+      missingExpectations.push(`${dir.name}/${file}`);
+      continue;
+    }
     fixtures.push({
       name: `${dir.name}/${file}`,
       emlPath: join(dirPath, file),
@@ -41,6 +48,12 @@ describe('fixture corpus', () => {
   if (fixtures.length === 0) {
     // Visible as skipped in every run: the corpus is missing, not forgotten.
     it.skip('no fixtures yet — see test/fixtures/README.md to add real .eml exports', () => {});
+  }
+
+  for (const name of missingExpectations) {
+    it(`${name} has an .expected.json sibling`, () => {
+      expect.fail(`missing expectations for ${name} — author them from the email's contents`);
+    });
   }
 
   for (const f of fixtures) {
@@ -77,7 +90,10 @@ describe('fixture corpus', () => {
         const result = extractor.extract(email);
         if (f.expected.adCount !== undefined) expect(result.ads).toHaveLength(f.expected.adCount);
         if (f.expected.titles) {
-          expect(result.ads.map((a) => a.title?.value)).toEqual(f.expected.titles);
+          // Prefix comparison: expectations may list only the first N titles.
+          expect(result.ads.slice(0, f.expected.titles.length).map((a) => a.title?.value)).toEqual(
+            f.expected.titles,
+          );
         }
       });
     });

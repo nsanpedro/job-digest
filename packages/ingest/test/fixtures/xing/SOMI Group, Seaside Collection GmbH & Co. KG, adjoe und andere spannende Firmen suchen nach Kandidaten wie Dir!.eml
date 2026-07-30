@@ -1,0 +1,4119 @@
+Delivered-To: nicolassanpedro@gmail.com
+Received: by 2002:a05:6f02:cac4:b0:127:b2aa:559e with SMTP id t4csp3767864rcg;
+        Tue, 28 Jul 2026 05:02:07 -0700 (PDT)
+X-Received: by 2002:a05:600c:45c5:b0:493:eed4:7210 with SMTP id 5b1f17b1804b1-496c65472c4mr23514205e9.11.1785240127194;
+        Tue, 28 Jul 2026 05:02:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1785240127; cv=none;
+        d=google.com; s=arc-20260327;
+        b=mv/21MNG/E0giMSwfdAKL30zWA9E7cmSRkFR6j7QBOmNwQ59KmkIi0QmVYb79yKWrD
+         EHA2iH0eZKT2Oiw3ac4Gi0xK+RosoXwuWwf9nHbUxRp1X6O6SsOx7rVQKekKGVbpoJsx
+         UeDHmZbYTHr0R2111LMKhSCl49pgD5erVwqNDIogicv6R8nLhSsBIC+QyHfNzBqHSNhm
+         cbsVOxhuSZwW2gunkSl2g2Ytk7zEJdhumdfG7YVTlKq3wrBpSrurISnInF0weWgOXE87
+         Rv5/cJ7TpwUeZB8e+DxNVMKbSR63mjH3iFmzldX1VfgXcDYt2WhMX+yKfWrPfn5KgIF+
+         448A==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=feedback-id:list-id:list-help:list-unsubscribe-post
+         :list-unsubscribe:content-transfer-encoding:mime-version:subject
+         :message-id:to:reply-to:from:date:dkim-signature:dkim-signature;
+        bh=/5PA0F3ttqv3PO8SRrRQwnsPiVMsE6F7JpypS2YAiu4=;
+        fh=S5JbazDIE5oVlMJZdFfF1/DB8dvVctjWNGqsHjmo9co=;
+        b=o3HHrRQDoe7qkQIdOs81d5muklmOLAnZFddef+8BUwH7bye/zNC1tWAsP7meAlDAAz
+         rsdTR24dOp5uTrg9/G6uWEWw5kIrXfzQtJdVSabzqSbZwhrLdmQB4ad3h3b7PGfSx7ql
+         2ByiPqW6+QUfU7lgQUMbTADFGF6pd5faV3DOkfF5c9snElW6ML4fG0vnsMmcA2Unse8j
+         Uwag0byYCu68UnMoSsate/VTvkV9UGkY+OJlK3NTXGSU9XeMuAkf3+/j+v+maN1Db94O
+         rDKoTfkI8YQKUN8v/ug8GtFxzSYMwr/I5+MuaChJRvlktyiJ7HoKRHjmGGpBO0JTJtNa
+         ApTA==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@mail.xing.com header.s=p7ga6eopdpay2luyodwdr5ojuyc4qx3s header.b=qJHkzS66;
+       dkim=pass header.i=@amazonses.com header.s=shh3fegwg5fppqsuzphvschd53n6ihuv header.b=jqRxdKpV;
+       spf=pass (google.com: domain of 0102019fa89a84b1-5f518364-1fb4-4d87-adeb-e39126dbb196-000000@bounce.mail.xing.com designates 24.110.77.1 as permitted sender) smtp.mailfrom=0102019fa89a84b1-5f518364-1fb4-4d87-adeb-e39126dbb196-000000@bounce.mail.xing.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=mail.xing.com
+Return-Path: <0102019fa89a84b1-5f518364-1fb4-4d87-adeb-e39126dbb196-000000@bounce.mail.xing.com>
+Received: from i77-1.smtp-out.eu-west-1.amazonses.com (i77-1.smtp-out.eu-west-1.amazonses.com. [24.110.77.1])
+        by mx.google.com with ESMTPS id ffacd0b85a97d-47f86b3a4ffsi36896581f8f.457.2026.07.28.05.02.06
+        for <nicolassanpedro@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);
+        Tue, 28 Jul 2026 05:02:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 0102019fa89a84b1-5f518364-1fb4-4d87-adeb-e39126dbb196-000000@bounce.mail.xing.com designates 24.110.77.1 as permitted sender) client-ip=24.110.77.1;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@mail.xing.com header.s=p7ga6eopdpay2luyodwdr5ojuyc4qx3s header.b=qJHkzS66;
+       dkim=pass header.i=@amazonses.com header.s=shh3fegwg5fppqsuzphvschd53n6ihuv header.b=jqRxdKpV;
+       spf=pass (google.com: domain of 0102019fa89a84b1-5f518364-1fb4-4d87-adeb-e39126dbb196-000000@bounce.mail.xing.com designates 24.110.77.1 as permitted sender) smtp.mailfrom=0102019fa89a84b1-5f518364-1fb4-4d87-adeb-e39126dbb196-000000@bounce.mail.xing.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=mail.xing.com
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=p7ga6eopdpay2luyodwdr5ojuyc4qx3s; d=mail.xing.com; t=1785240126;
+	h=Date:From:Reply-To:To:Message-ID:Subject:Mime-Version:Content-Type:Content-Transfer-Encoding:List-Unsubscribe:List-Unsubscribe-Post:List-Help:List-Id;
+	bh=527PnYvvwAILAOUtDubIWBdmI+VtaSNMZv7upjhEL+w=;
+	b=qJHkzS66pD8j60UfOEQlMvv1TAgwXbAhgUzdsNWK+AYussuMhWFjOLEk/AzrBOKD
+	YQIN1RrdIeORMF6edEzS7Z7fmD5f9HJEqWFj+uY6TcKfmKvrvxK6NgvEroq5+LYFArf
+	Lbu+5Lkq2UUPFMWzqwIuJj28/qWRifBXFsD8zfSjRIT9+50P3gpo9iCHxghTZmI2ghj
+	6FGcYSl+ES+3IYZfYa4Gb+8OZF24ZLmbbwNf5As2zllV90BLINbNKkUKoTKRG4JMTi1
+	wTsnmM7VUG4pKT3LbPkAQR1+L/PsvLW9wpi0docOCs8bW1Ktr+sLlTipt+iMd5yOUb5
+	xxPBUR4J4Q==
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=shh3fegwg5fppqsuzphvschd53n6ihuv; d=amazonses.com; t=1785240126;
+	h=Date:From:Reply-To:To:Message-ID:Subject:Mime-Version:Content-Type:Content-Transfer-Encoding:List-Unsubscribe:List-Unsubscribe-Post:List-Help:List-Id:Feedback-ID;
+	bh=527PnYvvwAILAOUtDubIWBdmI+VtaSNMZv7upjhEL+w=;
+	b=jqRxdKpVFw+JJbeYI8r8j5QL98GWsys/JzOrHQ0nkU3BaM67hvxbm2YoFZbAFIjU
+	J5f3jVH/xG1VjrH13kHbrDhSWRqRbQ4jQ/8Uaw7dBxDqZNp2k2ndbNhjebZliDEYQ2+
+	k//d9ULFC8MDVaaMMLMwDCkMDYYaCZIX2tyOobe4=
+Date: Tue, 28 Jul 2026 12:02:06 +0000
+From: XING Jobs <jobs@mail.xing.com>
+Reply-To: no-reply@mail.xing.com
+To: Nicolas San Pedro <nicolassanpedro@gmail.com>
+Message-ID: <0102019fa89a84b1-5f518364-1fb4-4d87-adeb-e39126dbb196-000000@eu-west-1.amazonses.com>
+Subject: SOMI Group, Seaside Collection GmbH & Co. KG, adjoe und andere
+ spannende Firmen suchen nach Kandidaten wie Dir!
+Mime-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="--==_mimepart_6a689a3e96464_a6e381206eb";
+ charset=UTF-8
+Content-Transfer-Encoding: 7bit
+List-Unsubscribe: <https://www.xing.com/mw/unsubscribe/YahMNMkDcJ-e_vX5zzi7>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+List-Help: <https://www.xing.com/settings/notifications>,
+ <mailto:fbl@xing.com>
+List-Id: <23f1e743ebdad1f454d237e3e44b9a5f.xing.com>
+X-CSA-Complaints: csa-complaints@eco.de
+Feedback-ID: ::1.eu-west-1.bgDvIjzmlcW9t6SwuAqbxqs1fkECNEamwB9GZPkR6e8=:AmazonSES
+X-SES-Outgoing: 2026.07.28-24.110.77.1
+
+
+----==_mimepart_6a689a3e96464_a6e381206eb
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+Nachricht im Browser ansehen: https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7=
+gA
+
+
+XING
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Hallo Nicolas,
+wir haben neue Job-Empfehlungen f=C3=BCr Dich.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+----------------------------------------
+
+Dringend gesucht
+Senior Fullstack Entwickler Java 21 / React / TypeScript (m/w/d) 80 % Rem=
+ote | Hamburg | Projekt im GKV-Umfeld
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gK
+
+SOMI Group
+Hamburg
+
+
+Vollzeit60.000 =E2=82=AC - 75.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+Dringend gesucht
+Senior Webentwickler / Programmierer (m/w/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gL
+
+Seaside Collection GmbH & Co. KG
+Hamburg
+
+
+Vollzeit47.000 =E2=82=AC - 69.500 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Senior Frontend Developer (f/m/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gM
+
+adjoe
+Hamburg
+
+
+Vollzeit53.000 =E2=82=AC - 74.500 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Senior Frontend Software Engineer (m/w/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gN
+
+dpa Deutsche Presse-Agentur GmbH
+Hamburg
+
+
+Vollzeit54.500 =E2=82=AC - 67.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Fullstack-Spezialist (m/w/d) | Hamburg
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gO
+
+ADVERGY GmbH
+Hamburg
+
+
+Vollzeit55.000 =E2=82=AC - 85.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Fullstack Webentwickler (React/Java) (m/w/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gP
+
+HanseMerkur
+Hamburg
+
+
+Vollzeit53.000 =E2=82=AC - 74.500 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+React Entwickler (m/w/d) | Hamburg
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gQ
+
+ADVERGY GmbH
+Hamburg
+
+
+Vollzeit45.000 =E2=82=AC - 65.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Fullstack-Entwickler (m/w/d) |  Hamburg
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gR
+
+ADVERGY GmbH
+Hamburg
+
+
+Vollzeit60.000 =E2=82=AC - 87.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Inhouse Fullstack Entwickler (m/w/d) | Hamburg
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gS
+
+ADVERGY GmbH
+Hamburg
+
+
+Vollzeit56.000 =E2=82=AC - 86.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Fullstack Entwickler (m/w/d) | Hamburg
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gT
+
+ADVERGY GmbH
+Hamburg
+
+
+Vollzeit50.000 =E2=82=AC - 85.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Senior-Fullstack-Developer (m/w/d) - Python &amp; React
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gU
+
+Amadeus Fire
+Hamburg
+
+
+Vollzeit80.000 =E2=82=AC - 90.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Fullstack Developer (m/w/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gV
+
+secunet Security Networks AG
+Hamburg
+
+
+Vollzeit56.000 =E2=82=AC - 80.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Senior Fullstack Softwareentwickler (m/w/d) KI-L=C3=B6sungen, InsurTech
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gW
+
+CHECK24 Vergleichsportal
+Hamburg
+
+
+Vollzeit
+
+----------------------------------------
+----------------------------------------
+
+
+Expert Fullstack Developer (m/w/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gX
+
+EUROGATE GmbH & Co. KGaA
+Hamburg
+
+
+Vollzeit54.500 =E2=82=AC - 71.500 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+CMS Full Stack Developer Coremedia (all genders)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gY
+
+adesso SE
+Hamburg
+
+
+Vollzeit52.000 =E2=82=AC - 72.500 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Webanwendungs-/Webserviceentwickler (m/w/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gZ
+
+HanseMerkur
+Hamburg
+
+
+Vollzeit47.500 =E2=82=AC - 66.500 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Junior Fullstack Developer (m/w/d) InsurTech
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7ga
+
+CHECK24 Vergleichsportal
+Hamburg
+
+
+Vollzeit
+
+----------------------------------------
+----------------------------------------
+
+
+Webentwickler / Webdesigner (m/w/d)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gb
+
+The Megalon Group AG
+Hamburg
+
+
+Vollzeit34.500 =E2=82=AC - 42.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Full Stack Engineer Google Cloud (all genders)
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gc
+
+adesso SE
+Hamburg
+
+
+Vollzeit60.500 =E2=82=AC - 86.000 =E2=82=AC
+
+----------------------------------------
+----------------------------------------
+
+
+Inhouse Java Fullstack Engineer (m/w/d) | Hamburg
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gd
+
+ADVERGY GmbH
+Hamburg
+
+
+Vollzeit60.000 =E2=82=AC - 83.000 =E2=82=AC
+
+----------------------------------------
+
+----------------------------------------
+
+Alle Vorschl=C3=A4ge ansehen:
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gB
+
+----------------------------------------
+
+
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+Bist Du gerade auf Job-Suche?
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
+
+
+Deine Antwort wird auf XING im Bereich =E2=80=9CJob-W=C3=BCnsche=E2=80=9D=
+ gespeichert und nur Recruiter=C2=B7innen angezeigt.
+
+----------------------------------------
+Ich bin aktiv auf Suche:
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gi
+----------------------------------------
+
+----------------------------------------
+Ich bin offen f=C3=BCr Angebote:
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gj
+----------------------------------------
+
+----------------------------------------
+Ich suche gerade nichts:
+=3D> https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7gk
+----------------------------------------
+
+
+
+
+
+--
+Folg uns f=C3=BCr Tipps zu Deiner Job-Suche:
+
+XING:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7z
+
+YouTube:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi70
+
+TikTok:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi71
+
+Instagram:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi72
+
+Facebook:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi73
+
+Twitter:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7k
+
+
+New Work SE
+Baumwall 7,
+20459 Hamburg
+Deutschland
+
+Tel.: +49 40 419 131-0
+E-Mail: info@xing.com
+
+Amtsgericht HRB 148078
+Vorstand: Henning R=C3=B6nneberg (Vorsitzender),
+Aufsichtsratsvorsitzender: Dr. Maximilian Preisser
+
+Recruiter=C2=B7innen bekommen ein Signal, wenn Du auf eine der hier empfo=
+hlenen Job-Anzeigen klickst.
+
+Bitte antworte nicht auf diese E-Mail. Nutz stattdessen gern das Kontaktf=
+ormular.
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7t
+Wir haben diese E-Mail an n***o@gmail.com gesendet.
+Kontakt
+Datenschutz:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7p
+
+Impressum:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7q
+
+Kontakt:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7r
+
+Abbestellen:
+https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7s
+
+----==_mimepart_6a689a3e96464_a6e381206eb
+Content-Type: text/html;
+ charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang=3D"de"  xml:lang=3D"de" xmlns=3D"http://www.w3.org/1999/xhtml"=
+ xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-microso=
+ft-com:office:office">
+  <head></head>
+  <head>
+    <title>SOMI Group, Seaside Collection GmbH &amp; Co. KG, adjoe und an=
+dere spannende Firmen suchen nach Kandidaten wie Dir!</title>
+    <meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dutf=
+-8" />
+    <meta name=3D"format-detection" content=3D"date=3Dno,address=3Dno">
+    <meta name=3D"viewport" content=3D"width=3Ddevice-width, initial-scal=
+e=3D1.0, maximum-scale=3D5.0, user-scalable=3Dyes" />
+    <meta name=3D"color-scheme" content=3D"light dark">
+    <meta name=3D"supported-color-schemes" content=3D"light dark">
+    <style type=3D"text/css"></style>
+    <style type=3D"text/css"></style>
+    <style type=3D"text/css"></style>
+    <style type=3D"text/css">
+    body {width: 100% !important; -moz-text-size-adjust: none; -webkit-te=
+xt-size-adjust: none; -ms-text-size-adjust: none; padding: 0; margin:0;}
+    div {margin:0 !important; padding:0 !important;}
+    table tr {border-collapse: collapse; mso-table-lspace: 0pt; mso-table=
+-rspace: 0pt; margin: 0; margin-left: 0; margin-right: 0;}
+    table td {border-collapse: collapse; mso-table-lspace: 0pt; mso-table=
+-rspace: 0pt; margin: 0; margin-left: 0; margin-right: 0;}
+    table {border-collapse:collapse; mso-table-lspace: 0pt; mso-table-rsp=
+ace: 0pt; margin: 0; margin-left: 0; margin-right: 0;}
+    img {-ms-interpolation-mode:bicubic;}
+    =
+
+    a:link, span.MsoHyperlink {mso-style-priority: 100 !important;}
+    .appleLinksBlack a {color: #1d2124 !important; text-decoration: none;=
+}
+    .appleLinksGrey a {color: #808080 !important; text-decoration: none;}=
+
+    [class=3D"x_linkStyle"] span { background: inherit !important; color:=
+inherit !important; }
+     .btnLime:hover a:hover {outline:none;text-decoration:none;border-rad=
+ius:50px;-moz-border-radius:50px;-webkit-border-radius:50px;cursor:pointe=
+r;}
+ .btnGrey:hover a:hover {outline:none;text-decoration:none;border-radius:=
+50px;-moz-border-radius:50px;-webkit-border-radius:50px;cursor:pointer;}
+ .btnOnlyfy:hover {background:#3B3BA0 !important;}
+ input:hover {outline:none;text-decoration:none;border-radius:50px;-moz-b=
+order-radius:50px;-webkit-border-radius:50px;cursor:pointer;}
+ a:hover {outline:none;text-decoration:none;border-radius:50px;-moz-borde=
+r-radius:50px;-webkit-border-radius:50px;cursor:pointer;}
+ .btnLime:hover {background:#A7ED4B !important;}
+ .btnGrey:hover {background:#BCC9D1 !important;}
+ .btnPremium {background-color:#007B80 !important;border-color:#007B80 !i=
+mportant;}
+ .btnPremium:hover {background:#006567 !important;}
+
+      a[x-apple-data-detectors] { =
+
+      color: inherit !important;
+      text-decoration: none !important;
+      font-size: inherit !important;
+      font-family: inherit !important;
+      font-weight: inherit !important;
+      line-height: inherit !important;
+    }
+    #MessageViewBody a { =
+
+      color: inherit;
+      text-decoration: none;
+      font-size: inherit;
+      font-family: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+    }
+    u + #body a { =
+
+      color: inherit !important;
+      font-size: inherit !important;
+      font-family: inherit !important;
+      font-weight: inherit !important;
+      line-height: inherit !important;
+    }
+    a:hover {text-decoration: underline !important;}
+    :root {color-scheme: light dark; supported-color-schemes: light dark;=
+}
+
+  @media (prefers-color-scheme: light) {
+    .DarkImage  {display: inline-block !important;}
+    .LightImage {display: none; display: none !important;}
+  }
+  @media (prefers-color-scheme: dark) {
+     .DarkmodeBG {background-color: #161C24 !important;}
+     .DarkmodeLightBG {background-color: #293545 !important;}
+     .DarkmodeGreyText {color: #BCC9D1 !important;}
+     .DarkmodeWhiteText {color: #F9FAFA !important;}
+     .appleLinksBlack a {color: #F9FAFA !important;}
+     .LightImage, .LightImageWrapper {display: inline-block !important; w=
+idth: auto !important; overflow: visible !important; float: none !importa=
+nt; max-height: inherit !important; max-width: inherit !important; line-h=
+eight: auto !important; margin-top: 0px !important; visibility: inherit !=
+important;}
+     .DarkmodeBorder {border: 1px solid #F9FAFA !important; border-radius=
+: 5px;} =
+
+     .DarkImage {display: none; display: none !important;}
+     .btnPrimaryLime {background-color: #C6F16D !important; color: #1D212=
+4;}
+     .btnOutline {border: 2px solid #F9FAFA !important; color: #F9FAFA;}
+     .darkBtnOutline {border-color: #F9FAFA !important;}
+     .stayDarkBtnOutline {border-color: #161C24 !important;} =
+
+     .stayGreyBtnOutline {border-color: #293545 !important;} =
+
+      .DarkmodePetrolLink {color:#0698A0 !important;}
+ .DarkmodePetrolPill {color:#46B7BB !important;background-color:#006567 !=
+important;}
+ .DarkmodeTppPillStyle {color:#FFFFFF !important;background-color:#8A2CE8=
+ !important;}
+ .DarkmodeGreyPill {color:#FFFFFF !important;background-color:#293545 !im=
+portant;}
+ .DarkmodeLightBG {background-color:#293545 !important;}
+ .DarkmodeDefaultPillStyle {color:#D7B6FB !important;background-color:#70=
+2DB3 !important;}
+ .btnPremium {background-color:#007B80 !important;}
+ .stayPremiumBtnOutline {border-color:#007B80 !important;}
+
+  }
+  @media (prefers-color-scheme: dark) {
+     [data-ogsb] .DarkmodeBG {background-color: #161C24 !important;}
+     [data-ogsb] .DarkmodeLightBG {background-color: #293545 !important;}=
+
+     [data-ogsc] .DarkmodeGreyText {color: #BCC9D1 !important;}
+     [data-ogsc] .DarkmodeWhiteText {color: #F9FAFA !important;}
+     [data-ogsc] .LightImage, .LightImageWrapper {display: inline-block !=
+important; width: auto !important; overflow: visible !important; float: n=
+one !important; max-height: inherit !important; max-width: inherit !impor=
+tant; line-height: auto !important; margin-top: 0px !important; visibilit=
+y: inherit !important;}
+     [data-ogsc] .DarkmodeBorder {border: 1px solid #F9FAFA !important; b=
+order-radius: 5px;}
+     [data-ogsc] .DarkImage {display: none; display: none !important;}
+     [data-ogsc] .btnPrimaryLime {background-color:#C6F16D !important; co=
+lor: #1D2124;}
+     [data-ogsc] .btnOutline {border: 2px solid #F9FAFA !important; color=
+ :#F9FAFA;}
+      [data-ogsc] .DarkmodePetrolLink {color:#0698A0 !important;}
+ [data-ogsc] .DarkmodePetrolPill {color:#46B7BB !important;background-col=
+or:#006567 !important;}
+ [data-ogsc] .DarkmodeTppPillStyle {color:#FFFFFF !important;background-c=
+olor:#8A2CE8 !important;}
+ [data-ogsc] .DarkmodeGreyPill {color:#FFFFFF !important;background-color=
+:#293545 !important;}
+ [data-ogsc] .DarkmodeLightBG {background-color:#293545 !important;}
+ [data-ogsc] .DarkmodeDefaultPillStyle {color:#D7B6FB !important;backgrou=
+nd-color:#702DB3 !important;}
+ [data-ogsc] .btnPremium {background-color:#007B80 !important;}
+ [data-ogsc] .stayPremiumBtnOutline {border-color:#007B80 !important;}
+
+  }
+  @font-face {
+    font-family: "XING-Sans";
+    font-style: normal;
+    font-weight: normal;
+    src: local("XING-Sans"), url(https://static.xingcdn.com/xemail/fonts/=
+XING-Sans-Regular.woff) format("woff");
+    mso-generic-font-family:swiss;
+  }
+  @font-face {
+    font-family: "XING-Sans";
+    font-style: normal;
+    font-weight: bold;
+    src: local("XING-Sans"), url(https://static.xingcdn.com/xemail/fonts/=
+XING-Sans-Bold.woff) format("woff");
+    mso-generic-font-family:swiss;
+  }
+  h1, h2, h2.smallH2, h3, h4, label {
+    font-family: XING-Sans,Helvetica,Arial,sans-serif;
+    font-weight: bold;
+    color: #1D2124;
+    display: inline;
+  }
+  h1 {
+    font-size: 1.3em;
+    line-height: 1.5em;
+  }
+  h2 {
+    font-size: 1.25em;
+    line-height: 1.562em;
+  }
+  h2.smallH2 {
+    font-size: 1.125em;
+    line-height: 1.5em;
+  }
+  h3,label {
+    font-size: 1em;
+    line-height: 1.25em;
+  }
+  h4 {
+    font-size: 0.875em;
+    line-height: 1.125em;
+  }
+  label {
+    font-weight: normal !important;
+  }
+</style>
+<style type=3D"text/css">
+  @media only screen and (max-width: 592px) {
+    .inlineOnMobile {
+      display: inline-block !important;
+      width: auto !important;
+    }
+    .twoColumn {
+      text-align: left;
+    }
+    .twoColumn .columnLeft {
+      width: 100%;
+      min-width: 374px !important;
+      display: inline-block;
+      vertical-align: top;
+    }
+    .twoColumn .columnRight {
+      width: 100%;
+      max-width: 412px !important;
+      display: inline-block;
+      vertical-align: top;
+    }
+     .paddingTopMobile24px {padding-top:24px !important;}
+
+  }
+  @media only screen and (max-width: 500px) {
+     .paddingTopMobile24px {padding-top:24px !important;}
+ .mobilePaddingRL {padding-right:16px !important;padding-left:0px !import=
+ant;width:80px !important;}
+ .mobileRightColumn {width:265px !important;display:inline-block;vertical=
+-align:top;}
+
+  }
+</style>
+<style type=3D"text/css">
+  @media only screen and (max-width: 430px) {
+     .paddingTopMobile24px {padding-top:24px !important;}
+
+  }
+  @media only screen and (max-width: 414px) {
+    .widthMobile100pc {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    .paddingBottomMobile0px {
+      padding-bottom: 0px !important;
+    }
+    .hideOnSmall {
+      display: none !important;
+      width: 0 !important;
+      max-height: 0;
+      overflow: hidden;
+      mso-hide: all !important;
+    }
+    .showOnSmall {
+      display: block !important;
+      width: auto !important;
+      max-height: inherit !important;
+      visibility: visible !important;
+      overflow: visible !important;
+      float: none !important;
+      line-height: 1.5 !important;
+    }
+    .twoColumn .columnLeft, .twoColumn .columnRight {
+      width: 100%;
+      min-width: 358px !important;
+      display: inline-block;
+      vertical-align: top;
+    }
+     .paddingTopMobile24px {padding-top:24px !important;}
+
+  }
+  @media only screen and (max-width: 375px) {
+    .twoColumn .columnLeft, .twoColumn .columnRight {
+      width: 100%;
+      min-width: 330px !important;
+      display: inline-block;
+      vertical-align: top;
+    }
+     .mobilePaddingRL {padding-right:16px !important;padding-left:0px !im=
+portant;width:64px !important;}
+ .mobileRightColumn {max-width:236px !important;display:inline-block;vert=
+ical-align:top;}
+
+  }
+</style>
+<style type=3D"text/css">
+  @media only screen and (max-width: 320px) {
+    .twoColumn .columnLeft, .twoColumn .columnRight {
+      width: 100%;
+      min-width: 275px !important;
+      display: inline-block;
+      vertical-align: top;
+    }
+     .paddingTopMobile24px {padding-top:24px !important;}
+ .mobilePaddingRL {padding-right:16px !important;padding-left:0px !import=
+ant;width:48px !important;max-width:80px !important;}
+ .mobileRightColumn {max-width:212px !important;display:inline-block;vert=
+ical-align:top;}
+
+  }
+    =
+
+    @media only screen and (min-width: 501px) { .mobileLeftColumn {width:=
+115px !important;max-width:115px !important;min-width:112px !important;}
+}
+</style>
+<!--[if gte mso 12|IE]>
+  <style type=3D"text/css">
+    <xml>
+      <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </style>
+<![endif]-->
+<!--[if mso|IE ]>
+  <style>
+    h1, h2, h3, h4, span, a, th, td, ul, li, img {font-family: Helvetica,=
+ Arial, sans-serif !important;}
+    span {padding-left: 4px !important;padding-right: 4px !important;}
+    #outlookholder {width:600px;}
+   .mobileLeftColumn {width:180px !important;}
+
+  </style>
+<![endif]-->
+  </head>
+<body class=3D"DarkmodeBG" lang=3D"de" bgcolor=3D"#ffffff" id=3D"body">
+  <table class=3D"DarkmodeBG" width=3D"100%" border=3D"0" cellpadding=3D"=
+0" cellspacing=3D"0" bgcolor=3D"#ffffff" role=3D"article" aria-roledescri=
+ption=3D"email" aria-label=3D"SOMI Group, Seaside Collection GmbH &amp; C=
+o. KG, adjoe und andere spannende Firmen suchen nach Kandidaten wie Dir!"=
+>
+    <tr>
+      <td align=3D"center">
+        <!--[if gte mso 12|IE]>
+        <table width=3D"600" align=3D"center" border=3D"0" cellpadding=3D=
+"0" cellspacing=3D"0" style=3D"width:600px;">
+          <tr>
+            <td align=3D"center">
+        <![endif]-->
+        <table class=3D"DarkmodeBG" border=3D"0" cellspacing=3D"0" cellpa=
+dding=3D"0" style=3D"width:100%;max-width:600px;" role=3D"presentation">
+          <tr>
+            <td width=3D"7%"></td>
+            <td width=3D"86%" style=3D"padding-top:32px;">
+               <table width=3D"100%" border=3D"0" cellspacing=3D"0" cellp=
+adding=3D"0" role=3D"presentation">
+                <tr>
+  <td>
+    <table width=3D"100%" align=3D"left" valign=3D"top" border=3D"0" role=
+=3D"presentation">
+      <tr>
+        <td class=3D"twoColumn" align=3D"left">
+        <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"left" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+              <div class=3D"columnLeft" style=3D"width:100%;max-width:180=
+px;display:inline-block;vertical-align:top;">
+                =
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+            <td width=3D"322" align=3D"left" valign=3D"top" style=3D"widt=
+h:322px;">
+        <![endif]-->
+              <div class=3D"columnRight" style=3D"width:100%;max-width:32=
+5px;display:inline-block;vertical-align:top;">
+                <table width=3D"100%" align=3D"left" cellpadding=3D"0" ce=
+llspacing=3D"0" border=3D"0" role=3D"presentation">
+  <tr>
+    <td align=3D"left" valign=3D"top" style=3D"padding:0px 0 0 0;">
+      <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" role=3D"presentation">
+        =
+
+          <tr>
+  <td colspan=3D"3" align=3D"left" valign=3D"top">
+    <table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" role=3D"prese=
+ntation">
+      <tr>
+  <td colspan=3D"3" class=3D"DarkmodeWhiteText" valign=3D"top" align=3D"l=
+eft" style=3D"vertical-align:top; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; color:#1D2124;font-size:0.75em; line-height:1.25em;font-size:s=
+mall; font-size:max(12px, 0.75rem);">
+    <a class=3D"DarkmodeWhiteText" href=3D"https://www.xing.com/m/YahMNMk=
+DcJ-e_vX5zzi7AA" target=3D"_blank" style=3D"text-decoration:underline; cu=
+rsor:pointer; font-family:XING-Sans,Helvetica,Arial,sans-serif; font-weig=
+ht:normal; color:#1D2124;font-size:0.75em; line-height:1.25em;font-size:m=
+edium; font-size:max(14px, 0.875rem);"><u>Im Browser ansehen</u>
+    </a>
+  </td>
+</tr>
+
+    </table>
+  </td>
+</tr>
+
+        =
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+              </table>
+              <table width=3D"100%" border=3D"0" cellspacing=3D"0" cellpa=
+dding=3D"0" role=3D"presentation">
+                <tr>
+                  <td width=3D"81" align=3D"left" style=3D"padding-top:32=
+px;">
+                    <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi=
+7B" target=3D"_blank" style=3D"border:0px; color:#00d296; text-decoration=
+:none;">
+                      <img src=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5=
+zzi7A" width=3D"81" height=3D"23" alt=3D"XING Startseite" border=3D"0" st=
+yle=3D"width:81px;height:23px;display:block; font-family:XING-Sans,Helvet=
+ica,Arial,sans-serif; color:#1D2124; font-size:20px;" />
+                    </a>
+                  </td>
+                    <td class=3D"widthMobile100pc" align=3D"right" valign=
+=3D"bottom">
+                      <table border=3D"0" cellspacing=3D"0" cellpadding=3D=
+"0" role=3D"presentation">
+                        <tr>
+                          =
+
+                          <td class=3D"DarkmodeWhiteText hideOnSmall" ari=
+a-hidden=3D"true" style=3D"padding-right:4px;font-family:XING-Sans,Helvet=
+ica,Arial,sans-serif;line-height:1.062em;color:#1D2124;font-size:0.875em;=
+text-align:right;">
+                            Nicolas
+                          </td>
+                          <td width=3D"32" style=3D"padding-left:8px;">
+                            <img src=3D"https://profile-images.xing.com/s=
+tatic/nobody_m.64x64.jpg" border=3D"0" width=3D"32" alt=3D"" style=3D"dis=
+play:block; width:32px;" />
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                </tr>
+              </table>
+            </td>
+          <td width=3D"7%"></td>
+          </tr>
+        </table>
+        <table class=3D"DarkmodeBG" border=3D"0" cellspacing=3D"0" cellpa=
+dding=3D"0" style=3D"width:100%;max-width:600px;" role=3D"presentation">
+          <tr>
+            <td width=3D"7%"></td>
+            <td width=3D"86%" style=3D"padding-top:32px;">
+              <table width=3D"100%" border=3D"0" cellspacing=3D"0" cellpa=
+dding=3D"0" role=3D"presentation">
+                  <tr>
+  <td>
+    <table width=3D"100%" align=3D"left" valign=3D"top" border=3D"0" role=
+=3D"presentation">
+      <tr>
+        <td class=3D"twoColumn" align=3D"left">
+        <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"left" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+              <div class=3D"columnLeft" style=3D"width:100%;max-width:180=
+px;display:inline-block;vertical-align:top;">
+                =
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+            <td width=3D"322" align=3D"left" valign=3D"top" style=3D"widt=
+h:322px;">
+        <![endif]-->
+              <div class=3D"columnRight" style=3D"width:100%;max-width:32=
+5px;display:inline-block;vertical-align:top;">
+                <table width=3D"100%" align=3D"left" cellpadding=3D"0" ce=
+llspacing=3D"0" border=3D"0" role=3D"presentation">
+  <tr>
+    <td align=3D"left" valign=3D"top" style=3D"padding:0px 0 0 0;">
+      <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" role=3D"presentation">
+        =
+
+          <tr>
+  <td colspan=3D"3" class=3D"DarkmodeWhiteText" valign=3D"top" style=3D"f=
+ont-family:XING-Sans,Helvetica,Arial,sans-serif; font-weight:normal; colo=
+r:#1D2124;font-size:1em;line-height: 2em;font-size:medium; font-size:max(=
+16px, 1rem);">
+    Hallo Nicolas,
+  </td>
+</tr>
+
+        =
+
+            <tr>
+    <td colspan=3D"3" class=3D"DarkmodeWhiteText widthMobile100pc  paddin=
+gBottomMobile0px" align=3D"left" valign=3D"top"  style=3D"padding-top:0px=
+;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:1.5em;font-we=
+ight:bold;color:#1D2124;line-height:1.3em;font-size:x-large; font-size:ma=
+x(24px, 1.5rem);"><h1 class=3D"DarkmodeWhiteText" style=3D"color:#1D2124;=
+font-size:1.5em;line-height:1.3em;font-size:x-large; font-size:max(24px, =
+1.5rem);">wir haben neue Job-Empfehlungen f=C3=BCr Dich.</h1></td>
+  </tr>
+
+
+        =
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+                      <tr>
+  <td height=3D"32" style=3D"height:32px;line-height:0px;font-size:0px;">=
+<span aria-hidden=3D"true">&nbsp;</span></td>
+</tr>
+        </table>
+      </td>
+      <td width=3D"7%"><span aria-hidden=3D"true">&nbsp;</span></td>
+    </tr>
+  </table>
+<!--[if gte mso 12|IE]>
+      </td>
+    </tr>
+  </table>
+  <![endif]-->
+  </td>
+</tr>
+<tr>
+  <td colspan=3D3 align=3D"center" bgcolor=3D"#F4F4F5" class=3D"DarkmodeL=
+ightBG" style=3D"" >
+    <table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"widt=
+h:100%;max-width:600px;" role=3D"presentation">
+      <tr>
+        <td width=3D"100%" bgcolor=3D"#F4F4F5" class=3D"DarkmodeLightBG" =
+align=3D"left" style=3D"padding-left: 7%;padding-right: 7%;padding-top:0p=
+x; padding-bottom:24px; ">
+
+          <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacin=
+g=3D"0" role=3D"presentation">
+
+          =
+
+            <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:32px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AK" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZDI0NjUxZDEtOWIxMC00NzZjLWE3NDItMTU1NDdiODYyMzEwIiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D985b9591c8f17c3d63b00149c9100dfd74d8090d07f439807a68610d=
+2f581801" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Senior Fullstac=
+k Entwickler Java 21 / React / TypeScript (m/w/d) 80 % Remote | Hamburg |=
+ Projekt im GKV-Umfeld" style=3D"display:block;width:100%;max-width:92px;=
+height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0.=
+75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:32px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td style=3D"padding-bottom:8px;">
+    <table cellspacing=3D"0" cellpadding=3D"0" border=3D"0" role=3D"prese=
+ntation">
+      <tr>
+        <td class=3D"DarkmodeTppPillStyle" style=3D"padding:3px 8px 2px 8=
+px; font-family:XING-Sans,Helvetica,Arial,sans-serif; font-size:0.875em; =
+font-weight:normal; color: #FFFFFF; line-height:1.062em;background-color:=
+ #8A2CE8;border-radius: 50px; -moz-border-radius: 50px; -webkit-border-ra=
+dius: 50px; font-size:small;font-size:max(14px, 0.875rem);">
+          Dringend gesucht
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AK" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Senior Fullstack Entwickler Java 21 / =
+React / TypeScript (m/w/d) 80 % Remote | Hamburg | Projekt im GKV-Umfeld<=
+/u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    SOMI Group
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;60.000 =E2=82=
+=AC - 75.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+          =
+
+
+          </table>
+
+        </td>
+      </tr>
+    </table>
+    =
+
+  </td>
+</tr>
+<tr>
+<td align=3D"center">
+<!--[if gte mso 12|IE]>
+  <table style=3D"width:600px;" align=3D"center" cellpadding=3D"0" cellsp=
+acing=3D"0" border=3D"0">
+    <tr>
+      <td align=3D"center">
+<![endif]-->
+  <table class=3D"DarkmodeBG" border=3D"0" cellspacing=3D"0" cellpadding=3D=
+"0" style=3D"width:100%;max-width:600px;" role=3D"presentation">
+    <tr>
+      <td width=3D"7%"><span aria-hidden=3D"true">&nbsp;</span></td>
+      <td width=3D"86%">
+        <table width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D=
+"0" role=3D"presentation">
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AL" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/assets/companies/img/default-logo_12=
+8x128.png" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Senior Webentw=
+ickler / Programmierer (m/w/d)" style=3D"display:block;width:100%;max-wid=
+th:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font=
+-size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;=
+">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td style=3D"padding-bottom:8px;">
+    <table cellspacing=3D"0" cellpadding=3D"0" border=3D"0" role=3D"prese=
+ntation">
+      <tr>
+        <td class=3D"DarkmodeTppPillStyle" style=3D"padding:3px 8px 2px 8=
+px; font-family:XING-Sans,Helvetica,Arial,sans-serif; font-size:0.875em; =
+font-weight:normal; color: #FFFFFF; line-height:1.062em;background-color:=
+ #8A2CE8;border-radius: 50px; -moz-border-radius: 50px; -webkit-border-ra=
+dius: 50px; font-size:small;font-size:max(14px, 0.875rem);">
+          Dringend gesucht
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AL" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Senior Webentwickler / Programmierer (=
+m/w/d)</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    Seaside Collection GmbH &amp; Co. KG
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;47.000 =E2=82=
+=AC - 69.500 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AM" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiOTFmMWM2YmUtNDRiMy00NzY0LWFmOTItYmVkOTY0Mzk2MjE0IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D2c283ac57a350cf058175395a5306fa18f503ecddacf3f9f64bc90bc=
+98206c73" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Senior Frontend=
+ Developer (f/m/d)" style=3D"display:block;width:100%;max-width:92px;heig=
+ht:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0.75em=
+;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AM" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Senior Frontend Developer (f/m/d)</u><=
+/b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    adjoe
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;53.000 =E2=82=
+=AC - 74.500 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AN" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiNTAzNDFlZWUtMjVkMy00N2NhLWI4MTYtMTFjMGQ4ZmI3NWZhIiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D7e236f111895e53660435758f8727a32b861021de70fca6ebeca7400=
+a1eab053" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Senior Frontend=
+ Software Engineer (m/w/d)" style=3D"display:block;width:100%;max-width:9=
+2px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-siz=
+e:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AN" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Senior Frontend Software Engineer (m/w=
+/d)</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    dpa Deutsche Presse-Agentur GmbH
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;54.500 =E2=82=
+=AC - 67.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AO" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZTc2YWZmMWUtMTFiNi00YTA4LWJjOGQtNmVjZTM5ZTQwNTU2IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc357967f04aa0fd595a7cc1c04d570f3922122d5ad12ddf4fa20fdce=
+5d36cca1" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Fullstack-Spezi=
+alist (m/w/d) | Hamburg" style=3D"display:block;width:100%;max-width:92px=
+;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0=
+.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AO" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Fullstack-Spezialist (m/w/d) | Hamburg=
+</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    ADVERGY GmbH
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;55.000 =E2=82=
+=AC - 85.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AP" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiNThhNDhlZDctMDJkMC00MWI1LWI1ZWQtNTViYjBjYWFkZDk3IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D8fdfb727adf9d4548350d46193ec572e2196d0986cb05d9e669659e7=
+4909ed42" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Fullstack Weben=
+twickler (React/Java) (m/w/d)" style=3D"display:block;width:100%;max-widt=
+h:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-=
+size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;"=
+>
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AP" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Fullstack Webentwickler (React/Java) (=
+m/w/d)</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    HanseMerkur
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;53.000 =E2=82=
+=AC - 74.500 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AQ" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZTc2YWZmMWUtMTFiNi00YTA4LWJjOGQtNmVjZTM5ZTQwNTU2IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc357967f04aa0fd595a7cc1c04d570f3922122d5ad12ddf4fa20fdce=
+5d36cca1" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige React Entwickle=
+r (m/w/d) | Hamburg" style=3D"display:block;width:100%;max-width:92px;hei=
+ght:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0.75e=
+m;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AQ" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">React Entwickler (m/w/d) | Hamburg</u>=
+</b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    ADVERGY GmbH
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;45.000 =E2=82=
+=AC - 65.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AR" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZTc2YWZmMWUtMTFiNi00YTA4LWJjOGQtNmVjZTM5ZTQwNTU2IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc357967f04aa0fd595a7cc1c04d570f3922122d5ad12ddf4fa20fdce=
+5d36cca1" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Fullstack-Entwi=
+ckler (m/w/d) |  Hamburg" style=3D"display:block;width:100%;max-width:92p=
+x;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:=
+0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AR" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Fullstack-Entwickler (m/w/d) |  Hambur=
+g</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    ADVERGY GmbH
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;60.000 =E2=82=
+=AC - 87.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AS" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZTc2YWZmMWUtMTFiNi00YTA4LWJjOGQtNmVjZTM5ZTQwNTU2IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc357967f04aa0fd595a7cc1c04d570f3922122d5ad12ddf4fa20fdce=
+5d36cca1" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Inhouse Fullsta=
+ck Entwickler (m/w/d) | Hamburg" style=3D"display:block;width:100%;max-wi=
+dth:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;fon=
+t-size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124=
+;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AS" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Inhouse Fullstack Entwickler (m/w/d) |=
+ Hamburg</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    ADVERGY GmbH
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;56.000 =E2=82=
+=AC - 86.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AT" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZTc2YWZmMWUtMTFiNi00YTA4LWJjOGQtNmVjZTM5ZTQwNTU2IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc357967f04aa0fd595a7cc1c04d570f3922122d5ad12ddf4fa20fdce=
+5d36cca1" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Fullstack Entwi=
+ckler (m/w/d) | Hamburg" style=3D"display:block;width:100%;max-width:92px=
+;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0=
+.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AT" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Fullstack Entwickler (m/w/d) | Hamburg=
+</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    ADVERGY GmbH
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;50.000 =E2=82=
+=AC - 85.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AU" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiYjhkMTZkZGItODBmYS00MDhlLWE3MTItMTcxNzM4ZjEzY2Y3IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D02c8fc94d404e93bcb4862fc6cfb690887e3585f7e7dfcf7582af57a=
+10935861" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Senior-Fullstac=
+k-Developer (m/w/d) - Python &amp; React" style=3D"display:block;width:10=
+0%;max-width:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-=
+serif;font-size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color=
+: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AU" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Senior-Fullstack-Developer (m/w/d) - P=
+ython &amp; React</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    Amadeus Fire
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;80.000 =E2=82=
+=AC - 90.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AV" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiOTkzNTQ3ZmQtZTUxZS00ZDQzLThmNjctM2U2OTBmMWM3Y2I0IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D3221254a1e7d8d60e657810be6c1a87698690977e07593f468e4a1a1=
+957a50cd" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Fullstack Devel=
+oper (m/w/d)" style=3D"display:block;width:100%;max-width:92px;height:aut=
+o;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0.75em;font-=
+size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AV" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Fullstack Developer (m/w/d)</u></b></s=
+pan></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    secunet Security Networks AG
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;56.000 =E2=82=
+=AC - 80.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AW" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiNThhZjkwNzQtY2I1ZS00YzQzLTkyNTYtMDI5MTM4MWY0NTIwIiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D0c35803f246860a8a289cf2dd8042d8de4800405dcf717075fd05e2d=
+f72d78fa" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Senior Fullstac=
+k Softwareentwickler (m/w/d) KI-L=C3=B6sungen, InsurTech" style=3D"displa=
+y:block;width:100%;max-width:92px;height:auto;font-family:XING-Sans,Helve=
+tica,Arial,sans-serif;font-size:0.75em;font-size:small;font-size:max(12px=
+, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AW" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Senior Fullstack Softwareentwickler (m=
+/w/d) KI-L=C3=B6sungen, InsurTech</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    CHECK24 Vergleichsportal
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AX" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZDA5NGY5M2EtOTczYS00N2JhLTk0NmUtMmQxMzE2NDllMzg2IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D6250d753e7fc98daab4934c1a4886db2d6632b97e1f9279dd06d3369=
+fbf864f8" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Expert Fullstac=
+k Developer (m/w/d)" style=3D"display:block;width:100%;max-width:92px;hei=
+ght:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0.75e=
+m;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AX" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Expert Fullstack Developer (m/w/d)</u>=
+</b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    EUROGATE GmbH &amp; Co. KGaA
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;54.500 =E2=82=
+=AC - 71.500 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AY" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiY2UzYTcxZjctNWFkZC00ODhmLWEyNTEtYWNmNjgyZWU4OWFkIiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc18203c1dd9ef00e0aa72dd0d922ae22592923618a92949fe93ea9d9=
+0f0e1f2b" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige CMS Full Stack =
+Developer Coremedia (all genders)" style=3D"display:block;width:100%;max-=
+width:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;f=
+ont-size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D21=
+24;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AY" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">CMS Full Stack Developer Coremedia (al=
+l genders)</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    adesso SE
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;52.000 =E2=82=
+=AC - 72.500 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AZ" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiNThhNDhlZDctMDJkMC00MWI1LWI1ZWQtNTViYjBjYWFkZDk3IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D8fdfb727adf9d4548350d46193ec572e2196d0986cb05d9e669659e7=
+4909ed42" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Webanwendungs-/=
+Webserviceentwickler (m/w/d)" style=3D"display:block;width:100%;max-width=
+:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-s=
+ize:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">=
+
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7AZ" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Webanwendungs-/Webserviceentwickler (m=
+/w/d)</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    HanseMerkur
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;47.500 =E2=82=
+=AC - 66.500 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7Aa" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiNThhZjkwNzQtY2I1ZS00YzQzLTkyNTYtMDI5MTM4MWY0NTIwIiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3D0c35803f246860a8a289cf2dd8042d8de4800405dcf717075fd05e2d=
+f72d78fa" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Junior Fullstac=
+k Developer (m/w/d) InsurTech" style=3D"display:block;width:100%;max-widt=
+h:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-=
+size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;"=
+>
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7Aa" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Junior Fullstack Developer (m/w/d) Ins=
+urTech</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    CHECK24 Vergleichsportal
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7Ab" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/assets/companies/img/default-logo_12=
+8x128.png" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Webentwickler =
+/ Webdesigner (m/w/d)" style=3D"display:block;width:100%;max-width:92px;h=
+eight:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-size:0.7=
+5em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7Ab" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Webentwickler / Webdesigner (m/w/d)</u=
+></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    The Megalon Group AG
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;34.500 =E2=82=
+=AC - 42.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7Ac" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiY2UzYTcxZjctNWFkZC00ODhmLWEyNTEtYWNmNjgyZWU4OWFkIiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc18203c1dd9ef00e0aa72dd0d922ae22592923618a92949fe93ea9d9=
+0f0e1f2b" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Full Stack Engi=
+neer Google Cloud (all genders)" style=3D"display:block;width:100%;max-wi=
+dth:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;fon=
+t-size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2124=
+;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7Ac" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Full Stack Engineer Google Cloud (all =
+genders)</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    adesso SE
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;60.500 =E2=82=
+=AC - 86.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+    <tr>
+  <td>
+  <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"center" cellpadding=3D"0" cellspaci=
+ng=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+    <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D"0=
+" role=3D"presentation">
+      <tr>
+        <td class=3D"mobileLeftColumn paddingTopMobile24px mobilePaddingR=
+L" align=3D"right" valign=3D"top" style=3D"padding:40px 54px 0 16px;width=
+:180px;">
+          <!--[if mso]><div style=3D"width:115px;"><![endif]-->
+          <table border=3D"0" cellpadding=3D"0" cellspacing=3D"0" role=3D=
+"presentation">
+  <tr>
+    =
+
+        <td valign=3D"top" width=3D"92" style=3D"width:92px;max-width:92p=
+x;min-width:48px;">
+  <a href=3D"https://www.xing.com/m/YahMNMkDcJ-e_vX5zzi7Ad" target=3D"_bl=
+ank" style=3D"border:0px;color: #1D2124;text-decoration:none;">
+    <img src=3D"https://www.xing.com/imagecache/public/scaled_original_im=
+age/eyJ1dWlkIjoiZTc2YWZmMWUtMTFiNi00YTA4LWJjOGQtNmVjZTM5ZTQwNTU2IiwiYXBwX=
+2NvbnRleHQiOiJlbnRpdHktcGFnZXMiLCJtYXhfd2lkdGgiOjEyOCwibWF4X2hlaWdodCI6MT=
+I4fQ?signature=3Dc357967f04aa0fd595a7cc1c04d570f3922122d5ad12ddf4fa20fdce=
+5d36cca1" width=3D"92" border=3D"0" alt=3D"zur Jobanzeige Inhouse Java Fu=
+llstack Engineer (m/w/d) | Hamburg" style=3D"display:block;width:100%;max=
+-width:92px;height:auto;font-family:XING-Sans,Helvetica,Arial,sans-serif;=
+font-size:0.75em;font-size:small;font-size:max(12px, 0.75rem);color: #1D2=
+124;">
+  </a>
+</td>
+
+    =
+
+  </tr>
+</table>
+
+          <!--[if mso]></div><![endif]-->
+        </td>
+        <td class=3D"paddingTopMobile24px " valign=3D"top" style=3D"paddi=
+ng:40px 0 0 0;">
+          <table class=3D"mobileRightColumn" cellpadding=3D"0" cellspacin=
+g=3D"0" border=3D"0" role=3D"presentation" style=3D"width:330px;min-width=
+:185px;">
+    =
+
+      <tr>
+  <td class=3D"DarkmodeWhiteText" align=3D"left" style=3D"font-family:XIN=
+G-Sans,Helvetica,Arial,sans-serif;font-size:1em; font-weight:bold; color:=
+ #007B80; line-height:1.25em;font-size:medium;font-size:max(16px, 1rem);"=
+>
+    <a class=3D"DarkmodePetrolLink" href=3D"https://www.xing.com/m/YahMNM=
+kDcJ-e_vX5zzi7Ad" target=3D"_blank" style=3D"word-break:normal;text-decor=
+ation:underline; cursor:pointer; font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif; font-size:1em; font-weight:bold; color:#007B80 !important; line=
+-height:1.375em;font-size: medium;font-size:max(16px, 1rem);"><span  clas=
+s=3D"DarkmodePetrolLink" style=3D"color:#007B80"><b><u class=3D"DarkmodeP=
+etrolLink" style=3D"color:#007B80">Inhouse Java Fullstack Engineer (m/w/d=
+) | Hamburg</u></b></span></a>
+<br />
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"padding-top:2px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif; font-size:1em; color: #1D2124; line-h=
+eight:1.375em;font-size:medium;font-size:max(16px, 1rem);">
+    ADVERGY GmbH
+  </td>
+</tr>
+<tr>
+  <td class=3D"DarkmodeWhiteText" style=3D"font-family:XING-Sans,Helvetic=
+a,Arial,sans-serif; font-size:1em; color: #1D2124; line-height:1.375em;fo=
+nt-size:medium;font-size:max(16px, 1rem);">
+    Hamburg
+  </td>
+</tr>
+  <tr>
+    <td style=3D"padding-top:8px;">
+      <div style=3D"line-height:2.1em;">
+      =
+
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;Vollzeit&nbsp=
+;</span>
+      =
+
+        <span class=3D"DarkmodeGreyPill" style=3D"mso-padding-alt:3px 6px=
+ 2px 6px;padding:3px 6px 2px 6px; font-family:XING-Sans,Helvetica,Arial,s=
+ans-serif; font-size:0.875em; font-weight:normal; color: #1D2124;backgrou=
+nd-color: #F4F4F5;border: 1px solid #fff; border-radius: 50px; -moz-borde=
+r-radius: 50px; -webkit-border-radius: 50px;white-space: nowrap;display:i=
+nline;font-size:small;font-size:max(14px, 0.875rem);">&nbsp;60.000 =E2=82=
+=AC - 83.000 =E2=82=AC&nbsp;</span>
+      =
+
+      </div>
+    </td>
+  </tr>
+
+
+    =
+
+</table>
+
+        </td>
+      </tr>
+    </table>
+    <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+  </td>
+</tr>
+
+
+<tr>
+  <td>
+    <table width=3D"100%" align=3D"left" valign=3D"top" border=3D"0" role=
+=3D"presentation">
+      <tr>
+        <td class=3D"twoColumn" align=3D"left">
+        <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"left" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+              <div class=3D"columnLeft" style=3D"width:100%;max-width:180=
+px;display:inline-block;vertical-align:top;">
+                =
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+            <td width=3D"322" align=3D"left" valign=3D"top" style=3D"widt=
+h:322px;">
+        <![endif]-->
+              <div class=3D"columnRight" style=3D"width:100%;max-width:32=
+5px;display:inline-block;vertical-align:top;">
+                <table width=3D"100%" align=3D"left" cellpadding=3D"0" ce=
+llspacing=3D"0" border=3D"0" role=3D"presentation">
+  <tr>
+    <td class=3D"paddingTopMobile24px" align=3D"left" valign=3D"top" styl=
+e=3D"padding:40px 0 0 0;">
+      <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" role=3D"presentation">
+        =
+
+          <tr>
+  <td colspan=3D"3" style=3D"font-weight:bold;color:#1D2124;">
+    <a class=3D"btnLime btnPrimaryLime stayDarkBtnOutline" href=3D"https:=
+//www.xing.com/m/YahMNMkDcJ-e_vX5zzi7AB" style=3D"margin-left: -2px;margi=
+n-top: 0px;background: #C6F16D;border: 2px solid #FFFFFF;text-decoration:=
+ none;padding: 0.625em 14px;-moz-border-radius: 50px; -webkit-border-radi=
+us: 50px; border-radius: 50px;display:inline-block;mso-padding-alt: 0;tex=
+t-underline-color: #1D2124;font-family:XING-Sans,Helvetica,Arial,sans-ser=
+if;font-size: 1em;color: #1D2124;line-height: 1.375em;font-size:medium; f=
+ont-size:max(16px, 1rem);">
+  <!--[if mso]><i style=3D"letter-spacing:14px;mso-font-width:-100%;mso-t=
+ext-raise:16pt;">&nbsp;</i><![endif]--><span aria-hidden=3D"true">&nbsp;<=
+/span>
+  <span class=3D"linkStyle" style=3D"mso-text-raise: 9pt;color:#1D2124;fo=
+nt-size:1em;font-weight: bold;white-space:nowrap;font-size:medium; font-s=
+ize:max(16px, 1rem);">
+  Alle Vorschl=C3=A4ge ansehen
+  </span><span aria-hidden=3D"true">&nbsp;</span>
+  <!--[if mso]><i style=3D"letter-spacing: 14px;mso-font-width:-100%;">&n=
+bsp;</i><![endif]-->
+</a>
+
+  </td>
+</tr>
+
+        =
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+<tr>
+  <td>
+    <table width=3D"100%" align=3D"left" valign=3D"top" border=3D"0" role=
+=3D"presentation">
+      <tr>
+        <td class=3D"twoColumn" align=3D"left">
+        <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"left" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+              <div class=3D"columnLeft" style=3D"width:100%;max-width:180=
+px;display:inline-block;vertical-align:top;">
+                =
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+            <td width=3D"322" align=3D"left" valign=3D"top" style=3D"widt=
+h:322px;">
+        <![endif]-->
+              <div class=3D"columnRight" style=3D"width:100%;max-width:32=
+5px;display:inline-block;vertical-align:top;">
+                <table width=3D"100%" align=3D"left" cellpadding=3D"0" ce=
+llspacing=3D"0" border=3D"0" role=3D"presentation">
+  <tr>
+    <td align=3D"left" valign=3D"top" style=3D"padding:64px 0 0 0;">
+      <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" role=3D"presentation">
+        =
+
+            <tr>
+    <td colspan=3D"3" class=3D"DarkmodeWhiteText widthMobile100pc  paddin=
+gBottomMobile0px" align=3D"left"  style=3D"padding-top:0px;font-family:XI=
+NG-Sans,Helvetica,Arial,sans-serif;font-size:1.25em;font-weight:bold;colo=
+r:#1D2124;line-height:1em;font-size:large;font-size:max(20px, 1.25rem);">=
+<h2 class=3D"DarkmodeWhiteText" style=3D"color:#1D2124;font-size:1.25em;l=
+ine-height:1.562em;font-size:max(20px, 1.25rem);">Bist Du gerade auf Job-=
+Suche?</h2></td>
+  </tr>
+
+
+        =
+
+          <tr>
+  <td colspan=3D"3" class=3D"DarkmodeWhiteText" valign=3D"top" style=3D"p=
+adding-top:8px;font-family:XING-Sans,Helvetica,Arial,sans-serif; font-wei=
+ght:normal; color:#1D2124;font-size:1em;line-height: 1.5em;font-size:medi=
+um; font-size:max(16px, 1rem);">
+    Deine Antwort wird auf XING im Bereich =E2=80=9CJob-W=C3=BCnsche=E2=80=
+=9D gespeichert und nur Recruiter=C2=B7innen angezeigt.
+  </td>
+</tr>
+
+        =
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+<tr>
+  <td>
+    <table width=3D"100%" align=3D"left" valign=3D"top" border=3D"0" role=
+=3D"presentation">
+      <tr>
+        <td class=3D"twoColumn" align=3D"left">
+        <!--[if gte mso 12|IE]>
+        <table width=3D"516" align=3D"left" cellpadding=3D"0" cellspacing=
+=3D"0" border=3D"0" style=3D"width:516px;">
+          <tr>
+            <td width=3D"180" align=3D"left" valign=3D"top" style=3D"widt=
+h:180px;">
+        <![endif]-->
+              <div class=3D"columnLeft" style=3D"width:100%;max-width:180=
+px;display:inline-block;vertical-align:top;">
+                =
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+            <td width=3D"322" align=3D"left" valign=3D"top" style=3D"widt=
+h:322px;">
+        <![endif]-->
+              <div class=3D"columnRight" style=3D"width:100%;max-width:32=
+5px;display:inline-block;vertical-align:top;">
+                <table width=3D"100%" align=3D"left" cellpadding=3D"0" ce=
+llspacing=3D"0" border=3D"0" role=3D"presentation">
+  <tr>
+    <td align=3D"left" valign=3D"top" style=3D"padding:24px 0 0 0;">
+      <table width=3D"100%" border=3D"0" cellpadding=3D"0" cellspacing=3D=
+"0" role=3D"presentation">
+        =
+
+          <a class=3D"btnGrey stayGreyBtnOutline " href=3D"https://www.xi=
+ng.com/m/YahMNMkDcJ-e_vX5zzi7Ai" style=3D"margin-left: -2px;margin-top: 0=
+px;background: #DBE2E6;border: 2px solid #FFFFFF;text-decoration: none;pa=
+dding: 0.625em 14px;-moz-border-radius: 50px; -webkit-border-radius: 50px=
+; border-radius: 50px;display:inline-block;mso-padding-alt: 0;text-underl=
+ine-color: #1D2124;font-family:XING-Sans,Helvetica,Arial,sans-serif;font-=
+size: 1em;color: #1D2124;line-height: 1.375em;font-size:medium; font-size=
+:max(16px, 1rem);">
+  <!--[if mso]><i style=3D"letter-spacing:14px;mso-font-width:-100%;mso-t=
+ext-raise:16pt;">&nbsp;</i><![endif]--><span aria-hidden=3D"true">&nbsp;<=
+/span>
+  <span class=3D"linkStyle" style=3D"mso-text-raise: 9pt;color:#1D2124;fo=
+nt-size:1em;font-weight: bold;white-space:nowrap;font-size:medium; font-s=
+ize:max(16px, 1rem);">
+  Ich bin aktiv auf Suche
+  </span><span aria-hidden=3D"true">&nbsp;</span>
+  <!--[if mso]><i style=3D"letter-spacing: 14px;mso-font-width:-100%;">&n=
+bsp;</i><![endif]-->
+</a><br>
+
+        =
+
+          <a class=3D"btnGrey stayGreyBtnOutline " href=3D"https://www.xi=
+ng.com/m/YahMNMkDcJ-e_vX5zzi7Aj" style=3D"margin-left: -2px;margin-top: 1=
+6px;background: #DBE2E6;border: 2px solid #FFFFFF;text-decoration: none;p=
+adding: 0.625em 14px;-moz-border-radius: 50px; -webkit-border-radius: 50p=
+x; border-radius: 50px;display:inline-block;mso-padding-alt: 0;text-under=
+line-color: #1D2124;font-family:XING-Sans,Helvetica,Arial,sans-serif;font=
+-size: 1em;color: #1D2124;line-height: 1.375em;font-size:medium; font-siz=
+e:max(16px, 1rem);">
+  <!--[if mso]><i style=3D"letter-spacing:14px;mso-font-width:-100%;mso-t=
+ext-raise:16pt;">&nbsp;</i><![endif]--><span aria-hidden=3D"true">&nbsp;<=
+/span>
+  <span class=3D"linkStyle" style=3D"mso-text-raise: 9pt;color:#1D2124;fo=
+nt-size:1em;font-weight: bold;white-space:nowrap;font-size:medium; font-s=
+ize:max(16px, 1rem);">
+  Ich bin offen f=C3=BCr Angebote
+  </span><span aria-hidden=3D"true">&nbsp;</span>
+  <!--[if mso]><i style=3D"letter-spacing: 14px;mso-font-width:-100%;">&n=
+bsp;</i><![endif]-->
+</a><br>
+
+        =
+
+          <a class=3D"btnGrey stayGreyBtnOutline " href=3D"https://www.xi=
+ng.com/m/YahMNMkDcJ-e_vX5zzi7Ak" style=3D"margin-left: -2px;margin-top: 1=
+6px;background: #DBE2E6;border: 2px solid #FFFFFF;text-decoration: none;p=
+adding: 0.625em 14px;-moz-border-radius: 50px; -webkit-border-radius: 50p=
+x; border-radius: 50px;display:inline-block;mso-padding-alt: 0;text-under=
+line-color: #1D2124;font-family:XING-Sans,Helvetica,Arial,sans-serif;font=
+-size: 1em;color: #1D2124;line-height: 1.375em;font-size:medium; font-siz=
+e:max(16px, 1rem);">
+  <!--[if mso]><i style=3D"letter-spacing:14px;mso-font-width:-100%;mso-t=
+ext-raise:16pt;">&nbsp;</i><![endif]--><span aria-hidden=3D"true">&nbsp;<=
+/span>
+  <span class=3D"linkStyle" style=3D"mso-text-raise: 9pt;color:#1D2124;fo=
+nt-size:1em;font-weight: bold;white-space:nowrap;font-size:medium; font-s=
+ize:max(16px, 1rem);">
+  Ich suche gerade nichts
+  </span><span aria-hidden=3D"true">&nbsp;</span>
+  <!--[if mso]><i style=3D"letter-spacing: 14px;mso-font-width:-100%;">&n=
+bsp;</i><![endif]-->
+</a>
+
+        =
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+              </div>
+        <!--[if gte mso 12|IE]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+
+
+
+              </table>
+                            <table width=3D"100%" border=3D"0" cellspacin=
+g=3D"0" cellpadding=3D"0" role=3D"presentation">
+                <tr>
+                  <td class=3D"twoColumn" style=3D"padding-top:40px;">
+                    <!--[if gte mso 12|IE]>
+                    <table width=3D"100%" cellspacing=3D"0" cellpadding=3D=
+"0" border=3D"0" role=3D"presentation">
+                      <tr>
+                        <td width=3D"180" valign=3D"top" style=3D"width:1=
+80px;">
+                    <![endif]-->
+                    <div class=3D"columnLeft" style=3D"width:100%;max-wid=
+th:180px;display:inline-block;vertical-align:top;">
+                      <table border=3D"0" cellspacing=3D"0" cellpadding=3D=
+"0" role=3D"presentation">
+                        <tr>
+                          <td width=3D"81" align=3D"left" valign=3D"top" =
+style=3D"padding-top:24px;">
+                            <a href=3D"https://www.xing.com/m/YahMNMkDcJ-=
+e_vX5zzi7G" target=3D"_blank" style=3D"border:0px; color:#00d296; text-de=
+coration:none;">
+                              <img class=3D"DarkImage" width=3D"81" heigh=
+t=3D"23" alt=3D"XING Startseite" style=3D"display:block;width:81px;height=
+:23px; font-family:XING-Sans,Helvetica,Arial,sans-serif; color:#1d2124; f=
+ont-size:1em; line-height:0.75em; text-decoration: none; margin: 0 auto; =
+padding: 0;" border=3D"0" src=3D"https://www.xing.com/assets/mail/v2/XING=
+_logo_lay5.png"/>
+                              <!--[if !mso]><! --><div class=3D"LightImag=
+eWrapper" style=3D"display:none; overflow:hidden; float:left; width:0px; =
+max-height:0px; max-width:0px; line-height:0px; visibility:hidden;"><img =
+src=3D"https://www.xing.com/assets/mail/v2/XING_logo_invert_lay5.png" cla=
+ss=3D"LightImage" width=3D"81" border=3D"0" alt=3D"" style=3D"width:81px;=
+height:23px;text-decoration: none; margin: 0 auto; padding: 0;" />
+                              </div><!--<![endif]-->
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+                    <!--[if gte mso 12|IE]>
+                    </td>
+                    <td width=3D"322" valign=3D"top" style=3D"width:322x;=
+">
+                    <![endif]-->
+                    <div class=3D"columnRight" style=3D"width:100%;max-wi=
+dth:325px;display:inline-block;vertical-align:top;">
+                      <table align=3D"left" border=3D"0" cellspacing=3D"0=
+" cellpadding=3D"0" role=3D"presentation">
+                        <tr>
+                          <td colspan=3D"2" class=3D"DarkmodeWhiteText" s=
+tyle=3D"padding-top:24px; font-family:XING-Sans,Helvetica,Arial,sans-seri=
+f; line-height:1.125em; color:#1D2124; font-size:0.875em; text-align:left=
+;font-size:small; font-size:max(14px, 0.875rem);">Hol Dir die kostenlose =
+XING App:
+                          </td>
+                        </tr>
+                        <tr>
+                          <td width=3D"140" align=3D"left" valign=3D"top"=
+ style=3D"width:140px;padding-top:12px;padding-right:4px;">
+                            <a href=3D"https://www.xing.com/m/YahMNMkDcJ-=
+e_vX5zzi7R" target=3D"_blank" style=3D"color: #1D2124;text-decoration: no=
+ne;">
+                              <img src=3D"https://www.xing.com/assets/mai=
+l/v2/google_play_DE@2x.jpg" class=3D"DarkmodeBorder" width=3D"134" height=
+=3D"40" alt=3D"Google Play Store" border=3D"0" style=3D"width:134px; font=
+-family:XING-Sans,Helvetica,Arial,sans-serif; font-size: 0.875em; color:#=
+1D2124;"/></a>
+                          </td>
+                          <td align=3D"left" valign=3D"top" width=3D"178"=
+ style=3D"padding-top: 12px;width:178px;">
+                            <a href=3D"https://www.xing.com/m/YahMNMkDcJ-=
+e_vX5zzi7Q" target=3D"_blank" style=3D"color: #1D2124;text-decoration: no=
+ne;">
+                              <img src=3D"https://www.xing.com/assets/mai=
+l/v2/app_store_DE@2x.jpg" class=3D"DarkmodeBorder" width=3D"120" height=3D=
+"40" alt=3D"Apple App Store" border=3D"0" style=3D"width:120px; font-fami=
+ly:XING-Sans,Helvetica,Arial,sans-serif; font-size: 0.875em; color:#1D212=
+4;"/></a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan=3D"2" class=3D"DarkmodeWhiteText" s=
+tyle=3D"padding-top:24px; font-family:XING-Sans,Helvetica,Arial,sans-seri=
+f; line-height:1.125em; color:#1D2124; font-size:0.875em; text-align:left=
+;font-size:small; font-size:max(14px, 0.875rem);">Folg uns f=C3=BCr Tipps=
+ zu Deiner Job-Suche:
+                          </td>
+                        </tr>
+                          <tr>
+                            <td colspan=3D"2" style=3D"padding-top: 8px;"=
+>
+                              <table align=3D"left" border=3D"0" cellspac=
+ing=3D"0" cellpadding=3D"0" role=3D"presentation">
+                                <tr>
+                                  <td style=3D"padding-right: 10px;">
+                                    <a href=3D"https://www.xing.com/m/Yah=
+MNMkDcJ-e_vX5zzi7T" class=3D"DarkmodeWhiteText" target=3D"_blank" style=3D=
+"border: 0px; color: #1D2124; text-decoration: none;">
+  <img src=3D"https://www.xing.com/assets/mail/v2/Icon-XING.png" width=3D=
+"22" height=3D"24" alt=3D"Folg uns auf XING" border=3D"0" style=3D"width:=
+22px;height:24px;display:block;font-family:XING-Sans,Helvetica,Arial,sans=
+-serif;color:#1D2124;font-size:0.875em;font-size:medium;font-size:max(14p=
+x, 0.875rem);" />
+</a>
+
+                                </td>
+                                <td style=3D"padding-right: 10px;">
+                                  <a href=3D"https://www.xing.com/m/YahMN=
+MkDcJ-e_vX5zzi7U" class=3D"DarkmodeWhiteText" target=3D"_blank" style=3D"=
+border: 0px; color: #1D2124; text-decoration: none;">
+  <img src=3D"https://www.xing.com/assets/mail/v2/Icon-YouTube.png" width=
+=3D"25" height=3D"24" alt=3D"Folg uns auf YouTube" border=3D"0" style=3D"=
+width:25px;height:24px;display:block;font-family:XING-Sans,Helvetica,Aria=
+l,sans-serif;color:#1D2124;font-size:0.875em;font-size:medium;font-size:m=
+ax(14px, 0.875rem);" />
+</a>
+
+                                </td>
+                                <td style=3D"padding-right: 10px;">
+                                  <a href=3D"https://www.xing.com/m/YahMN=
+MkDcJ-e_vX5zzi7V" class=3D"DarkmodeWhiteText" target=3D"_blank" style=3D"=
+border: 0px; color: #1D2124; text-decoration: none;">
+  <img src=3D"https://www.xing.com/assets/mail/v2/Icon-TikTok.png" width=3D=
+"24" height=3D"24" alt=3D"Folg uns auf TikTok" border=3D"0" style=3D"widt=
+h:24px;height:24px;display:block;font-family:XING-Sans,Helvetica,Arial,sa=
+ns-serif;color:#1D2124;font-size:0.875em;font-size:medium;font-size:max(1=
+4px, 0.875rem);" />
+</a>
+
+                                </td>
+                                <td style=3D"padding-right: 10px;">
+                                  <a href=3D"https://www.xing.com/m/YahMN=
+MkDcJ-e_vX5zzi7W" class=3D"DarkmodeWhiteText" target=3D"_blank" style=3D"=
+border: 0px; color: #1D2124; text-decoration: none;">
+  <img src=3D"https://www.xing.com/assets/mail/v2/Icon-Instagram.png" wid=
+th=3D"25" height=3D"24" alt=3D"Folg uns auf Instagram" border=3D"0" style=
+=3D"width:25px;height:24px;display:block;font-family:XING-Sans,Helvetica,=
+Arial,sans-serif;color:#1D2124;font-size:0.875em;font-size:medium;font-si=
+ze:max(14px, 0.875rem);" />
+</a>
+
+                                </td>
+                                <td style=3D"padding-right: 10px;">
+                                  <a href=3D"https://www.xing.com/m/YahMN=
+MkDcJ-e_vX5zzi7X" class=3D"DarkmodeWhiteText" target=3D"_blank" style=3D"=
+border: 0px; color: #1D2124; text-decoration: none;">
+  <img src=3D"https://www.xing.com/assets/mail/v2/Icon-Facebook.png" widt=
+h=3D"21" height=3D"24" alt=3D"Folg uns auf Facebook" border=3D"0" style=3D=
+"width:21px;height:24px;display:block;font-family:XING-Sans,Helvetica,Ari=
+al,sans-serif;color:#1D2124;font-size:0.875em;font-size:medium;font-size:=
+max(14px, 0.875rem);" />
+</a>
+
+                                </td>
+                                <td>
+                                  <a href=3D"https://www.xing.com/m/YahMN=
+MkDcJ-e_vX5zzi7E" class=3D"DarkmodeWhiteText" target=3D"_blank" style=3D"=
+border: 0px; color: #1D2124; text-decoration: none;">
+  <img src=3D"https://www.xing.com/assets/mail/v2/Icon-Twitter.png" width=
+=3D"30" height=3D"24" alt=3D"Folg uns auf Twitter" border=3D"0" style=3D"=
+width:30px;height:24px;display:block;font-family:XING-Sans,Helvetica,Aria=
+l,sans-serif;color:#1D2124;font-size:0.875em;font-size:medium;font-size:m=
+ax(14px, 0.875rem);" />
+</a>
+
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan=3D"2" class=3D"DarkmodeGreyText" st=
+yle=3D"padding-top:24px; font-family:XING-Sans,Helvetica,Arial,sans-serif=
+; font-size: 0.75em; color: #5E737D; text-align: left; font-weight:normal=
+; line-height: 1.5em;font-size:small; font-size:max(12px, 0.75rem);">New =
+Work SE, Baumwall 7, 20&#65279;45&#65279;9 Hamburg, Deutschland, Tel.:  +=
+49&nbsp;40&nbsp;419&nbsp;131&nbsp;0, Email:&nbsp;<a class=3D"DarkmodeGrey=
+Text" href=3D"mailto:info@xing.com" style=3D"text-decoration: underline; =
+font-family:XING-Sans,Helvetica,Arial,sans-serif; font-size: 1em;color: #=
+5E737D; ">info@xing.com</a>&ensp;&ensp;Amtsgericht&nbsp;HRB&nbsp;14=EF=BB=
+=BF80=EF=BB=BF78&ensp;&ensp;Vorstand:&nbsp;Henning&nbsp;R=C3=B6nneberg&nb=
+sp;(Vorsitzender),&ensp;Aufsichtsratsvorsitzender:&nbsp;Dr.&nbsp;Maximili=
+an&nbsp;Preisser
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan=3D"2" class=3D"DarkmodeGreyText" st=
+yle=3D"padding-top:8px; font-family:XING-Sans,Helvetica,Arial,sans-serif;=
+ font-size: 0.75em; color: #5E737D; text-align: left; font-weight:bold; l=
+ine-height: 1.125em;font-size:small; font-size:max(12px, 0.75rem);">Recru=
+iter=C2=B7innen bekommen ein Signal, wenn Du auf eine der hier empfohlene=
+n Job-Anzeigen klickst.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan=3D"2" class=3D"DarkmodeGreyText" st=
+yle=3D"padding-top:8px; font-family:XING-Sans,Helvetica,Arial,sans-serif;=
+ font-size: 0.75em; color: #5E737D; text-align: left; font-weight:normal;=
+ line-height: 1.5em;font-size:small; font-size:max(12px, 0.75rem);">
+                              <b>Bitte antworte nicht auf diese E-Mail.</=
+b> Nutz stattdessen gern das <a href=3D'https://www.xing.com/m/YahMNMkDcJ=
+-e_vX5zzi7N' target=3D'_blank' class=3D'DarkmodeGreyText' style=3D'text-d=
+ecoration:underline; font-family:XING-Sans,Helvetica,Arial,sans-serif; fo=
+nt-size:1em; color:#5E737D;'>Kontaktformular</a>.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan=3D"2" class=3D"DarkmodeGreyText" st=
+yle=3D"padding-top:8px; font-family:XING-Sans,Helvetica,Arial,sans-serif;=
+ font-size: 0.75em; color: #5E737D; text-align: left; font-weight:normal;=
+ line-height: 1.5em;font-size:small; font-size:max(12px, 0.75rem);">
+                            Wir haben diese E-Mail an n***o@gmail.com ges=
+endet.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan=3D"2" class=3D"DarkmodeGreyText" st=
+yle=3D"padding-top:24px; text-align:left; font-family:XING-Sans,Helvetica=
+,Arial,sans-serif; font-size:1em; color:#5E737D; line-height:1.5em;font-s=
+ize:medium; font-size:max(16px, 1rem);">
+                            <a href=3D"https://www.xing.com/m/YahMNMkDcJ-=
+e_vX5zzi7J" target=3D"_blank" class=3D"DarkmodeGreyText" style=3D" text-d=
+ecoration: underline; font-family:XING-Sans,Helvetica,Arial,sans-serif; f=
+ont-size: 0.75em; color: #5E737D;">Datenschutz</a>&ensp;&ensp;
+                            <a href=3D"https://www.xing.com/m/YahMNMkDcJ-=
+e_vX5zzi7M" target=3D"_blank" class=3D"DarkmodeGreyText" style=3D"text-de=
+coration:underline; font-family:XING-Sans,Helvetica,Arial,sans-serif; fon=
+t-size:0.75em; color:#5E737D; line-height:1.5em;"
+                            >Abbestellen</a>&ensp;&ensp;
+                            <a href=3D"https://www.xing.com/m/YahMNMkDcJ-=
+e_vX5zzi7L" target=3D"_blank" class=3D"DarkmodeGreyText" style=3D"text-de=
+coration:underline; font-family:XING-Sans,Helvetica,Arial,sans-serif; fon=
+t-size:0.75em; color:#5E737D;">Kontakt</a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colspan=3D"2" height=3D"64" style=3D"height=
+:64px;line-height:0px;"><span aria-hidden=3D"true">&nbsp;</span></td>
+                        </tr>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+            <td width=3D"7%"></td>
+          </tr>
+        </table>
+       <!--[if gte mso 12|IE]>
+          </td>
+        </tr>
+      </table>
+      <![endif]-->
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+
+----==_mimepart_6a689a3e96464_a6e381206eb--
