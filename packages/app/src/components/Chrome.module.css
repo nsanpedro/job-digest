@@ -1,0 +1,72 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+}
+
+.logo {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-badge);
+  background: var(--ink);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.brandLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px 10px;
+  border-radius: 5px 5px 0 0;
+  border: 1px solid transparent;
+  border-bottom: none;
+  margin-bottom: -1px;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.tabActive {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.badge {
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 7px;
+  line-height: 1.4;
+}

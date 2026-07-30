@@ -197,7 +197,10 @@ describe('normalizeAd — assembly and the I5 property', () => {
     expect(facts.home).toBeNull(); // "Hamburg" says nothing about home office
     expect(facts.permanent).toBeNull(); // Vollzeit says nothing about duration
     expect(wording.Pay?.quote).toBe('47.000 € - 69.500 €');
-    expect(wording.Pay?.note).toContain('annual band ÷ 12');
+    // The chip value is the monthly figure the rule evaluates, not the raw
+    // annual band — showing "47.000 €" as the chip would misread as monthly.
+    expect(wording.Pay?.value).toBe('≈ 3.917 € – 5.792 €/mo');
+    expect(wording.Pay?.note).toContain('annual, ÷ 12');
   });
 
   it('freelance pill decides the contract axis', () => {

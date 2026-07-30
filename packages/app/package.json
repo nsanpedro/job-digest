@@ -1,0 +1,29 @@
+{
+  "name": "@job-digest/app",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@job-digest/core": "*",
+    "@job-digest/db": "*",
+    "@job-digest/ingest": "*",
+    "@job-digest/worker": "*",
+    "drizzle-orm": "^0.44.0",
+    "next": "^15.4.0",
+    "postgres": "^3.4.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.8.0"
+  }
+}

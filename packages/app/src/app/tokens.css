@@ -1,0 +1,76 @@
+/*
+ * Design tokens, transcribed from docs/system-design.md's handoff section
+ * (originally the Claude Design prototype's `C` / `EDGE` constants and
+ * "Design Tokens" table). Values are copied verbatim — this file is a
+ * transcription, not a redesign.
+ */
+
+:root {
+  /* Neutrals */
+  --page: oklch(0.972 0.003 95);
+  --surface: #fff;
+  --surface-sunken: oklch(0.985 0.002 95);
+  --surface-muted: oklch(0.978 0.002 95);
+  --text: oklch(0.24 0.008 260);
+  --text-strong-alt: oklch(0.3 0.01 260);
+  --text-secondary: oklch(0.4 0.01 260);
+  --text-muted: oklch(0.5 0.01 260);
+  --text-muted-2: oklch(0.52 0.01 260);
+  --text-muted-3: oklch(0.55 0.01 260);
+  --text-faint: oklch(0.6 0.01 260);
+  --border: oklch(0.89 0.004 260);
+  --border-soft: oklch(0.91 0.004 260);
+  --border-soft-2: oklch(0.94 0.004 260);
+  --separator: oklch(0.78 0.004 260);
+  --ink: oklch(0.26 0.008 260);
+  --link: oklch(0.47 0.09 250);
+  --link-hover: oklch(0.38 0.1 250);
+
+  /* Rule states: bg / fg / bd triplets + glyph */
+  --pass-bg: oklch(0.955 0.03 150);
+  --pass-fg: oklch(0.42 0.075 152);
+  --pass-bd: oklch(0.87 0.05 150);
+  --pass-edge: oklch(0.8 0.06 150);
+
+  --warn-bg: oklch(0.96 0.045 85);
+  --warn-fg: oklch(0.46 0.09 70);
+  --warn-bd: oklch(0.88 0.06 85);
+  --warn-edge: oklch(0.82 0.09 85);
+
+  --block-bg: oklch(0.955 0.035 25);
+  --block-fg: oklch(0.46 0.11 25);
+  --block-bd: oklch(0.87 0.055 25);
+  --block-edge: oklch(0.8 0.09 25);
+
+  --unknown-bg: oklch(0.955 0.003 260);
+  --unknown-fg: oklch(0.5 0.008 260);
+  --unknown-bd: oklch(0.9 0.004 260);
+  --unknown-edge: oklch(0.88 0.004 260);
+
+  /* Saved-toggle accent */
+  --saved-bg: oklch(0.95 0.03 250);
+  --saved-fg: oklch(0.4 0.09 250);
+  --saved-bd: oklch(0.85 0.05 250);
+
+  /* Failed-email banner (amber) */
+  --amber-bd: oklch(0.88 0.05 85);
+  --amber-bg: oklch(0.98 0.02 85);
+  --amber-fg: oklch(0.42 0.03 85);
+
+  /* Failed-email badge (red-ish, distinct from block) */
+  --badge-bg: oklch(0.94 0.035 25);
+  --badge-fg: oklch(0.45 0.11 25);
+
+  /* Type — next/font supplies the loaded family via --font-sans-loaded */
+  --font-sans: var(--font-sans-loaded), Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-mono-loaded), monospace;
+
+  /* Radii */
+  --radius-card: 6px;
+  --radius-btn: 5px;
+  --radius-chip: 4px;
+  --radius-badge: 3px;
+  --radius-pill: 20px;
+
+  --content-max: 1120px;
+}

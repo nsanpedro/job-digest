@@ -1,0 +1,36 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--page);
+  color: var(--text);
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.45;
+}
+
+button {
+  font-family: inherit;
+}
+
+.container {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 24px 96px;
+}
+
+/* Único: animación del punto durante "running" (design §, "Espaciado, radios, misc") */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}

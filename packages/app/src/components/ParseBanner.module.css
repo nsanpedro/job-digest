@@ -1,0 +1,40 @@
+.banner {
+  margin-top: 32px;
+  border: 1px solid var(--amber-bd);
+  background: var(--amber-bg);
+  border-radius: var(--radius-card);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.text {
+  flex: 1;
+  min-width: 240px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.headline {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.detail {
+  color: var(--amber-fg);
+}
+
+.btn {
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--amber-bd);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  font-family: var(--font-sans);
+}

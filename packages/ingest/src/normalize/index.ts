@@ -58,8 +58,13 @@ export function normalizeAd(
       facts.fteNote = p.fteNote;
       const monthly =
         p.payMax !== null && p.payMax !== p.pay ? `${eur(p.pay)} – ${eur(p.payMax)}` : eur(p.pay);
+      // The chip value is always the monthly figure the Pay rule actually
+      // evaluates — never the raw annual band. Showing "60.000 € - 75.000 €"
+      // as the chip would read as a monthly floor of 60k and misrepresent
+      // what the rule tested. The literal source stays in the I5-verified
+      // quote, and the derivation is spelled out in the note.
       wording.Pay = p.derivedFromAnnual
-        ? entry(src, src, `≈ ${monthly} / month — annual band ÷ 12, no 13th salary assumed`)
+        ? entry(`≈ ${monthly}/mo`, src, `${src} annual, ÷ 12 — no 13th salary assumed`)
         : entry(monthly, src, '');
     }
   }
