@@ -21,7 +21,7 @@ if (!url) throw new Error('DATABASE_URL is not set');
 const client = postgres(url, { max: 5 });
 const pool = drizzle(client);
 
-type Db = PostgresJsDatabase<Record<string, unknown>>;
+export type Db = PostgresJsDatabase<Record<string, unknown>>;
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 export async function withTenant<T>(userId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
@@ -30,4 +30,16 @@ export async function withTenant<T>(userId: string, fn: (tx: Tx) => Promise<T>):
     await tx.execute(sql`SELECT set_config('app.user_id', ${userId}, true)`);
     return fn(tx);
   });
+}
+
+/**
+ * The raw pool, for the one legitimate reason to bypass this file's own
+ * app_user scoping: handing it to @job-digest/worker's withTenant (the
+ * `worker` role) when a flow needs to read mailboxes.credentials_enc, which
+ * app_user cannot even SELECT (I13). SET LOCAL ROLE is transaction-scoped,
+ * so reusing this pool for both roles is safe — no session-level leakage
+ * between an app_user transaction and a worker transaction.
+ */
+export function rawPool(): Db {
+  return pool;
 }

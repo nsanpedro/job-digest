@@ -9,7 +9,7 @@
  * assertion, not an expected runtime path.
  */
 import { auth } from '@/auth';
-import { withTenant } from './db';
+import { rawPool, withTenant } from './db';
 
 export async function currentUser(): Promise<{ id: string; email: string }> {
   const session = await auth();
@@ -25,4 +25,4 @@ export async function currentUserId(): Promise<string> {
   return (await currentUser()).id;
 }
 
-export { withTenant };
+export { rawPool, withTenant };
