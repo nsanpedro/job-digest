@@ -10,6 +10,13 @@
   gap: 24px;
 }
 
+@media (max-width: 640px) {
+  .card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
 .chip {
   font-family: var(--font-mono);
   font-size: 11px;

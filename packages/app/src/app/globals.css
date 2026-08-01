@@ -24,6 +24,12 @@ button {
   padding: 0 24px 96px;
 }
 
+@media (max-width: 480px) {
+  .container {
+    padding: 0 16px 96px;
+  }
+}
+
 /* Único: animación del punto durante "running" (design §, "Espaciado, radios, misc") */
 @keyframes pulse {
   0%,

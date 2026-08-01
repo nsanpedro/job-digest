@@ -88,3 +88,19 @@
   height: 1px;
   background: var(--border-soft);
 }
+
+@media (max-width: 640px) {
+  .laneLegend {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .laneLegendText {
+    white-space: normal;
+  }
+
+  .laneLegendRule {
+    display: none;
+  }
+}

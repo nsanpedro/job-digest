@@ -48,6 +48,19 @@
   gap: 2px;
 }
 
+@media (max-width: 640px) {
+  .tabs {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .tab {
   display: inline-flex;
   align-items: center;
