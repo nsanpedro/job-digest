@@ -1,11 +1,15 @@
 # Job Digest — System Design
 
-Status: draft v2 for review · 30 July 2026
+Status: draft v3 for review · 1 August 2026
 Input: `job_digest.zip` handoff bundle (Claude Design), prototype `Job Digest.dc.html` (4 screens)
 
 Changes from v1: multi-tenant web service from day one (§2), credential handling promoted to a
 first-class concern (§4), the rule engine rewritten as a real engine (§7), layout
 fingerprinting and cross-tenant regression detection added (§5.3).
+
+Changes from v2: application tracking (§9, I15/I16) — the first extension past triage, and one
+whose shape is dictated by what I14 makes unknowable; search modes as a pure ruleset transform
+(§7.7); mobile layout built (§12).
 
 ---
 
@@ -32,7 +36,16 @@ This one optimizes three things:
 ### Explicit non-goals
 
 No scraping. No automated applications. No email digest (the whole point is that email does
-not get read). No mobile yet (not designed).
+not get read).
+
+### Where the scope has since moved
+
+The framing above is about triage, and triage is where the product started. Application
+tracking (§9, I15/I16) extends it one step down the funnel: the same ad, after the decision.
+That is a deliberate widening — deciding fast is worth fifteen minutes a week, but the
+spreadsheet everyone maintains by hand alongside it is worth more, and the system already holds
+the ad it would refer to. It is not a widening into acting on the user's behalf: §12's line
+about auto-apply and recruiter replies stands, and I15 is what keeps it standing.
 
 ### Scale
 
@@ -150,6 +163,22 @@ performed by the user's own mail server.**
 outside it is not downloaded and discarded — it is never requested, so it never crosses the
 network. The allowlist lives in code, not in a database column someone can edit. Enforced in
 the IMAP wrapper alongside I8 and asserted by the same class of test.
+
+**I15 — Application state is asserted by the user, never inferred.**
+The system does not know whether you applied, and does not know whether an employer replied.
+It cannot: I14 confines fetching to alert senders, and a rejection letter is not one of them —
+it is never requested. Every application event therefore carries an author, and that author is
+always the user. This is what keeps the login screen's second promise (*"never applies to a job
+or answers a recruiter on your behalf"*) true while still tracking a search, and it constrains
+the copy the same way I4 constrains facts: the follow-up nudge says *"you marked this applied
+12 days ago and have not updated it"*, never *"they have not replied"*. We do not get to say
+the second sentence, so we do not write it.
+
+**I16 — An application record is never filtered.**
+Rule verdicts and dismissal govern the digest. They never govern the applications view. Because
+evaluation happens at read time (I6), a tightened rule would otherwise erase an ad the user had
+already applied to — editing a filter would silently destroy their own history. Once an ad has
+one application event it is permanently addressable, whatever the current ruleset says about it.
 
 ---
 
@@ -614,6 +643,48 @@ predicates (*"accept no home office if the commute is under 20 minutes"*), the p
 the score, without touching a designed grid. Promoting it to a sixth lane needs a design
 pass first.
 
+### 7.7 Search modes
+
+A job search has two registers. Someone with two months of runway wants coverage and tolerates
+noise; someone employed and curious wants silence unless something is genuinely worth the
+interruption. The same ruleset should serve both, because they are the same person at different
+times — often the same week.
+
+A mode is **a pure transform on the ruleset, applied at read time**:
+
+```ts
+type Mode = 'urgent' | 'steady';
+declare function applyMode(saved: Ruleset, mode: Mode): Ruleset;
+```
+
+Everything downstream is unchanged, because I6 already says evaluation is a pure function of
+`(facts, ruleset)` computed on read. Switching modes re-parses nothing, migrates nothing, and
+is reversible in one click. The Profile delta preview (§10, `/api/ruleset/preview`) is a diff
+between two rulesets, so it shows exactly what a mode would let in *before* it is switched on —
+that comes free rather than as a feature.
+
+**The transform changes severity, never thresholds.** In `urgent`, every `hard` rule becomes a
+`preference`: nothing is filtered out, everything is listed, and what does not fit is flagged
+with the reason it does not fit. In `steady`, the saved severities apply as authored.
+
+Widening the numbers instead was rejected. A 10% haircut on a €2.600 floor is an invented
+number, and the system has no basis for inventing it — that floor is the user's. It does have a
+basis for the severity change, and it renders as one sentence of English, which is §7.2's test
+for whether a rule concept is admissible: *"In urgent mode, missing your pay floor flags the ad
+instead of hiding it."* It is also I4's trade — a false negative costs more than a false
+positive — pushed further along the axis it already points down, rather than a second mechanism
+with its own failure modes.
+
+Mode is stored as a column on `rulesets`, so switching it creates a version. That is honest
+(the behaviour of your rules did change) and it preserves the property §7.4's replay rests on:
+**a ruleset version fully determines evaluation.** Recording mode anywhere else would make a
+replay under version V ambiguous.
+
+Cadence — daily runs, immediate notification — is *not* part of this. It reads as one feature
+with mode, but it needs scheduled ingestion and outbound mail, neither of which exists (§4.5
+wires Postmark for inbound only), and it is bounded by whatever cron frequency the host allows.
+Splitting them keeps the cheap, pure half shippable now. §13.7.
+
 ---
 
 ## 8. LLM boundary
@@ -656,8 +727,8 @@ which here is a feature.
 accounts ──┬──< mailboxes ──< raw_emails ──┬──< email_parses
            │                               │
            │                               └──< ad_sightings >── ads ──┬──< ad_narratives
-           │                                                          │
-           ├──< rulesets (versioned)                                  └──< ad_user_state
+           │                                                          ├──< ad_user_state
+           ├──< rulesets (versioned)                                  └──< application_events
            ├──< profiles (versioned)
            └──< runs
 
@@ -715,12 +786,37 @@ presentation and breaks re-evaluation.
 **`ad_narratives`** — `(ad_id, profile_version, prompt_version)` unique. Cache keyed by
 version, not TTL.
 
-**`rulesets`** — `version`, `rules JSONB` (§7.2), `saved_at`, `is_active`. Versioned because
-Profile diffs draft against saved, and because §7.4 replays history under a named version.
+**`rulesets`** — `version`, `rules JSONB` (§7.2), `mode` (§7.7), `saved_at`, `is_active`.
+Versioned because Profile diffs draft against saved, and because §7.4 replays history under a
+named version. `mode` lives here rather than on `accounts` so that a version keeps fully
+determining evaluation — the property the replay depends on.
 
 **`ad_user_state`** — `saved`, `seen`, `dismissed_at`, `overridden_at`,
 `override_ruleset_version`, `override_rule_key`. Separate from `ads` because of I10: the
 worker owns `ads`, the user owns this. The override columns feed §7.5.
+
+**`application_events`** — `ad_id`, `status`, `at`, `note`. Append-only: the current status of
+an application is its latest event, derived, never stored as a column. This follows I1 and I2's
+shape — insert, do not mutate — for the same reason they do: the history is the interesting
+artifact. It buys three things at once. The timeline renders itself. The follow-up nudge gets
+its clock (days since the last event) without a second field to keep in sync. And *"how long
+does my pipeline actually take"* becomes answerable by aggregation rather than by new storage,
+the same trick §7.4 pulls with replay.
+
+`status` is a closed enum, for the same reason `cause_code` is: each value needs authored copy,
+and an open set means unauthored copy.
+
+| `status` | Meaning |
+| --- | --- |
+| `applied` | The user sent an application. Asserted, not detected (I15). |
+| `interviewing` | Any live conversation — screen, technical, on-site. Deliberately not split. |
+| `offer` | An offer exists. |
+| `rejected` | The employer ended it. |
+| `withdrawn` | The user ended it. |
+
+The last three are terminal for the nudge: they stop the clock rather than deleting anything.
+Nothing here is ever deleted, because I16 means a record survives any later change to the rules
+that surfaced the ad in the first place.
 
 ### 9.1 `Facts`
 
@@ -758,11 +854,13 @@ Thin — RSC reads Postgres directly for page loads. These exist for mutations a
 | `GET` | `/api/rules/:key/record` | §7.4 replay: ads this rule blocked, sole-blocker first. |
 | `GET` | `/api/rules/proposals` | §7.5, with evidence and cost. |
 | `PATCH` | `/api/ads/:id/state` | `saved`\|`seen`\|`dismissed`\|`overridden`. Optimistic client. |
+| `POST` | `/api/ads/:id/applications` | Appends an event (I15). Never updates — the latest event is the status. |
+| `PUT` | `/api/ruleset/mode` | §7.7. Creates a version, like any other rule change. |
 | `POST`/`DELETE` | `/api/mailboxes` | Verifies by connecting before storing (§4.2). |
 | `POST` | `/api/reparse` | Re-run current `parser_version` over stored emails (I2). Ops. |
 | `POST` | `/api/stripe/webhook` | Idempotent on Stripe event id. |
 
-Pages: `/digest`, `/unread`, `/profile`, `/connect`, `/billing`.
+Pages: `/digest`, `/unread`, `/applications`, `/profile`, `/connect`, `/billing`.
 
 ### Failure surfaces the backend must produce
 
@@ -806,9 +904,10 @@ Per-user volume is small and stays small. What grows is tenants.
 | OAuth for Gmail/Outlook | Blocked on CASA verification (§4.1). Added as a method, not a migration, once cleared. |
 | OCR for image-only emails | One email per week per user; the design chose to report the hole honestly. |
 | Auto-apply, recruiter replies | Product non-goal and a promise on the login screen. |
+| Detecting that a user applied, or that an employer answered | Not a deferral — unbuildable without breaking I14, which is why I15 makes application state user-asserted instead. |
 | Platform scraping | Same. |
 | Roles, teams, invitations | One user per account. RLS is in place; the rest is not needed. |
-| Mobile layout | Not designed. The metrics grid and the `1fr 260px` panel need a pass first. |
+| ~~Mobile layout~~ | **Now built** — the nav scrolls within its own bounds and both fixed-width detail grids collapse to one column under 640px. Verified 320–1280px. |
 | More than one exception per rule | §7.2 — the second exception is where rules stop being explainable. |
 
 ## 13. Open decisions
@@ -824,7 +923,14 @@ Per-user volume is small and stays small. What grows is tenants.
    as drawn has no affordance for *"— or 2.300 € if fully remote"*. Needs a design pass.
 5. **Knockout treatment and density** — the handoff recommends `lane` + `cards`. Accepting it
    resolves both to constants and deletes the variant code.
-6. **Free-tier boundary** (§2). Proposal is one mailbox, current week only. Needs a call.
+6. **Free-tier boundary** (§2). Proposal is one mailbox, current week only. Needs a call. One
+   line is ruled out already: `urgent` mode (§7.7) does not go behind the paywall. The user in
+   the urgent register is the one with the most need and the least ability to pay, and metering
+   their mode is the wrong trade both ethically and commercially. Meter mailboxes, history
+   depth, or active applications instead.
+7. **Ingestion cadence and notification** — the half of §7.7 that was split off. Needs
+   scheduled runs and outbound mail, and is capped by the host's cron frequency. Unresolved
+   until that limit is measured rather than assumed.
 
 ## 14. Test strategy
 
