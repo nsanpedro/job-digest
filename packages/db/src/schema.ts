@@ -147,6 +147,15 @@ export const mailboxes = pgTable(
     /** What makes "the app password expired on 27 Jul" a stored date, not a guess. */
     credentialExpiresAt: timestamp('credential_expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Watermark for incremental fetch. Null means "never synced" — the fetch
+     * falls back to a fixed lookback window (§6.1's original scope cut). Set
+     * only after a run completes, to a timestamp captured *before* that run's
+     * fetch started, with a safety buffer — the fetch's own message_id dedup
+     * makes a slightly wider window free, but a watermark set too late could
+     * silently skip a message that arrived mid-run.
+     */
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
   },
   (t) => [
     uniqueIndex('mailboxes_user_address').on(t.userId, t.emailAddress),

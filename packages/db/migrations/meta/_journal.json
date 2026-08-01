@@ -36,6 +36,20 @@
       "when": 1785588144190,
       "tag": "0004_applications_and_search_modes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785611731844,
+      "tag": "0005_mailbox_sync_watermark",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785612300000,
+      "tag": "0006_grant_last_synced_at",
+      "breakpoints": true
     }
   ]
 }

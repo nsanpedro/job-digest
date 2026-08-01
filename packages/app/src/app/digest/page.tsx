@@ -17,6 +17,12 @@ import { currentUser, withTenant } from '@/lib/session';
 
 // Reads live data and drives server-action revalidation — never statically cached.
 export const dynamic = 'force-dynamic';
+// "Update now" schedules its Gmail fetch via after() (see startRefresh in
+// lib/actions.ts), which keeps running past the client's request but is
+// still bounded by this route's execution budget. 60s is Vercel Hobby's
+// ceiling — raise it if the plan changes, and this is still unverified
+// against a mailbox large enough to actually hit it.
+export const maxDuration = 60;
 
 export default async function DigestPage() {
   const user = await currentUser();

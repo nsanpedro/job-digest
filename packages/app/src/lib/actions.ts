@@ -13,9 +13,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { DEFAULT_RULESET, type Mode, type Ruleset } from '@job-digest/core';
 import { applicationEvents, adUserState, mailboxes, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   generateInboundAddress,
   GmailAuthError,
@@ -76,27 +77,28 @@ export async function undoOverride(adId: string): Promise<void> {
 /**
  * "Update now" (design, the four-state refresh button).
  *
- * A real Google mailbox fetches for real: Gmail's API, the stored (and only
- * now spent) OAuth refresh token, allowlist-scoped search, one transaction
- * per email through the same ingestEmail() every acquisition path uses. Any
- * other mailbox (the dev seed account's fake app_password one) falls back to
- * re-ingesting the local fixture corpus — there's nothing real to fetch for
- * that account, and the fallback is what makes local development possible
- * without a live Google connection.
+ * Split into two actions rather than one blocking call. The original single
+ * `refreshDigest()` awaited the entire Gmail fetch before returning anything
+ * to the client — found live to be the reason the button just sat on
+ * "Reading the inbox…" with no number attached, sometimes for tens of
+ * seconds: every click re-scanned the last 90 days sequentially (fixed
+ * separately, in ingestFromGmail), and there was nowhere for progress to go
+ * even once that was faster.
  *
- * Reading mailboxes.credentials_enc requires the `worker` DB role (I13) —
- * app_user has no grant on that column at all. That read runs through
- * @job-digest/worker's withTenant (aliased workerWithTenant here to avoid
- * colliding with this file's own app_user-scoped withTenant), on the same
- * connection pool app_user uses elsewhere (SET LOCAL ROLE is
- * transaction-scoped, so sharing the pool across both roles is safe).
+ * `startRefresh` creates the run row and returns its id immediately; the
+ * actual ingestion is handed to `after()` (Next's wrapper around Vercel's
+ * `waitUntil`) so it keeps running past the point the client's request
+ * finishes. The client polls `getRunProgress(runId)` on an interval and
+ * reads `runs.emails_total`/`emails_processed`, which `runIngestion` updates
+ * as it goes rather than only at the end — this is what turns "Reading the
+ * inbox…" into "Reading the inbox… 4 of 12".
+ *
+ * A caveat worth stating rather than discovering: `after()` work still has
+ * to finish inside the invoking function's execution budget (Vercel's
+ * `maxDuration` for the route, set in digest/page.tsx) — it runs longer than
+ * the client's request, not indefinitely.
  */
-export async function refreshDigest(): Promise<{
-  processed: number;
-  created: number;
-  found?: number;
-  failed?: number;
-}> {
+export async function startRefresh(): Promise<{ runId: string }> {
   const userId = await currentUserId();
 
   // Explicit columns, not select(): app_user has no grant on
@@ -104,22 +106,56 @@ export async function refreshDigest(): Promise<{
   // Postgres, not just discouraged — this is the boundary actually holding.
   const mailbox = await withTenant(userId, (tx) =>
     tx
-      .select({ id: mailboxes.id, authKind: mailboxes.authKind, provider: mailboxes.provider })
+      .select({
+        id: mailboxes.id,
+        authKind: mailboxes.authKind,
+        provider: mailboxes.provider,
+        lastSyncedAt: mailboxes.lastSyncedAt,
+      })
       .from(mailboxes)
       .where(eq(mailboxes.userId, userId))
       .limit(1),
   );
   const mb = mailbox[0];
   if (!mb) throw new Error('no mailbox for this account');
-  const mailboxId = mb.id;
 
   const run = await withTenant(userId, (tx) =>
-    tx.insert(runs).values({ userId, mailboxId, parserVersion: PARSER_VERSION }).returning({ id: runs.id }),
+    tx.insert(runs).values({ userId, mailboxId: mb.id, parserVersion: PARSER_VERSION }).returning({ id: runs.id }),
   );
   const runId = run[0]!.id;
 
+  after(() =>
+    runIngestion({
+      userId,
+      mailboxId: mb.id,
+      runId,
+      authKind: mb.authKind,
+      provider: mb.provider,
+      lastSyncedAt: mb.lastSyncedAt,
+    }),
+  );
+
+  return { runId };
+}
+
+/**
+ * The work formerly done inline in refreshDigest, now running detached from
+ * the client's request (see startRefresh). Nothing here can throw back to a
+ * caller that's already gone — every failure path ends by recording status
+ * on the `runs` row, which is the only channel left to the client, via
+ * getRunProgress's polling.
+ */
+async function runIngestion(params: {
+  userId: string;
+  mailboxId: string;
+  runId: string;
+  authKind: string;
+  provider: string;
+  lastSyncedAt: Date | null;
+}): Promise<void> {
+  const { userId, mailboxId, runId } = params;
   try {
-    if (mb.authKind === 'oauth' && mb.provider === 'google') {
+    if (params.authKind === 'oauth' && params.provider === 'google') {
       const credRows = await workerWithTenant(rawPool(), userId, (tx) =>
         tx
           .select({ credentialsEnc: mailboxes.credentialsEnc })
@@ -130,52 +166,50 @@ export async function refreshDigest(): Promise<{
       const credentialsEnc = credRows[0]?.credentialsEnc;
       if (!credentialsEnc) throw new Error('mailbox has no stored credential');
 
-      const summary = await ingestFromGmail(rawPool(), { userId, mailboxId, runId, credentialsEnc });
+      // ingestFromGmail updates runs.emails_total/emails_processed itself as
+      // it goes (that's the whole point) and advances mailboxes.last_synced_at
+      // on success — this call is the only one in the app that passes `since`.
+      await ingestFromGmail(rawPool(), {
+        userId,
+        mailboxId,
+        runId,
+        credentialsEnc,
+        since: params.lastSyncedAt,
+      });
 
       await withTenant(userId, (tx) =>
-        tx
-          .update(runs)
-          .set({
-            status: 'ok',
-            emailsTotal: summary.found,
-            emailsProcessed: summary.processed,
-            finishedAt: new Date(),
-          })
-          .where(eq(runs.id, runId)),
+        tx.update(runs).set({ status: 'ok', finishedAt: new Date() }).where(eq(runs.id, runId)),
       );
-      revalidatePath('/digest');
-      revalidatePath('/unread');
-      return {
-        processed: summary.processed,
-        created: summary.created,
-        found: summary.found,
-        failed: summary.failed,
-      };
-    }
-
-    // Dev fallback — see doc comment above.
-    const fixturesRoot = join(process.cwd(), '../ingest/test/fixtures');
-    let processed = 0;
-    let created = 0;
-    for (const platform of ['linkedin', 'xing']) {
-      const dir = join(fixturesRoot, platform);
-      for (const file of readdirSync(dir).filter((f) => f.endsWith('.eml'))) {
-        const buf = readFileSync(join(dir, file));
-        const result = await withTenant(userId, (tx) => ingestEmail(tx, { userId, mailboxId, runId, raw: buf }));
-        processed++;
-        created += result.adsCreated;
+    } else {
+      // Dev fallback — nothing real to fetch for the seed account's fake
+      // app_password mailbox, so re-ingest the local fixture corpus instead.
+      // Bumps emails_processed the same incremental way the Gmail path does,
+      // so the progress UI behaves identically regardless of which path ran.
+      const fixturesRoot = join(process.cwd(), '../ingest/test/fixtures');
+      const files: Array<{ dir: string; file: string }> = [];
+      for (const platform of ['linkedin', 'xing']) {
+        const dir = join(fixturesRoot, platform);
+        for (const file of readdirSync(dir).filter((f) => f.endsWith('.eml'))) files.push({ dir, file });
       }
-    }
+      await withTenant(userId, (tx) => tx.update(runs).set({ emailsTotal: files.length }).where(eq(runs.id, runId)));
 
-    await withTenant(userId, (tx) =>
-      tx
-        .update(runs)
-        .set({ status: 'ok', emailsTotal: processed, emailsProcessed: processed, finishedAt: new Date() })
-        .where(eq(runs.id, runId)),
-    );
+      for (const { dir, file } of files) {
+        const buf = readFileSync(join(dir, file));
+        await withTenant(userId, (tx) => ingestEmail(tx, { userId, mailboxId, runId, raw: buf }));
+        await withTenant(userId, (tx) =>
+          tx
+            .update(runs)
+            .set({ emailsProcessed: sql`${runs.emailsProcessed} + 1` })
+            .where(eq(runs.id, runId)),
+        );
+      }
+
+      await withTenant(userId, (tx) =>
+        tx.update(runs).set({ status: 'ok', finishedAt: new Date() }).where(eq(runs.id, runId)),
+      );
+    }
     revalidatePath('/digest');
     revalidatePath('/unread');
-    return { processed, created };
   } catch (err) {
     const errorKind = err instanceof GmailAuthError ? 'auth' : 'internal';
     const message = err instanceof Error ? err.message : String(err);
@@ -190,8 +224,37 @@ export async function refreshDigest(): Promise<{
         tx.update(mailboxes).set({ status: 'auth_failed' }).where(eq(mailboxes.id, mailboxId)),
       );
     }
-    throw err;
   }
+}
+
+/** Polled by RefreshButton while a run is in flight — see startRefresh. */
+export async function getRunProgress(runId: string): Promise<{
+  status: 'running' | 'ok' | 'error';
+  emailsTotal: number | null;
+  emailsProcessed: number;
+  errorMessage: string | null;
+} | null> {
+  const userId = await currentUserId();
+  const rows = await withTenant(userId, (tx) =>
+    tx
+      .select({
+        status: runs.status,
+        emailsTotal: runs.emailsTotal,
+        emailsProcessed: runs.emailsProcessed,
+        errorDetail: runs.errorDetail,
+      })
+      .from(runs)
+      .where(eq(runs.id, runId))
+      .limit(1),
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    status: row.status,
+    emailsTotal: row.emailsTotal,
+    emailsProcessed: row.emailsProcessed,
+    errorMessage: (row.errorDetail as { message?: string } | null)?.message ?? null,
+  };
 }
 
 export async function lastRunAt(): Promise<Date | null> {
