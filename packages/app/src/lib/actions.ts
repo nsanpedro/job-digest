@@ -17,6 +17,7 @@ import type { Ruleset } from '@job-digest/core';
 import { adUserState, mailboxes, rulesets, runs } from '@job-digest/db';
 import { and, desc, eq } from 'drizzle-orm';
 import {
+  generateInboundAddress,
   GmailAuthError,
   ingestEmail,
   ingestFromGmail,
@@ -235,4 +236,46 @@ export async function saveRuleset(rules: Ruleset): Promise<void> {
   revalidatePath('/profile');
   revalidatePath('/saved');
   revalidatePath('/dismissed');
+}
+
+/**
+ * Adds a forwarding mailbox (design §4.5): a unique inbound address that
+ * never grants us mailbox access at all — the structural-privacy path, and
+ * the one that scales past Google's Testing-mode test-user list without a
+ * CASA assessment. Real delivery needs a real domain with MX records
+ * pointing at whichever inbound provider is configured
+ * (INBOUND_EMAIL_DOMAIN) — that's infrastructure outside this codebase,
+ * same category as the Google Cloud OAuth client setup Gmail already
+ * needed. This action only generates the address and stores it; nothing
+ * arrives until that infra exists and a real filter forwards mail to it.
+ */
+export async function connectForwarding(): Promise<{ address: string }> {
+  const userId = await currentUserId();
+
+  const address = await withTenant(userId, async (tx) => {
+    // Safe to press repeatedly (same pattern as refreshDigest/saveRuleset):
+    // reuse the existing forwarding address rather than minting a new one
+    // every click.
+    const existing = await tx
+      .select({ inboundAddress: mailboxes.inboundAddress })
+      .from(mailboxes)
+      .where(and(eq(mailboxes.userId, userId), eq(mailboxes.authKind, 'forwarding')))
+      .limit(1);
+    if (existing[0]?.inboundAddress) return existing[0].inboundAddress;
+
+    const domain = process.env.INBOUND_EMAIL_DOMAIN ?? 'in.example.com';
+    const generated = generateInboundAddress(domain);
+    await tx.insert(mailboxes).values({
+      userId,
+      provider: 'forwarding',
+      authKind: 'forwarding',
+      emailAddress: generated,
+      inboundAddress: generated,
+      status: 'active',
+    });
+    return generated;
+  });
+
+  revalidatePath('/profile');
+  return { address };
 }

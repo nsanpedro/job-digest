@@ -7,7 +7,9 @@ import {
   NoActiveRulesetError,
   weekWindow,
 } from '@job-digest/db';
+import { signIn } from '@/auth';
 import { TopBar } from '@/components/Chrome';
+import { ForwardingConnect } from '@/components/ForwardingConnect';
 import { RulesEditor } from '@/components/RulesEditor';
 import { currentUser, withTenant } from '@/lib/session';
 import styles from './page.module.css';
@@ -79,7 +81,7 @@ export default async function ProfilePage() {
           <p className={styles.sectionLabel}>Connected mailboxes</p>
           <div className={styles.accountCard}>
             {!account || account.mailboxes.length === 0 ? (
-              <p className={styles.empty}>No mailbox connected.</p>
+              <p className={styles.empty}>No mailbox connected yet.</p>
             ) : (
               account.mailboxes.map((mb) => {
                 const expiring = isExpiringSoon(mb.credentialExpiresAt);
@@ -104,10 +106,46 @@ export default async function ProfilePage() {
               })
             )}
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 10 }}>
-            Google Testing-mode grants expire roughly every 7 days until the app is verified
-            (design §4.1) — sign out and back in with Google to renew.
-          </p>
+
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <form
+                action={async () => {
+                  'use server';
+                  await signIn('google-gmail', { redirectTo: '/profile' });
+                }}
+              >
+                <button
+                  type="submit"
+                  style={{
+                    padding: '9px 16px',
+                    borderRadius: 5,
+                    border: '1px solid var(--border)',
+                    background: '#fff',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                >
+                  Connect Gmail
+                </button>
+              </form>
+              <p style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 8, maxWidth: 480 }}>
+                Read-only OAuth access to Gmail. Only works today for accounts added as test users
+                in Google Cloud Console — Testing-mode grants also expire roughly every 7 days
+                until the app is verified (design §4.1); reconnect here to renew.
+              </p>
+            </div>
+
+            <div>
+              <ForwardingConnect
+                existingAddress={
+                  account?.mailboxes.find((mb) => mb.authKind === 'forwarding')?.emailAddress ?? null
+                }
+              />
+            </div>
+          </div>
         </div>
       </div>
     </>

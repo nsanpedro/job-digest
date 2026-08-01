@@ -20,7 +20,10 @@ const PUBLIC_PATHS = ['/login'];
 export default auth((req) => {
   const isPublic = PUBLIC_PATHS.some((p) => req.nextUrl.pathname.startsWith(p));
   const isAuthRoute = req.nextUrl.pathname.startsWith('/api/auth');
-  if (!req.auth && !isPublic && !isAuthRoute) {
+  // The mail provider calls this, not a signed-in browser — it authenticates
+  // itself with its own shared secret, checked inside the route handler.
+  const isInboundWebhook = req.nextUrl.pathname.startsWith('/api/inbound/');
+  if (!req.auth && !isPublic && !isAuthRoute && !isInboundWebhook) {
     const url = new URL('/login', req.nextUrl.origin);
     return NextResponse.redirect(url);
   }

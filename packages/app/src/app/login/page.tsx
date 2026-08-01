@@ -2,15 +2,18 @@ import { signIn } from '@/auth';
 import styles from './page.module.css';
 
 /**
- * Real sign-in (design's login screen, redefined 30 Jul): Google only, no
- * IMAP path. One consent grants both the app session and mailbox read
- * access (see src/auth.ts) — there is nothing else to choose here, so the
- * prototype's provider chooser and app-password form are gone, not stubbed.
+ * Real sign-in. Identity only (openid/email/profile) — this does NOT grant
+ * mailbox access (design §4.1/§4.5, split 31 Jul). Signing in and connecting
+ * a mailbox used to be the same OAuth grant; that meant Google's
+ * restricted-scope gate (Testing mode's test-user list, or a paid CASA
+ * assessment to go public) blocked *signing in at all*, not just connecting
+ * Gmail. Splitting them means anyone can create an account — connecting a
+ * mailbox (Gmail via "Connect Gmail" in Profile, or forwarding, which needs
+ * no Google involvement at all) is a separate, later, opt-in step.
  */
 
 const ERROR_COPY: Record<string, string> = {
-  AccessDenied:
-    'Google refused this sign-in. While this app is in testing mode, only accounts added as test users in the Google Cloud Console can sign in — ask Nico to add yours.',
+  AccessDenied: 'Google refused this sign-in. Try again, or use a different Google account.',
   Configuration: 'The Google sign-in is not configured yet (missing client ID/secret on the server).',
   OAuthAccountNotLinked: 'This Google account is already linked to a different sign-in method.',
 };
@@ -33,8 +36,8 @@ export default async function LoginPage({
 
         <h1 className={styles.h1}>Sign in</h1>
         <p className={styles.intro}>
-          Sign in with Google to see your weekly digest. The same step connects the mailbox this
-          reads from — Gmail, read-only.
+          Sign in with Google to create your account and see your weekly digest. This step alone
+          never touches a mailbox — you connect one afterward, from Profile.
         </p>
 
         {errorMessage && <div className={styles.errorBox}>{errorMessage}</div>}
@@ -52,18 +55,14 @@ export default async function LoginPage({
         </form>
 
         <div className={styles.scopes}>
-          <ScopeRow ok>Read Gmail, read-only — nothing is sent, deleted, or moved.</ScopeRow>
-          <ScopeRow ok={false}>
-            Extraction is not wired up yet — connecting today does not read anything from the
-            inbox on its own.
-          </ScopeRow>
+          <ScopeRow ok>Just your name and email — this app never sees your mailbox yet.</ScopeRow>
           <ScopeRow ok>Never applies to a job or answers a recruiter on your behalf.</ScopeRow>
         </div>
 
         <p className={styles.note}>
-          This app is in Google&apos;s testing mode: sign-in only works for accounts explicitly
-          added as test users, and the mailbox connection needs renewing roughly every 7 days
-          until the app is verified.
+          After signing in, connect a mailbox from Profile — Gmail (read-only, revocable any
+          time) or a forwarding address that works with any provider and never grants us access
+          at all.
         </p>
       </div>
     </div>

@@ -39,3 +39,20 @@ export async function parseEml(raw: Buffer): Promise<InboundEmail> {
     },
   };
 }
+
+/**
+ * The raw bytes of an embedded message/rfc822 part, if one exists — how a
+ * manual "Forward" is told apart from a header-preserving auto-forward
+ * filter (design §4.5). A mail client's "Forward" action typically wraps the
+ * original message as an attachment of this content type rather than
+ * preserving its headers on the outer message; the forwarding acquisition
+ * path (@job-digest/worker's forwarding.ts) falls back to this when the
+ * outer message's own From: isn't allowlisted, keeping mailparser fully
+ * inside this package rather than duplicated in the worker.
+ */
+export async function findEmbeddedMessage(raw: Buffer): Promise<Buffer | null> {
+  const mail = await simpleParser(raw);
+  const embedded = mail.attachments.find((a) => a.contentType === 'message/rfc822');
+  if (!embedded) return null;
+  return Buffer.isBuffer(embedded.content) ? embedded.content : Buffer.from(embedded.content);
+}

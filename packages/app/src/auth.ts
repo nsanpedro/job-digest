@@ -1,26 +1,15 @@
 /**
  * Full auth config — Node runtime only (route handlers, server components,
  * server actions). Extends auth.config.ts with the callback that does real
- * work: linking the Google identity to our `accounts` row and storing the
- * encrypted OAuth refresh token as a `mailboxes` row. See auth.config.ts for
- * why this split exists (middleware needs the Edge-safe half only).
+ * work: linking the Google identity to our `accounts` row, and — only for
+ * the separate `google-gmail` incremental-authorization flow, triggered from
+ * Profile's "Connect Gmail" button — storing the encrypted OAuth refresh
+ * token as a `mailboxes` row. See auth.config.ts for why this split exists,
+ * both the Edge/Node file split and the two-provider identity/mailbox split.
  *
- * One sign-in does two jobs at once, by design (Nico's call, 30 Jul): it is
- * both the app account and the mailbox connection. The OAuth consent screen
- * requests gmail.readonly alongside identity scopes, so the same grant that
- * creates a session also authorizes reading the mailbox — no separate IMAP
- * flow. `access_type: offline` + `prompt: consent` (in auth.config.ts) force
- * Google to return a refresh token.
- *
- * What this does NOT do yet: actually fetch or parse mail. Connecting the
- * mailbox and reading it are different steps — this wires the first.
- *
- * Scope note (design §4.1): Google's `gmail.readonly` is a restricted scope.
- * In OAuth "Testing" publishing status (no CASA verification), only test
- * users added in the Cloud Console can sign in, and refresh tokens expire
- * after 7 days. That is fine for Nico + Ro testing this by hand; it is not
- * fine for public signup, which is why the design doc treats forwarding as
- * the public-signup path and this as the trusted-user path.
+ * What connecting Gmail does NOT do yet: actually fetch or parse mail.
+ * @job-digest/worker's gmail.ts does that, triggered by "Update now" — this
+ * file only stores the credential that step spends.
  */
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -55,11 +44,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   callbacks: {
     async jwt({ token, account, profile }) {
-      // Only runs on the initial sign-in, when `account` (the OAuth
-      // grant) is present — not on every subsequent token refresh.
+      // Only runs on the initial sign-in / re-authorization, when `account`
+      // (the OAuth grant) is present — not on every subsequent token use.
       if (account && profile?.email) {
         const { db, client } = ownerDb();
         try {
+          // Upserts on email regardless of which provider flow triggered
+          // this, so a "Connect Gmail" re-auth for an existing identity
+          // sign-in resolves to the same account, never a second one.
           const [row] = await db
             .insert(accounts)
             .values({ email: profile.email })
@@ -67,7 +59,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             .returning({ id: accounts.id });
           token.userId = row!.id;
 
-          if (account.refresh_token) {
+          // Only the explicit "Connect Gmail" flow (auth.config.ts's
+          // google-gmail provider) ever stores mailbox credentials. Plain
+          // identity sign-in (the `google` provider) never does — that is
+          // the entire point of the split: signing in must not imply
+          // granting mailbox access.
+          if (account.provider === 'google-gmail' && account.refresh_token) {
             const sealed = encryptSecret(account.refresh_token, credentialKey());
             await db
               .insert(mailboxes)

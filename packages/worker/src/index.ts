@@ -12,3 +12,10 @@ export {
   refreshAccessToken,
   type GmailIngestSummary,
 } from './gmail';
+export {
+  generateInboundAddress,
+  ingestForwardedEmail,
+  verifyForwardedSender,
+  type ForwardingIngestResult,
+  type ForwardingVerdict,
+} from './forwarding';
