@@ -22,6 +22,13 @@
       "when": 1785430432981,
       "tag": "0002_ads_external_id",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785572406696,
+      "tag": "0003_role_membership_for_non_superuser",
+      "breakpoints": true
     }
   ]
 }
