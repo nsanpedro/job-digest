@@ -23,6 +23,7 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getApplicationCounts, getApplications } from '../src/queries/applications';
+import { getDismissedAds, getSavedAds } from '../src/queries/history';
 import { getActiveRuleset } from '../src/queries/ruleset';
 import type { ApplicationStatus } from '../src/queries/types';
 import * as schema from '../src/schema';
@@ -32,6 +33,8 @@ let client: postgres.Sql;
 let db: PostgresJsDatabase<typeof schema>;
 let userId: string;
 let adId: string;
+let mailboxId: string;
+let rawEmailId: string;
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -80,6 +83,37 @@ beforeAll(async () => {
     })
     .returning({ id: schema.ads.id });
   adId = ad!.id;
+
+  // Support rows for ad_sightings, which requires a real raw_email_id (FK,
+  // NOT NULL) — the batched-sighting test below needs to insert sightings.
+  const [mailbox] = await db
+    .insert(schema.mailboxes)
+    .values({
+      userId,
+      provider: 'gmail',
+      authKind: 'oauth',
+      emailAddress: 'a@example.com',
+      credentialsEnc: Buffer.from('sealed'),
+      keyVersion: 1,
+      status: 'active',
+    })
+    .returning({ id: schema.mailboxes.id });
+  mailboxId = mailbox!.id;
+
+  const [rawEmail] = await db
+    .insert(schema.rawEmails)
+    .values({
+      userId,
+      mailboxId,
+      messageId: '<fixture@example.com>',
+      fromAddr: 'jobs-noreply@linkedin.com',
+      subject: 'fixture',
+      receivedAt: new Date(),
+      rawBytes: Buffer.from('raw'),
+      mimeParts: {},
+    })
+    .returning({ id: schema.rawEmails.id });
+  rawEmailId = rawEmail!.id;
 }, 180_000);
 
 afterAll(async () => {
@@ -193,5 +227,58 @@ describe('search mode reaches every read path (design §7.7)', () => {
 
     const apps = await getApplications(db, userId);
     expect(apps[0]?.verdicts.find((v) => v.key === 'Pay')?.state).toBe('warn');
+  });
+});
+
+/**
+ * getSavedAds/getDismissedAds/getApplications each batch their per-ad lookups
+ * (latest sighting, latest application status) into one query keyed on the
+ * full id list, rather than one query per ad — a real N+1 was found live
+ * against Supabase, slow enough to notice on every route change. A single ad
+ * cannot catch a batching bug that mixes rows across ads, so this needs two.
+ */
+describe('per-ad lookups stay correct when batched across multiple ads', () => {
+  it('each ad keeps its own latest sighting, not another ad\'s', async () => {
+    const [second] = await db
+      .insert(schema.ads)
+      .values({
+        userId,
+        dedupeKey: 'ad-2',
+        title: 'Zweite Stelle',
+        company: 'Andere Firma',
+        source: 'Xing',
+        facts: PASSING_FACTS,
+        wording: {} as never,
+        firstSeenAt: new Date(),
+        lastSeenAt: new Date(),
+      })
+      .returning({ id: schema.ads.id });
+    const adId2 = second!.id;
+
+    // ad (from beforeAll) gets an older and a newer sighting; ad2 gets one
+    // sighting in between. If the batch mixed rows across ads, either could
+    // pick up the wrong "latest".
+    await db.insert(schema.adSightings).values([
+      { userId, adId, rawEmailId, alertName: 'first alert', receivedAt: new Date(Date.now() - 5 * DAY) },
+      { userId, adId, rawEmailId, alertName: 'newest alert for ad 1', receivedAt: new Date(Date.now() - 1 * DAY) },
+      { userId, adId: adId2, rawEmailId, alertName: 'only alert for ad 2', receivedAt: new Date(Date.now() - 3 * DAY) },
+    ]);
+    // `ad` already has an ad_user_state row from the I16 tests above (dismissed
+    // there) — update it rather than insert, since ad_id is the primary key.
+    await db.update(schema.adUserState).set({ saved: true }).where(eq(schema.adUserState.adId, adId));
+    await db.insert(schema.adUserState).values({ userId, adId: adId2, saved: true });
+
+    const saved = await getSavedAds(db, userId);
+    expect(saved).toHaveLength(2);
+    const byId = new Map(saved.map((a) => [a.id, a]));
+    expect(byId.get(adId)?.alert).toBe('newest alert for ad 1');
+    expect(byId.get(adId2)?.alert).toBe('only alert for ad 2');
+  });
+
+  it('dismissed ads keep the same per-ad correctness', async () => {
+    await db.update(schema.adUserState).set({ dismissedAt: new Date() }).where(eq(schema.adUserState.userId, userId));
+    const dismissed = await getDismissedAds(db, userId);
+    expect(dismissed).toHaveLength(2);
+    expect(dismissed.every((a) => a.reason.kind === 'user')).toBe(true);
   });
 });

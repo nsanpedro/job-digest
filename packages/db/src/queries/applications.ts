@@ -15,7 +15,7 @@
  * tightened after the fact must not erase the user's own record.
  */
 import { evaluate, type Ruleset } from '@job-digest/core';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { adSightings, ads, adUserState, applicationEvents } from '../schema';
 import { getActiveRuleset } from './ruleset';
@@ -122,29 +122,33 @@ export async function getApplications(
     byAd.set(row.adId, list);
   }
 
+  const adIds = [...byAd.keys()];
+  const [adRows, sightingRows] = await Promise.all([
+    db.select({ ad: ads, state: adUserState }).from(ads).leftJoin(adUserState, eq(adUserState.adId, ads.id)).where(inArray(ads.id, adIds)),
+    db
+      .selectDistinctOn([adSightings.adId], {
+        adId: adSightings.adId,
+        alertName: adSightings.alertName,
+        receivedAt: adSightings.receivedAt,
+      })
+      .from(adSightings)
+      .where(inArray(adSightings.adId, adIds))
+      .orderBy(adSightings.adId, desc(adSightings.receivedAt)),
+  ]);
+  const adById = new Map(adRows.map((r) => [r.ad.id, r]));
+  const sightingByAd = new Map(sightingRows.map((r) => [r.adId, r]));
+
   const out: TrackedApplication[] = [];
   for (const [adId, events] of byAd) {
-    const adRows = await db
-      .select({ ad: ads, state: adUserState })
-      .from(ads)
-      .leftJoin(adUserState, eq(adUserState.adId, ads.id))
-      .where(eq(ads.id, adId))
-      .limit(1);
-    const row = adRows[0];
+    const row = adById.get(adId);
     // The ad is gone only if the account was deleted, which takes this row
     // with it — but skipping rather than throwing keeps one impossible state
     // from emptying the whole page (I9's spirit).
     if (!row) continue;
 
-    const sightingRows = await db
-      .select({ alertName: adSightings.alertName, receivedAt: adSightings.receivedAt })
-      .from(adSightings)
-      .where(eq(adSightings.adId, adId))
-      .orderBy(desc(adSightings.receivedAt))
-      .limit(1);
-    const sighting = sightingRows[0];
-
-    out.push(toTrackedApplication({ ad: row.ad, state: row.state, sighting, events, rules, now }));
+    out.push(
+      toTrackedApplication({ ad: row.ad, state: row.state, sighting: sightingByAd.get(adId), events, rules, now }),
+    );
   }
 
   // Whatever is waiting longest, first: the list is a worklist, and the thing

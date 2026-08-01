@@ -17,7 +17,7 @@
  * rule outcome.
  */
 import { evaluate, type Ruleset } from '@job-digest/core';
-import { and, count, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { adSightings, ads, adUserState } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
@@ -26,14 +26,26 @@ import type { ApplicationStatus, DigestAd, DismissedAd, Platform } from './types
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
 
-async function latestSighting(db: Db, userId: string, adId: string) {
+type Sighting = { alertName: string | null; receivedAt: Date | null };
+const NO_SIGHTING: Sighting = { alertName: null, receivedAt: null };
+
+/**
+ * The most recent sighting per ad, in one query rather than one per ad.
+ * `selectDistinctOn` ordered by recency gives the latest row per `ad_id`
+ * directly — the same pattern getDigest uses for the same reason.
+ */
+async function latestSightingsByAd(db: Db, adIds: string[]): Promise<Map<string, Sighting>> {
+  if (adIds.length === 0) return new Map();
   const rows = await db
-    .select({ alertName: adSightings.alertName, receivedAt: adSightings.receivedAt })
+    .selectDistinctOn([adSightings.adId], {
+      adId: adSightings.adId,
+      alertName: adSightings.alertName,
+      receivedAt: adSightings.receivedAt,
+    })
     .from(adSightings)
-    .where(eq(adSightings.adId, adId))
-    .orderBy(desc(adSightings.receivedAt))
-    .limit(1);
-  return rows[0] ?? { alertName: null, receivedAt: null };
+    .where(inArray(adSightings.adId, adIds))
+    .orderBy(adSightings.adId, desc(adSightings.receivedAt));
+  return new Map(rows.map((r) => [r.adId, { alertName: r.alertName, receivedAt: r.receivedAt }]));
 }
 
 function toDigestAd(row: {
@@ -86,13 +98,18 @@ export async function getSavedAds(db: Db, userId: string): Promise<DigestAd[]> {
     .where(and(eq(adUserState.userId, userId), eq(adUserState.saved, true)))
     .orderBy(desc(adUserState.updatedAt));
 
-  const applied = await getLatestApplicationStatuses(db, userId);
-  const out: DigestAd[] = [];
-  for (const row of rows) {
-    const sighting = await latestSighting(db, userId, row.ad.id);
-    out.push(toDigestAd({ ...row, sighting, rules, applicationStatus: applied.get(row.ad.id) ?? null }));
-  }
-  return out;
+  const [applied, sightings] = await Promise.all([
+    getLatestApplicationStatuses(db, userId),
+    latestSightingsByAd(db, rows.map((r) => r.ad.id)),
+  ]);
+  return rows.map((row) =>
+    toDigestAd({
+      ...row,
+      sighting: sightings.get(row.ad.id) ?? NO_SIGHTING,
+      rules,
+      applicationStatus: applied.get(row.ad.id) ?? null,
+    }),
+  );
 }
 
 export async function getDismissedAds(db: Db, userId: string): Promise<DismissedAd[]> {
@@ -104,14 +121,17 @@ export async function getDismissedAds(db: Db, userId: string): Promise<Dismissed
     .where(and(eq(adUserState.userId, userId), isNotNull(adUserState.dismissedAt)))
     .orderBy(desc(adUserState.dismissedAt));
 
-  const applied = await getLatestApplicationStatuses(db, userId);
-  const out: DismissedAd[] = [];
-  for (const row of rows) {
-    const sighting = await latestSighting(db, userId, row.ad.id);
-    out.push({
-      ...toDigestAd({ ...row, sighting, rules, applicationStatus: applied.get(row.ad.id) ?? null }),
-      reason: { kind: 'user' },
-    });
-  }
-  return out;
+  const [applied, sightings] = await Promise.all([
+    getLatestApplicationStatuses(db, userId),
+    latestSightingsByAd(db, rows.map((r) => r.ad.id)),
+  ]);
+  return rows.map((row) => ({
+    ...toDigestAd({
+      ...row,
+      sighting: sightings.get(row.ad.id) ?? NO_SIGHTING,
+      rules,
+      applicationStatus: applied.get(row.ad.id) ?? null,
+    }),
+    reason: { kind: 'user' as const },
+  }));
 }
