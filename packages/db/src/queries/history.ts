@@ -21,6 +21,7 @@ import { and, count, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { adSightings, ads, adUserState } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
+import { getPlatformCapabilities } from './capabilities';
 import { getActiveRuleset } from './ruleset';
 import type { ApplicationStatus, DigestAd, DismissedAd, Platform } from './types';
 
@@ -54,8 +55,9 @@ function toDigestAd(row: {
   sighting: { alertName: string | null; receivedAt: Date | null };
   rules: Ruleset;
   applicationStatus: ApplicationStatus | null;
+  platformFields: Record<string, boolean>;
 }): DigestAd {
-  const { ad, state, sighting, rules, applicationStatus } = row;
+  const { ad, state, sighting, rules, applicationStatus, platformFields } = row;
   return {
     id: ad.id,
     title: ad.title,
@@ -77,6 +79,7 @@ function toDigestAd(row: {
     fit: null,
     gap: null,
     applicationStatus,
+    platformFields,
   };
 }
 
@@ -98,9 +101,10 @@ export async function getSavedAds(db: Db, userId: string): Promise<DigestAd[]> {
     .where(and(eq(adUserState.userId, userId), eq(adUserState.saved, true)))
     .orderBy(desc(adUserState.updatedAt));
 
-  const [applied, sightings] = await Promise.all([
+  const [applied, sightings, capabilities] = await Promise.all([
     getLatestApplicationStatuses(db, userId),
     latestSightingsByAd(db, rows.map((r) => r.ad.id)),
+    getPlatformCapabilities(db),
   ]);
   return rows.map((row) =>
     toDigestAd({
@@ -108,6 +112,7 @@ export async function getSavedAds(db: Db, userId: string): Promise<DigestAd[]> {
       sighting: sightings.get(row.ad.id) ?? NO_SIGHTING,
       rules,
       applicationStatus: applied.get(row.ad.id) ?? null,
+      platformFields: capabilities[row.ad.source as Platform] ?? {},
     }),
   );
 }
@@ -121,9 +126,10 @@ export async function getDismissedAds(db: Db, userId: string): Promise<Dismissed
     .where(and(eq(adUserState.userId, userId), isNotNull(adUserState.dismissedAt)))
     .orderBy(desc(adUserState.dismissedAt));
 
-  const [applied, sightings] = await Promise.all([
+  const [applied, sightings, capabilities] = await Promise.all([
     getLatestApplicationStatuses(db, userId),
     latestSightingsByAd(db, rows.map((r) => r.ad.id)),
+    getPlatformCapabilities(db),
   ]);
   return rows.map((row) => ({
     ...toDigestAd({
@@ -131,6 +137,7 @@ export async function getDismissedAds(db: Db, userId: string): Promise<Dismissed
       sighting: sightings.get(row.ad.id) ?? NO_SIGHTING,
       rules,
       applicationStatus: applied.get(row.ad.id) ?? null,
+      platformFields: capabilities[row.ad.source as Platform] ?? {},
     }),
     reason: { kind: 'user' as const },
   }));

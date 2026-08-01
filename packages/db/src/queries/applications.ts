@@ -18,6 +18,7 @@ import { evaluate, type Ruleset } from '@job-digest/core';
 import { desc, eq, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { adSightings, ads, adUserState, applicationEvents } from '../schema';
+import { getPlatformCapabilities } from './capabilities';
 import { getActiveRuleset } from './ruleset';
 import type {
   ApplicationCounts,
@@ -123,7 +124,7 @@ export async function getApplications(
   }
 
   const adIds = [...byAd.keys()];
-  const [adRows, sightingRows] = await Promise.all([
+  const [adRows, sightingRows, capabilities] = await Promise.all([
     db.select({ ad: ads, state: adUserState }).from(ads).leftJoin(adUserState, eq(adUserState.adId, ads.id)).where(inArray(ads.id, adIds)),
     db
       .selectDistinctOn([adSightings.adId], {
@@ -134,6 +135,7 @@ export async function getApplications(
       .from(adSightings)
       .where(inArray(adSightings.adId, adIds))
       .orderBy(adSightings.adId, desc(adSightings.receivedAt)),
+    getPlatformCapabilities(db),
   ]);
   const adById = new Map(adRows.map((r) => [r.ad.id, r]));
   const sightingByAd = new Map(sightingRows.map((r) => [r.adId, r]));
@@ -147,7 +149,15 @@ export async function getApplications(
     if (!row) continue;
 
     out.push(
-      toTrackedApplication({ ad: row.ad, state: row.state, sighting: sightingByAd.get(adId), events, rules, now }),
+      toTrackedApplication({
+        ad: row.ad,
+        state: row.state,
+        sighting: sightingByAd.get(adId),
+        events,
+        rules,
+        now,
+        platformFields: capabilities[row.ad.source as Platform] ?? {},
+      }),
     );
   }
 
@@ -166,8 +176,9 @@ function toTrackedApplication(input: {
   events: ApplicationEvent[];
   rules: Ruleset;
   now: Date;
+  platformFields: Record<string, boolean>;
 }): TrackedApplication {
-  const { ad, state, sighting, events, rules, now } = input;
+  const { ad, state, sighting, events, rules, now, platformFields } = input;
 
   const current = events[0]!;
   const applied = events.filter((e) => e.status === 'applied').at(-1) ?? events.at(-1)!;
@@ -195,6 +206,7 @@ function toTrackedApplication(input: {
     fit: null,
     gap: null,
     applicationStatus: current.status,
+    platformFields,
     status: current.status,
     events,
     firstAppliedAt: applied.at,

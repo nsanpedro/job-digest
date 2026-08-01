@@ -53,7 +53,7 @@ export function AdCard({
 
         <div className={styles.main}>
           <div className={styles.mainLeft}>
-            <RuleLane verdicts={ad.verdicts} wording={ad.wording} />
+            <RuleLane verdicts={ad.verdicts} wording={ad.wording} platformFields={ad.platformFields} />
             {(ad.fit || ad.gap) && (
               <div className={styles.prose}>
                 {ad.fit && <p className={styles.proseFit}>{ad.fit}</p>}
@@ -172,7 +172,10 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
                     </>
                   ) : (
                     <span className={styles.gloss}>
-                      {w?.note || 'not read from this email — open the original ad to check'}
+                      {w?.note ||
+                        (ad.platformFields[v.key.toLowerCase()] === false
+                          ? `${ad.source} alerts don't include this — not a failure of the reader`
+                          : 'not read from this email — open the original ad to check')}
                     </span>
                   )}
                 </div>

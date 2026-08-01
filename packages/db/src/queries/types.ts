@@ -41,6 +41,14 @@ export interface DigestAd {
    * says nothing about whether a rule passed it.
    */
   applicationStatus: ApplicationStatus | null;
+  /**
+   * This ad's platform's known field coverage (design §9), keyed by lowercase
+   * RuleKey ("pay", "german", …). `false` means the platform is on record as
+   * never sending that field — RuleLane renders that distinctly from a plain
+   * "not read". A missing key means no evidence either way, and stays "not
+   * read"; see migration 0007.
+   */
+  platformFields: Record<string, boolean>;
 }
 
 /**

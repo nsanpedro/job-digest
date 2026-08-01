@@ -17,6 +17,7 @@ import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
+import { getPlatformCapabilities } from './capabilities';
 import { getActiveRuleset } from './ruleset';
 import type {
   Digest,
@@ -93,6 +94,7 @@ export async function getDigest(
     : [];
   const narrativeByAd = new Map(narratives.map((n) => [n.adId, n]));
   const appliedByAd = await getLatestApplicationStatuses(db, userId);
+  const capabilities = await getPlatformCapabilities(db);
 
   const visible: DigestAd[] = [];
   const dismissed: DismissedAd[] = [];
@@ -127,6 +129,7 @@ export async function getDigest(
       fit: narrative?.fit ?? null,
       gap: narrative?.gap ?? null,
       applicationStatus: appliedByAd.get(row.ad.id) ?? null,
+      platformFields: capabilities[row.ad.source as Platform] ?? {},
     };
 
     // I10: three distinct outcomes, checked in the order the UI presents them.

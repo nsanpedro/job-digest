@@ -7,6 +7,7 @@ export {
   getApplicationCounts,
   FOLLOW_UP_AFTER_DAYS,
 } from './queries/applications';
+export { getPlatformCapabilities, type PlatformCapabilities } from './queries/capabilities';
 export { getAccountOverview, type AccountOverview } from './queries/account';
 export { previousWeekWindow, weekWindow, type Window } from './queries/window';
 export type {

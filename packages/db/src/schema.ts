@@ -453,12 +453,34 @@ export const applicationEvents = pgTable(
  * distinguish "we failed to read the salary" from "LinkedIn does not send
  * one" (design §9).
  */
-export const platformCapabilities = pgTable('platform_capabilities', {
-  platform: platformEnum('platform').primaryKey(),
-  fields: jsonb('fields').notNull().$type<Record<string, boolean>>(),
-});
+/**
+ * Global reference data has no tenant scope, so every app role may read it —
+ * unlike tenantPolicy, this is never a boundary, just an explicit grant.
+ *
+ * It has to be stated explicitly rather than left implicit: Supabase enables
+ * RLS by default on every table regardless of what this schema says, and a
+ * table with RLS on and no policy silently returns zero rows to every
+ * non-owner role. Found live: platform_capabilities read as empty from
+ * app_user in production the moment it had real data to return, with no
+ * error anywhere to point at why.
+ */
+const globalReadPolicy = (table: string) =>
+  pgPolicy(`${table}_global_read`, { for: 'select', to: [appUser, worker], using: sql`true` });
 
-/** Known layouts per platform (§5.3); the regression detector reads this. */
+export const platformCapabilities = pgTable(
+  'platform_capabilities',
+  {
+    platform: platformEnum('platform').primaryKey(),
+    fields: jsonb('fields').notNull().$type<Record<string, boolean>>(),
+  },
+  () => [globalReadPolicy('platform_capabilities')],
+);
+
+/**
+ * Known layouts per platform (§5.3); the regression detector reads this, and
+ * the worker registers newly discovered layouts here as it finds them
+ * (migration 0001 revokes write access from app_user only, not worker).
+ */
 export const layouts = pgTable(
   'layouts',
   {
@@ -469,7 +491,11 @@ export const layouts = pgTable(
     parserId: text('parser_id'),
     notes: text('notes'),
   },
-  (t) => [primaryKey({ columns: [t.platform, t.layoutHash] })],
+  (t) => [
+    primaryKey({ columns: [t.platform, t.layoutHash] }),
+    globalReadPolicy('layouts'),
+    pgPolicy('layouts_worker_write', { for: 'all', to: [worker], using: sql`true`, withCheck: sql`true` }),
+  ],
 );
 
 /** TVöD pay-group reference (§6.5): "Vergütung nach TVöD E5" is a lookup, not parsing. */
@@ -480,5 +506,5 @@ export const tvoedRates = pgTable(
     monthlyEur: integer('monthly_eur').notNull(),
     validFrom: timestamp('valid_from', { withTimezone: true }).notNull(),
   },
-  (t) => [primaryKey({ columns: [t.groupCode, t.validFrom] })],
+  (t) => [primaryKey({ columns: [t.groupCode, t.validFrom] }), globalReadPolicy('tvoed_rates')],
 );

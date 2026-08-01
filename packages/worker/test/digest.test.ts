@@ -136,6 +136,16 @@ describe('getDigest', () => {
     expect(withPay?.verdicts).toHaveLength(5);
   });
 
+  it('carries platform_capabilities so the UI can tell "not sent" from "not read" (design §9, migration 0007)', async () => {
+    const digest = await getDigest(db, userId, { now: NOW });
+    const all = [...digest.visible, ...digest.dismissed];
+    // Real, seeded claims: LinkedIn never sends salary, Xing does.
+    expect(all.find((a) => a.source === 'LinkedIn')?.platformFields['pay']).toBe(false);
+    expect(all.find((a) => a.source === 'Xing')?.platformFields['pay']).toBe(true);
+    // Shift is deliberately unseeded (no evidence either way) — absent, not false.
+    expect(all[0]?.platformFields['shift']).toBeUndefined();
+  });
+
   it('a rule change re-splits the same stored ads without re-reading any email (I6)', async () => {
     const strict = await getDigest(db, userId, { now: NOW });
 

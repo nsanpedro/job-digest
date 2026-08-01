@@ -50,6 +50,20 @@
       "when": 1785612300000,
       "tag": "0006_grant_last_synced_at",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785615000000,
+      "tag": "0007_seed_platform_capabilities",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785616000000,
+      "tag": "0008_global_reference_data_rls",
+      "breakpoints": true
     }
   ]
 }
