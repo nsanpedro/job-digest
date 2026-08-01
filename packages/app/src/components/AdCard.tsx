@@ -2,11 +2,20 @@
 
 import { useTransition } from 'react';
 import type { DigestAd } from '@job-digest/db';
-import { dismissAd, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
+import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
 import { RuleLane } from './RuleLane';
 import { EDGE_COLOR, STATE_VISUALS, worstOf } from './rule-visuals';
 import styles from './AdCard.module.css';
+
+/** Short forms for the action bar; the applications view spells them out. */
+const APPLIED_LABEL: Record<NonNullable<DigestAd['applicationStatus']>, string> = {
+  applied: 'Applied ✓',
+  interviewing: 'Interviewing',
+  offer: 'Offer',
+  rejected: 'Rejected',
+  withdrawn: 'Withdrawn',
+};
 
 export function AdCard({
   ad,
@@ -83,6 +92,26 @@ export function AdCard({
             >
               {ad.seen ? 'Marked seen' : 'Mark as seen'}
             </button>
+            {/*
+              Recording an application is the user telling us something we
+              have no way to observe (I15) — so this is a plain assertion
+              button, and once made it links to the record rather than
+              pretending to track anything further on its own.
+            */}
+            {ad.applicationStatus ? (
+              <a href="/applications" className={`${styles.actionBtn} ${styles.actionBtnApplied}`}>
+                {APPLIED_LABEL[ad.applicationStatus]}
+              </a>
+            ) : (
+              <button
+                type="button"
+                className={styles.actionBtn}
+                disabled={pending}
+                onClick={() => startTransition(() => recordApplicationEvent(ad.id, 'applied'))}
+              >
+                I applied
+              </button>
+            )}
           </>
         )}
         {ad.externalUrl && (

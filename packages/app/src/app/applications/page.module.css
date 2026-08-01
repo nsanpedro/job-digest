@@ -1,0 +1,46 @@
+.h1 {
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 32px 0 8px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 720px;
+  line-height: 1.55;
+  margin: 0 0 28px;
+}
+
+.sectionLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted-2);
+  margin: 32px 0 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.empty {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.footnote {
+  border-top: 1px solid var(--border);
+  margin-top: 32px;
+  padding-top: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 760px;
+  line-height: 1.55;
+}

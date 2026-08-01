@@ -12,10 +12,12 @@
  * between visible, rule-blocked and user-dismissed is I10's distinction,
  * which reads far better as three named branches than as a CASE expression.
  */
-import { evaluate, type Ruleset, type Verdict } from '@job-digest/core';
+import { evaluate, type Verdict } from '@job-digest/core';
 import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, rulesets, runs } from '../schema';
+import { adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
+import { getLatestApplicationStatuses } from './applications';
+import { getActiveRuleset } from './ruleset';
 import type {
   Digest,
   DigestAd,
@@ -28,30 +30,6 @@ import type {
 import { weekWindow, type Window } from './window';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
-
-export class NoActiveRulesetError extends Error {
-  constructor() {
-    // A digest without rules is not an empty digest — it is an unconfigured
-    // account, and the app should send the user to Profile rather than render
-    // an empty list that looks like "nothing matched".
-    super('no active ruleset for this account');
-    this.name = 'NoActiveRulesetError';
-  }
-}
-
-export async function getActiveRuleset(
-  db: Db,
-  userId: string,
-): Promise<{ version: number; rules: Ruleset }> {
-  const rows = await db
-    .select({ version: rulesets.version, rules: rulesets.rules })
-    .from(rulesets)
-    .where(and(eq(rulesets.userId, userId), eq(rulesets.isActive, true)))
-    .limit(1);
-  const row = rows[0];
-  if (!row) throw new NoActiveRulesetError();
-  return row;
-}
 
 /** Rank for the fallback ordering: cleaner rule outcomes float up. */
 const STATE_RANK = { pass: 0, unknown: 1, warn: 2, block: 3 } as const;
@@ -114,6 +92,7 @@ export async function getDigest(
         .where(inArray(adNarratives.adId, adIds))
     : [];
   const narrativeByAd = new Map(narratives.map((n) => [n.adId, n]));
+  const appliedByAd = await getLatestApplicationStatuses(db, userId);
 
   const visible: DigestAd[] = [];
   const dismissed: DismissedAd[] = [];
@@ -147,6 +126,7 @@ export async function getDigest(
       wording: row.ad.wording,
       fit: narrative?.fit ?? null,
       gap: narrative?.gap ?? null,
+      applicationStatus: appliedByAd.get(row.ad.id) ?? null,
     };
 
     // I10: three distinct outcomes, checked in the order the UI presents them.

@@ -77,6 +77,21 @@ export const causeCodeEnum = pgEnum('cause_code', [
   'field_not_provided_by_platform',
   'not_an_alert',
 ]);
+/** Search modes (design §7.7). Stored per ruleset version, not per account. */
+export const rulesetModeEnum = pgEnum('ruleset_mode', ['steady', 'urgent']);
+/**
+ * Closed enum, same reasoning as cause_code: each value needs authored copy,
+ * and an open set means unauthored copy. `interviewing` covers every live
+ * conversation deliberately — splitting screen/technical/on-site is detail the
+ * user would have to maintain for no decision it would change.
+ */
+export const applicationStatusEnum = pgEnum('application_status', [
+  'applied',
+  'interviewing',
+  'offer',
+  'rejected',
+  'withdrawn',
+]);
 
 // ── Tenancy root ────────────────────────────────────────────────────────────
 
@@ -326,6 +341,13 @@ export const rulesets = pgTable(
     /** Versioned: Profile diffs draft vs saved, and §7.4 replays history under a version. */
     version: integer('version').notNull(),
     rules: jsonb('rules').notNull().$type<Ruleset>(),
+    /**
+     * Search mode (§7.7). Lives here rather than on `accounts` so a version
+     * keeps fully determining evaluation — the property §7.4's replay rests
+     * on. Switching mode therefore creates a version, which is honest: the
+     * behaviour of the rules did change.
+     */
+    mode: rulesetModeEnum('mode').notNull().default('steady'),
     isActive: boolean('is_active').notNull().default(false),
     savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -372,6 +394,47 @@ export const adUserState = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('ad_user_state_user').on(t.userId), tenantPolicy('ad_user_state')],
+);
+
+/**
+ * The user's own record of a search, one row per state change (design §9,
+ * I15/I16).
+ *
+ * Append-only: the current status of an application is its latest event,
+ * derived at read time, never a column that has to be kept in sync. That
+ * follows I1 and I2's shape for the same reason they have it — the history is
+ * the artifact worth keeping. It also gives the follow-up nudge its clock
+ * (days since the last event) without a second field, and makes "how long does
+ * my pipeline take" an aggregation rather than new storage.
+ *
+ * Every row is asserted by the user (I15). The system cannot detect that an
+ * application was sent or answered: I14 confines fetching to alert senders, so
+ * a reply is never requested in the first place.
+ *
+ * Cascade on ad deletion is right for account deletion, which is the only
+ * thing that deletes ads today. If ad retention is ever added it has to
+ * exclude ads with application events — deleting those would break I16.
+ */
+export const applicationEvents = pgTable(
+  'application_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    adId: uuid('ad_id')
+      .notNull()
+      .references(() => ads.id, { onDelete: 'cascade' }),
+    status: applicationStatusEnum('status').notNull(),
+    /** When the event happened, which is not always when it was recorded. */
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+    note: text('note'),
+  },
+  (t) => [
+    index('application_events_user').on(t.userId),
+    // Latest-event-per-ad is the hot read: every applications list derives
+    // current status from it.
+    index('application_events_ad_at').on(t.adId, t.at.desc()),
+    tenantPolicy('application_events'),
+  ],
 );
 
 // ── Global reference data (no tenant, read-only to app roles) ───────────────

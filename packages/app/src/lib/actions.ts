@@ -13,8 +13,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { revalidatePath } from 'next/cache';
-import type { Ruleset } from '@job-digest/core';
-import { adUserState, mailboxes, rulesets, runs } from '@job-digest/db';
+import { DEFAULT_RULESET, type Mode, type Ruleset } from '@job-digest/core';
+import { applicationEvents, adUserState, mailboxes, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
 import { and, desc, eq } from 'drizzle-orm';
 import {
   generateInboundAddress,
@@ -222,7 +222,7 @@ export async function saveRuleset(rules: Ruleset): Promise<void> {
   const userId = await currentUserId();
   await withTenant(userId, async (tx) => {
     const current = await tx
-      .select({ version: rulesets.version })
+      .select({ version: rulesets.version, mode: rulesets.mode })
       .from(rulesets)
       .where(eq(rulesets.userId, userId))
       .orderBy(desc(rulesets.version))
@@ -230,12 +230,124 @@ export async function saveRuleset(rules: Ruleset): Promise<void> {
     const nextVersion = (current[0]?.version ?? 0) + 1;
 
     await tx.update(rulesets).set({ isActive: false }).where(eq(rulesets.userId, userId));
-    await tx.insert(rulesets).values({ userId, version: nextVersion, rules, isActive: true });
+    await tx.insert(rulesets).values({
+      userId,
+      version: nextVersion,
+      rules,
+      // Carried forward explicitly: `mode` defaults to 'steady' at the column
+      // level, so omitting it here would quietly drop a user out of urgent
+      // mode every time they edited a threshold.
+      mode: current[0]?.mode ?? 'steady',
+      isActive: true,
+    });
   });
   revalidatePath('/digest');
   revalidatePath('/profile');
   revalidatePath('/saved');
   revalidatePath('/dismissed');
+}
+
+/**
+ * Records one step of the user's own search (design §9, I15).
+ *
+ * Appends — never updates. The current status of an application is its latest
+ * event, derived on read, so there is no column here that could disagree with
+ * the timeline.
+ *
+ * Every row is the user's assertion. The system has no way to observe that an
+ * application was sent or answered: I14 confines fetching to alert senders, so
+ * the mail that would reveal either is never requested. That is a promise on
+ * the login screen, not an implementation gap.
+ *
+ * Re-recording the status an application already has is a no-op, the same
+ * press-it-twice tolerance the other actions have — a double click should not
+ * put two identical rows in a timeline the user reads.
+ */
+export async function recordApplicationEvent(
+  adId: string,
+  status: ApplicationStatus,
+  note?: string,
+): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, async (tx) => {
+    const latest = await tx
+      .select({ status: applicationEvents.status })
+      .from(applicationEvents)
+      .where(eq(applicationEvents.adId, adId))
+      .orderBy(desc(applicationEvents.at))
+      .limit(1);
+    if (latest[0]?.status === status) return;
+
+    await tx.insert(applicationEvents).values({
+      userId,
+      adId,
+      status,
+      note: note?.trim() ? note.trim() : null,
+    });
+  });
+  revalidatePath('/applications');
+  revalidatePath('/digest');
+}
+
+/**
+ * Undo, for an event recorded by mistake.
+ *
+ * The append-only rule this table is built on is about the *system*: nothing
+ * derives, expires or rewrites a status behind the user's back, and no rule
+ * change can erase a record (I16). It was never meant to trap someone in a
+ * mis-click on their own history, which is theirs to correct.
+ */
+export async function removeApplicationEvent(eventId: string): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, (tx) =>
+    tx.delete(applicationEvents).where(eq(applicationEvents.id, eventId)),
+  );
+  revalidatePath('/applications');
+  revalidatePath('/digest');
+}
+
+/**
+ * Switches search mode (design §7.7).
+ *
+ * A mode change is a ruleset change, so it goes through the same versioning
+ * path as any rule edit: a new row, the old one deactivated. That keeps "a
+ * version fully determines evaluation" true, which is the property §7.4's
+ * replay depends on — recording mode anywhere else would make a replay under
+ * version V ambiguous.
+ *
+ * Selecting the mode already in force is a no-op rather than a new version:
+ * versions are cheap, but a row per click on a toggle is noise in a history
+ * meant to be readable.
+ */
+export async function setMode(mode: Mode): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, async (tx) => {
+    const current = await tx
+      .select({ version: rulesets.version, rules: rulesets.rules, mode: rulesets.mode, isActive: rulesets.isActive })
+      .from(rulesets)
+      .where(eq(rulesets.userId, userId))
+      .orderBy(desc(rulesets.version))
+      .limit(1);
+    const active = current[0];
+    if (active?.isActive && active.mode === mode) return;
+
+    const nextVersion = (active?.version ?? 0) + 1;
+    await tx.update(rulesets).set({ isActive: false }).where(eq(rulesets.userId, userId));
+    await tx.insert(rulesets).values({
+      userId,
+      version: nextVersion,
+      // Carries the authored rules forward untouched — the mode is applied on
+      // read (applyMode), never baked into the stored ruleset.
+      rules: active?.rules ?? DEFAULT_RULESET,
+      mode,
+      isActive: true,
+    });
+  });
+  revalidatePath('/digest');
+  revalidatePath('/profile');
+  revalidatePath('/saved');
+  revalidatePath('/dismissed');
+  revalidatePath('/applications');
 }
 
 /**

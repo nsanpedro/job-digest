@@ -29,6 +29,13 @@
       "when": 1785572406696,
       "tag": "0003_role_membership_for_non_superuser",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785588144190,
+      "tag": "0004_applications_and_search_modes",
+      "breakpoints": true
     }
   ]
 }

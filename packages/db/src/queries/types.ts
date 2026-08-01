@@ -34,6 +34,13 @@ export interface DigestAd {
   /** Generated prose (§6.8); null until narration runs. */
   fit: string | null;
   gap: string | null;
+  /**
+   * Latest application status the user recorded for this ad, or null if they
+   * never did (I15 — asserted, never detected). A fourth axis alongside
+   * saved/seen/dismissed, orthogonal to all of them per I10: applying to an ad
+   * says nothing about whether a rule passed it.
+   */
+  applicationStatus: ApplicationStatus | null;
 }
 
 /**
@@ -88,6 +95,48 @@ export interface Digest {
   dismissed: DismissedAd[];
   parse: ParseSummary;
   rulesetVersion: number;
+}
+
+/**
+ * The user's record of a search (design §9, I15/I16). Every value here was
+ * asserted by the user — nothing about an application is detected, because
+ * I14 means the mail that would reveal it is never fetched.
+ */
+export type ApplicationStatus = 'applied' | 'interviewing' | 'offer' | 'rejected' | 'withdrawn';
+
+export interface ApplicationEvent {
+  id: string;
+  status: ApplicationStatus;
+  at: Date;
+  note: string | null;
+}
+
+export interface TrackedApplication extends DigestAd {
+  /** Derived from the latest event, never stored. */
+  status: ApplicationStatus;
+  /** Newest first. The timeline is the artifact worth keeping. */
+  events: ApplicationEvent[];
+  firstAppliedAt: Date;
+  lastEventAt: Date;
+  daysSinceLastEvent: number;
+  /**
+   * Whether the status still moves. `offer`, `rejected` and `withdrawn` stop
+   * the follow-up clock — they end the waiting, which is what the nudge is
+   * about.
+   */
+  open: boolean;
+  /**
+   * Long enough since the last event to be worth a nudge. The copy states the
+   * elapsed time and lets the user decide; it never claims the employer did or
+   * did not do anything, because the system cannot know that (I15).
+   */
+  needsFollowUp: boolean;
+}
+
+export interface ApplicationCounts {
+  total: number;
+  open: number;
+  needingFollowUp: number;
 }
 
 /** One card on "Emails we couldn't read" (design, screen 2). */

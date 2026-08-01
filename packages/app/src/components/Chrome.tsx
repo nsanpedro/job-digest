@@ -2,17 +2,20 @@ import Link from 'next/link';
 import { signOut } from '@/auth';
 import styles from './Chrome.module.css';
 
-export type Tab = 'digest' | 'saved' | 'dismissed' | 'unread' | 'profile';
+export type Tab = 'digest' | 'saved' | 'applications' | 'dismissed' | 'unread' | 'profile';
 
 export function TopBar({
   active,
   unreadCount,
   savedCount,
+  applicationCount = 0,
   userEmail,
 }: {
   active: Tab;
   unreadCount: number;
   savedCount: number;
+  /** Open applications — the ones still waiting on an answer. */
+  applicationCount?: number;
   userEmail: string;
 }) {
   const initial = userEmail.trim().charAt(0).toUpperCase() || '?';
@@ -31,6 +34,15 @@ export function TopBar({
           <Link href="/saved" className={`${styles.tab} ${active === 'saved' ? styles.tabActive : ''}`}>
             Saved
             {savedCount > 0 && <span className={`${styles.badge} ${styles.badgeNeutral}`}>{savedCount}</span>}
+          </Link>
+          <Link
+            href="/applications"
+            className={`${styles.tab} ${active === 'applications' ? styles.tabActive : ''}`}
+          >
+            Applications
+            {applicationCount > 0 && (
+              <span className={`${styles.badge} ${styles.badgeNeutral}`}>{applicationCount}</span>
+            )}
           </Link>
           <Link
             href="/dismissed"

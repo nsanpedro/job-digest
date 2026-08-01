@@ -1,6 +1,7 @@
 import type { Ruleset } from '@job-digest/core';
 import {
   getActiveRuleset,
+  getApplicationCounts,
   getDigest,
   getSavedCount,
   getUnreadEmails,
@@ -47,14 +48,21 @@ export default async function DigestPage() {
     throw err;
   }
 
-  const [unread, savedCount] = await withTenant(user.id, async (tx) => [
+  const [unread, savedCount, applications] = await withTenant(user.id, async (tx) => [
     await getUnreadEmails(tx, user.id, weekWindow(new Date())),
     await getSavedCount(tx, user.id),
+    await getApplicationCounts(tx, user.id),
   ]);
 
   return (
     <>
-      <TopBar active="digest" unreadCount={unread.length} savedCount={savedCount} userEmail={user.email} />
+      <TopBar
+        active="digest"
+        unreadCount={unread.length}
+        savedCount={savedCount}
+        applicationCount={applications.open}
+        userEmail={user.email}
+      />
       <div className="container">
         <DigestHeader digest={digest} rules={rules} />
         <DigestList digest={digest} rules={rules} />

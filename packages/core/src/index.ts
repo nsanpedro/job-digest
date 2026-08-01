@@ -2,6 +2,15 @@ export * from './types';
 export { eur, describeCondition, describePredicate, predicateFactName } from './describe';
 export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked } from './evaluate';
 export { DEFAULT_RULESET } from './default-ruleset';
+export {
+  applyMode,
+  isMode,
+  rulesAffectedByMode,
+  DEFAULT_MODE,
+  MODES,
+  MODE_COPY,
+  type Mode,
+} from './mode';
 
 // credentials.ts is deliberately NOT re-exported here. It needs node:crypto,
 // and this barrel is imported by client components (RulesEditor,

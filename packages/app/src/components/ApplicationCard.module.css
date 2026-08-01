@@ -1,0 +1,206 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-left-style: solid;
+  border-left-color: var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+}
+
+.cardNudged {
+  border-left-color: var(--warn-edge);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.headLeft {
+  min-width: 0;
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.titleLink {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.titleLink:hover {
+  color: var(--link);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+}
+
+.metaCompany {
+  font-weight: 500;
+}
+
+.metaSep {
+  color: var(--separator);
+}
+
+.metaSource {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: var(--radius-badge);
+  white-space: nowrap;
+}
+
+.status_open {
+  background: var(--saved-bg);
+  color: var(--saved-fg);
+}
+
+.status_good {
+  background: var(--pass-bg);
+  color: var(--pass-fg);
+}
+
+.status_closed {
+  background: var(--unknown-bg);
+  color: var(--unknown-fg);
+}
+
+.nudge {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-chip);
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-bd);
+  color: var(--amber-fg);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.timeline {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.event {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  flex-wrap: wrap;
+}
+
+.eventDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--separator);
+  flex-shrink: 0;
+}
+
+.eventLabel {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.eventDate {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.eventNote {
+  color: var(--text-muted);
+}
+
+.eventUndo {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  opacity: 0;
+}
+
+.event:hover .eventUndo,
+.eventUndo:focus-visible {
+  opacity: 1;
+}
+
+.eventUndo:hover {
+  color: var(--block-fg);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft-2);
+}
+
+.actionsLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted-2);
+}
+
+.actionBtn {
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.actionBtn:hover {
+  border-color: oklch(0.72 0.01 260);
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Touch devices have no hover, so the remove control must be permanent. */
+@media (hover: none) {
+  .eventUndo {
+    opacity: 1;
+  }
+}

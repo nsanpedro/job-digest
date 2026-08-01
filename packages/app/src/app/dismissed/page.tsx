@@ -1,4 +1,11 @@
-import { getActiveRuleset, getDismissedAds, getSavedCount, getUnreadEmails, weekWindow } from '@job-digest/db';
+import {
+  getActiveRuleset,
+  getApplicationCounts,
+  getDismissedAds,
+  getSavedCount,
+  getUnreadEmails,
+  weekWindow,
+} from '@job-digest/db';
 import { TopBar } from '@/components/Chrome';
 import { DismissedRow } from '@/components/DismissedRow';
 import { currentUser, withTenant } from '@/lib/session';
@@ -14,16 +21,23 @@ export const dynamic = 'force-dynamic';
 export default async function DismissedPage() {
   const user = await currentUser();
 
-  const [dismissed, unread, savedCount, ruleset] = await withTenant(user.id, async (tx) => [
+  const [dismissed, unread, savedCount, ruleset, applications] = await withTenant(user.id, async (tx) => [
     await getDismissedAds(tx, user.id),
     await getUnreadEmails(tx, user.id, weekWindow(new Date())),
     await getSavedCount(tx, user.id),
     await getActiveRuleset(tx, user.id),
+    await getApplicationCounts(tx, user.id),
   ]);
 
   return (
     <>
-      <TopBar active="dismissed" unreadCount={unread.length} savedCount={savedCount} userEmail={user.email} />
+      <TopBar
+        active="dismissed"
+        unreadCount={unread.length}
+        savedCount={savedCount}
+        applicationCount={applications.open}
+        userEmail={user.email}
+      />
       <div className="container">
         <h1 className={styles.h1}>Dismissed</h1>
         <p className={styles.subtitle}>

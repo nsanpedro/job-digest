@@ -1,7 +1,8 @@
-import { DEFAULT_RULESET } from '@job-digest/core';
+import { DEFAULT_MODE, DEFAULT_RULESET, type Mode } from '@job-digest/core';
 import {
   getAccountOverview,
   getActiveRuleset,
+  getApplicationCounts,
   getSavedCount,
   getUnreadEmails,
   NoActiveRulesetError,
@@ -10,6 +11,7 @@ import {
 import { signIn } from '@/auth';
 import { TopBar } from '@/components/Chrome';
 import { ForwardingConnect } from '@/components/ForwardingConnect';
+import { ModePicker } from '@/components/ModePicker';
 import { RulesEditor } from '@/components/RulesEditor';
 import { currentUser, withTenant } from '@/lib/session';
 import styles from './page.module.css';
@@ -24,27 +26,39 @@ function isExpiringSoon(d: Date | null): boolean {
 export default async function ProfilePage() {
   const user = await currentUser();
 
-  const [ruleset, account, unread, savedCount] = await withTenant(user.id, async (tx) => {
-    let rs: { version: number; rules: typeof DEFAULT_RULESET };
+  const [ruleset, account, unread, savedCount, applications] = await withTenant(user.id, async (tx) => {
+    let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
     try {
       rs = await getActiveRuleset(tx, user.id);
     } catch (err) {
       if (!(err instanceof NoActiveRulesetError)) throw err;
-      rs = { version: 0, rules: DEFAULT_RULESET };
+      rs = { version: 0, savedRules: DEFAULT_RULESET, mode: DEFAULT_MODE };
     }
     return [
       rs,
       await getAccountOverview(tx, user.id),
       await getUnreadEmails(tx, user.id, weekWindow(new Date())),
       await getSavedCount(tx, user.id),
+      await getApplicationCounts(tx, user.id),
     ] as const;
   });
 
   return (
     <>
-      <TopBar active="profile" unreadCount={unread.length} savedCount={savedCount} userEmail={user.email} />
+      <TopBar
+        active="profile"
+        unreadCount={unread.length}
+        savedCount={savedCount}
+        applicationCount={applications.open}
+        userEmail={user.email}
+      />
       <div className="container">
         <h1 className={styles.h1}>Profile</h1>
+
+        <div className={styles.section}>
+          <p className={styles.sectionLabel}>Search mode</p>
+          <ModePicker mode={ruleset.mode} rules={ruleset.savedRules} />
+        </div>
 
         <div className={styles.section}>
           <p className={styles.sectionLabel}>Filtering rules</p>
@@ -54,7 +68,13 @@ export default async function ProfilePage() {
               them.
             </p>
           )}
-          <RulesEditor initialRules={ruleset.rules} version={ruleset.version} />
+          {/*
+            The authored rules, deliberately — not the mode-adjusted ones from
+            getActiveRuleset().rules. Editing the demoted copy would rewrite
+            every hard rule into a preference the moment someone saved while in
+            urgent mode.
+          */}
+          <RulesEditor initialRules={ruleset.savedRules} version={ruleset.version} />
         </div>
 
         <div className={styles.section}>

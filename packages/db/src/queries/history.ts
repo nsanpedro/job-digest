@@ -20,8 +20,9 @@ import { evaluate, type Ruleset } from '@job-digest/core';
 import { and, count, desc, eq, isNotNull } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { adSightings, ads, adUserState } from '../schema';
-import { getActiveRuleset } from './digest';
-import type { DigestAd, DismissedAd, Platform } from './types';
+import { getLatestApplicationStatuses } from './applications';
+import { getActiveRuleset } from './ruleset';
+import type { ApplicationStatus, DigestAd, DismissedAd, Platform } from './types';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
 
@@ -40,8 +41,9 @@ function toDigestAd(row: {
   state: typeof adUserState.$inferSelect | null;
   sighting: { alertName: string | null; receivedAt: Date | null };
   rules: Ruleset;
+  applicationStatus: ApplicationStatus | null;
 }): DigestAd {
-  const { ad, state, sighting, rules } = row;
+  const { ad, state, sighting, rules, applicationStatus } = row;
   return {
     id: ad.id,
     title: ad.title,
@@ -62,6 +64,7 @@ function toDigestAd(row: {
     wording: ad.wording,
     fit: null,
     gap: null,
+    applicationStatus,
   };
 }
 
@@ -83,10 +86,11 @@ export async function getSavedAds(db: Db, userId: string): Promise<DigestAd[]> {
     .where(and(eq(adUserState.userId, userId), eq(adUserState.saved, true)))
     .orderBy(desc(adUserState.updatedAt));
 
+  const applied = await getLatestApplicationStatuses(db, userId);
   const out: DigestAd[] = [];
   for (const row of rows) {
     const sighting = await latestSighting(db, userId, row.ad.id);
-    out.push(toDigestAd({ ...row, sighting, rules }));
+    out.push(toDigestAd({ ...row, sighting, rules, applicationStatus: applied.get(row.ad.id) ?? null }));
   }
   return out;
 }
@@ -100,10 +104,14 @@ export async function getDismissedAds(db: Db, userId: string): Promise<Dismissed
     .where(and(eq(adUserState.userId, userId), isNotNull(adUserState.dismissedAt)))
     .orderBy(desc(adUserState.dismissedAt));
 
+  const applied = await getLatestApplicationStatuses(db, userId);
   const out: DismissedAd[] = [];
   for (const row of rows) {
     const sighting = await latestSighting(db, userId, row.ad.id);
-    out.push({ ...toDigestAd({ ...row, sighting, rules }), reason: { kind: 'user' } });
+    out.push({
+      ...toDigestAd({ ...row, sighting, rules, applicationStatus: applied.get(row.ad.id) ?? null }),
+      reason: { kind: 'user' },
+    });
   }
   return out;
 }
