@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useOptimistic, useTransition } from 'react';
 import type { DigestAd } from '@job-digest/db';
 import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
@@ -17,6 +17,25 @@ const APPLIED_LABEL: Record<NonNullable<DigestAd['applicationStatus']>, string> 
   withdrawn: 'Withdrawn',
 };
 
+/**
+ * Local, optimistic view of the fields a click on this card can change
+ * (design: perf pass, Aug 2026). Every action here used to wait for the full
+ * mutate → revalidatePath → re-render round trip before the button even
+ * changed label — on a real network that's real seconds of "did my click
+ * register?" for the single most-used interaction in the app.
+ *
+ * `justActed` covers Dismiss/Undo specifically: neither actually removes the
+ * card from its list on click — that still requires the server's re-split
+ * between visible/dismissed (I10) — but the button confirms instantly rather
+ * than sitting there ambiguous until the real list catches up.
+ */
+interface OptimisticState {
+  saved: boolean;
+  seen: boolean;
+  applicationStatus: DigestAd['applicationStatus'];
+  justActed: boolean;
+}
+
 export function AdCard({
   ad,
   expanded,
@@ -30,10 +49,46 @@ export function AdCard({
   dismissed?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const [optimistic, setOptimistic] = useOptimistic<OptimisticState, Partial<OptimisticState>>(
+    { saved: ad.saved, seen: ad.seen, applicationStatus: ad.applicationStatus, justActed: false },
+    (state, patch) => ({ ...state, ...patch }),
+  );
   const edge = EDGE_COLOR[worstOf(ad.verdicts.map((v) => v.state))];
 
+  // The server call reads the target value from optimistic state, not the
+  // `ad` prop — a rapid second click lands before the prop refreshes, and
+  // reading from the (stale) prop there would send the same value twice,
+  // leaving the display and the database disagreeing about the outcome.
+  const onToggleSaved = () =>
+    startTransition(async () => {
+      const next = !optimistic.saved;
+      setOptimistic({ saved: next });
+      await toggleSaved(ad.id, next);
+    });
+  const onToggleSeen = () =>
+    startTransition(async () => {
+      const next = !optimistic.seen;
+      setOptimistic({ seen: next });
+      await toggleSeen(ad.id, next);
+    });
+  const onApply = () =>
+    startTransition(async () => {
+      setOptimistic({ applicationStatus: 'applied' });
+      await recordApplicationEvent(ad.id, 'applied');
+    });
+  const onDismiss = () =>
+    startTransition(async () => {
+      setOptimistic({ justActed: true });
+      await dismissAd(ad.id);
+    });
+  const onUndo = () =>
+    startTransition(async () => {
+      setOptimistic({ justActed: true });
+      await undoDismiss(ad.id);
+    });
+
   return (
-    <div className={styles.card} style={{ borderLeftColor: edge }}>
+    <div className={styles.card} style={{ borderLeftColor: edge, opacity: optimistic.justActed ? 0.6 : 1 }}>
       <div className={styles.body}>
         <div className={styles.titleRow}>
           <button type="button" className={styles.titleBtn} onClick={onToggle}>
@@ -78,19 +133,19 @@ export function AdCard({
           <>
             <button
               type="button"
-              className={`${styles.actionBtn} ${ad.saved ? styles.actionBtnActive : ''}`}
-              disabled={pending}
-              onClick={() => startTransition(() => toggleSaved(ad.id, !ad.saved))}
+              className={`${styles.actionBtn} ${optimistic.saved ? styles.actionBtnActive : ''}`}
+              disabled={optimistic.justActed}
+              onClick={onToggleSaved}
             >
-              {ad.saved ? 'Saved' : 'Save for later'}
+              {optimistic.saved ? 'Saved' : 'Save for later'}
             </button>
             <button
               type="button"
               className={styles.actionBtn}
-              disabled={pending}
-              onClick={() => startTransition(() => toggleSeen(ad.id, !ad.seen))}
+              disabled={optimistic.justActed}
+              onClick={onToggleSeen}
             >
-              {ad.seen ? 'Marked seen' : 'Mark as seen'}
+              {optimistic.seen ? 'Marked seen' : 'Mark as seen'}
             </button>
             {/*
               Recording an application is the user telling us something we
@@ -98,17 +153,12 @@ export function AdCard({
               button, and once made it links to the record rather than
               pretending to track anything further on its own.
             */}
-            {ad.applicationStatus ? (
+            {optimistic.applicationStatus ? (
               <a href="/applications" className={`${styles.actionBtn} ${styles.actionBtnApplied}`}>
-                {APPLIED_LABEL[ad.applicationStatus]}
+                {APPLIED_LABEL[optimistic.applicationStatus]}
               </a>
             ) : (
-              <button
-                type="button"
-                className={styles.actionBtn}
-                disabled={pending}
-                onClick={() => startTransition(() => recordApplicationEvent(ad.id, 'applied'))}
-              >
+              <button type="button" className={styles.actionBtn} disabled={optimistic.justActed} onClick={onApply}>
                 I applied
               </button>
             )}
@@ -121,22 +171,12 @@ export function AdCard({
         )}
         <span className={styles.spacer} />
         {dismissed ? (
-          <button
-            type="button"
-            className={styles.actionBtn}
-            disabled={pending}
-            onClick={() => startTransition(() => undoDismiss(ad.id))}
-          >
-            Undo
+          <button type="button" className={styles.actionBtn} disabled={optimistic.justActed} onClick={onUndo}>
+            {optimistic.justActed ? 'Restored' : 'Undo'}
           </button>
         ) : (
-          <button
-            type="button"
-            className={styles.dismissBtn}
-            disabled={pending}
-            onClick={() => startTransition(() => dismissAd(ad.id))}
-          >
-            Dismiss
+          <button type="button" className={styles.dismissBtn} disabled={optimistic.justActed} onClick={onDismiss}>
+            {optimistic.justActed ? 'Dismissed ✓' : 'Dismiss'}
           </button>
         )}
       </div>

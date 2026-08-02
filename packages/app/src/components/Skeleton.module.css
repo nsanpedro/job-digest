@@ -1,0 +1,18 @@
+.bar {
+  background: var(--surface-muted);
+  border-radius: var(--radius-chip);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+}
+
+.cardRow {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

@@ -25,7 +25,19 @@ import {
   PARSER_VERSION,
   withTenant as workerWithTenant,
 } from '@job-digest/worker';
+import { signOut } from '@/auth';
 import { currentUserId, rawPool, withTenant } from './session';
+
+/**
+ * Extracted from Chrome.tsx's sign-out form: since TopBar became a Client
+ * Component (usePathname, for tab highlighting — design: perf pass, Aug
+ * 2026), an inline `'use server'` action in its JSX is no longer legal —
+ * Next.js requires Server Actions used from Client Components to be actual
+ * exports from a server module, not closures defined at the call site.
+ */
+export async function signOutAction(): Promise<void> {
+  await signOut({ redirectTo: '/login' });
+}
 
 async function upsertState(adId: string, patch: Partial<typeof adUserState.$inferInsert>) {
   const userId = await currentUserId();

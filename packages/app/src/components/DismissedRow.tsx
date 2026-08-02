@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useOptimistic, useTransition } from 'react';
 import { describeCondition, type Ruleset } from '@job-digest/core';
 import type { DismissedAd } from '@job-digest/db';
 import { overrideRule, undoDismiss } from '@/lib/actions';
@@ -32,11 +32,16 @@ export function DismissedRow({
   rules: Ruleset;
   rulesetVersion: number;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  // Same pattern as AdCard (design: perf pass, Aug 2026): the click can't
+  // actually move this row out of "Filtered out" until the server re-splits
+  // the digest, but it can confirm instantly instead of leaving the button
+  // sitting there ambiguous for however long that round trip takes.
+  const [justActed, setJustActed] = useOptimistic(false, (_state: boolean, next: boolean) => next);
   const sv = STATE_VISUALS[ad.reason.kind === 'user' ? 'unknown' : 'block'];
 
   return (
-    <div className={styles.row}>
+    <div className={styles.row} style={{ opacity: justActed ? 0.6 : 1 }}>
       <div className={styles.main}>
         <div className={styles.title}>{ad.title}</div>
         <div className={styles.meta}>
@@ -52,16 +57,16 @@ export function DismissedRow({
       <button
         type="button"
         className={styles.btn}
-        disabled={pending}
+        disabled={justActed}
         onClick={() =>
-          startTransition(() =>
-            ad.reason.kind === 'user'
-              ? undoDismiss(ad.id)
-              : overrideRule(ad.id, ad.reason.blockers[0]!.key, rulesetVersion),
-          )
+          startTransition(async () => {
+            setJustActed(true);
+            if (ad.reason.kind === 'user') await undoDismiss(ad.id);
+            else await overrideRule(ad.id, ad.reason.blockers[0]!.key, rulesetVersion);
+          })
         }
       >
-        {ad.reason.kind === 'user' ? 'Undo' : 'Show anyway'}
+        {justActed ? '✓' : ad.reason.kind === 'user' ? 'Undo' : 'Show anyway'}
       </button>
     </div>
   );

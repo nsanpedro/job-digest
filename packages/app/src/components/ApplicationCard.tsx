@@ -1,7 +1,7 @@
 'use client';
 
-import { useTransition } from 'react';
-import type { ApplicationStatus, TrackedApplication } from '@job-digest/db';
+import { useOptimistic, useTransition } from 'react';
+import type { ApplicationEvent, ApplicationStatus, TrackedApplication } from '@job-digest/db';
 import { recordApplicationEvent, removeApplicationEvent } from '@/lib/actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
 import styles from './ApplicationCard.module.css';
@@ -27,9 +27,33 @@ function elapsed(days: number): string {
   return `${days} days ago`;
 }
 
+type TimelineAction = { kind: 'record'; status: ApplicationStatus } | { kind: 'remove'; eventId: string };
+
+/**
+ * Optimistic status + timeline (design: perf pass, Aug 2026). Recording a
+ * status used to wait for the full round trip before the badge or the
+ * timeline showed anything new; now the click writes both immediately and
+ * reconciles once the server confirms. `open`/`needsFollowUp`, computed
+ * server-side from the whole account's data, deliberately stay as the server
+ * last reported them rather than being re-derived here — they still catch up
+ * on the next revalidate, same as which section (open/closed) the card sits
+ * in on the page above this one.
+ */
 export function ApplicationCard({ app }: { app: TrackedApplication }) {
-  const [pending, startTransition] = useTransition();
-  const status = STATUS_COPY[app.status];
+  const [, startTransition] = useTransition();
+  const [optimistic, applyOptimistic] = useOptimistic<
+    { status: ApplicationStatus; events: ApplicationEvent[] },
+    TimelineAction
+  >({ status: app.status, events: app.events }, (state, action) => {
+    if (action.kind === 'record') {
+      return {
+        status: action.status,
+        events: [{ id: `optimistic-${action.status}`, status: action.status, at: new Date(), note: null }, ...state.events],
+      };
+    }
+    return { ...state, events: state.events.filter((e) => e.id !== action.eventId) };
+  });
+  const status = STATUS_COPY[optimistic.status];
 
   return (
     <div className={`${styles.card} ${app.needsFollowUp ? styles.cardNudged : ''}`}>
@@ -68,7 +92,7 @@ export function ApplicationCard({ app }: { app: TrackedApplication }) {
       )}
 
       <ol className={styles.timeline}>
-        {app.events.map((e) => (
+        {optimistic.events.map((e) => (
           <li key={e.id} className={styles.event}>
             <span className={styles.eventDot} aria-hidden />
             <span className={styles.eventLabel}>{STATUS_COPY[e.status].label}</span>
@@ -79,9 +103,13 @@ export function ApplicationCard({ app }: { app: TrackedApplication }) {
             <button
               type="button"
               className={styles.eventUndo}
-              disabled={pending}
               title="Remove this entry"
-              onClick={() => startTransition(() => removeApplicationEvent(e.id))}
+              onClick={() =>
+                startTransition(async () => {
+                  applyOptimistic({ kind: 'remove', eventId: e.id });
+                  await removeApplicationEvent(e.id);
+                })
+              }
             >
               remove
             </button>
@@ -91,13 +119,17 @@ export function ApplicationCard({ app }: { app: TrackedApplication }) {
 
       <div className={styles.actions}>
         <span className={styles.actionsLabel}>Record</span>
-        {NEXT_STATUSES.filter((s) => s !== app.status).map((s) => (
+        {NEXT_STATUSES.filter((s) => s !== optimistic.status).map((s) => (
           <button
             key={s}
             type="button"
             className={styles.actionBtn}
-            disabled={pending}
-            onClick={() => startTransition(() => recordApplicationEvent(app.id, s))}
+            onClick={() =>
+              startTransition(async () => {
+                applyOptimistic({ kind: 'record', status: s });
+                await recordApplicationEvent(app.id, s);
+              })
+            }
           >
             {STATUS_COPY[s].label}
           </button>

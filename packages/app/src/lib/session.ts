@@ -8,10 +8,12 @@
  * that calls this, so the missing-session throw below is a defense-in-depth
  * assertion, not an expected runtime path.
  */
+import { cache } from 'react';
 import { auth } from '@/auth';
 import { rawPool, withTenant } from './db';
 
-export async function currentUser(): Promise<{ id: string; email: string }> {
+/** cache()-wrapped: the layout and its page both call this every request; one auth() call, not two. */
+export const currentUser = cache(async (): Promise<{ id: string; email: string }> => {
   const session = await auth();
   const id = (session?.user as { id?: string } | undefined)?.id;
   const email = session?.user?.email;
@@ -19,7 +21,7 @@ export async function currentUser(): Promise<{ id: string; email: string }> {
     throw new Error('no session — middleware should have redirected to /login before this ran');
   }
   return { id, email };
-}
+});
 
 export async function currentUserId(): Promise<string> {
   return (await currentUser()).id;
