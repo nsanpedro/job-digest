@@ -81,6 +81,8 @@ describe('normalizeWorkplace', () => {
     ['80 % Remote | Hamburg', 4],
     ['Remote-Optional', null],
     ['Präsenz im Büro Winterhude', 0],
+    // StepStone's own phrasing (§14 fixtures) — real evidence, not "remote".
+    ['Homeoffice möglich, Vollzeit', null],
   ];
   for (const [text, home] of cases) {
     it(`"${text}" → home: ${home}`, () => {
@@ -217,6 +219,19 @@ describe('normalizeAd — assembly and the I5 property', () => {
       location: fieldSpan('Hamburg'),
     });
     expect(facts.home).toBe(4);
+  });
+
+  it("StepStone's employment-type pill is the last-resort fallback for Onsite (§14)", () => {
+    const { facts, wording } = normalizeAd({
+      title: fieldSpan('Engineering Manager, Integrations'),
+      location: fieldSpan('Berlin, Germany'),
+      employmentType: fieldSpan('Homeoffice möglich, Vollzeit'),
+    });
+    // Neither title nor location says anything about home office — an option
+    // is not a promise (I4), so the fact stays null, but the ad's own wording
+    // still shows rather than reading as a plain "not read".
+    expect(facts.home).toBeNull();
+    expect(wording.Onsite?.quote).toBe('Homeoffice möglich, Vollzeit');
   });
 
   it('every wording quote is a verbatim substring of its source field (I5)', () => {

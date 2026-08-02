@@ -26,8 +26,12 @@ import { classifyOutcome, type CauseCode, type Outcome } from './outcome';
 import { mergeFacts } from './merge-facts';
 import type { Tx } from './tenant';
 
-/** Bumped whenever extraction behaviour changes; drives re-parse (I2). */
-export const PARSER_VERSION = 1;
+/**
+ * Bumped whenever extraction behaviour changes; drives re-parse (I2).
+ * v2: adds the StepStone extractor — a real behaviour change for every
+ * StepStone email, stored or future.
+ */
+export const PARSER_VERSION = 2;
 
 export interface IngestInput {
   userId: string;

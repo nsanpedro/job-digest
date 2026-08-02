@@ -69,8 +69,13 @@ export function normalizeAd(
     }
   }
 
-  // ── Onsite: the location line first, the title as fallback ──
-  for (const source of [extracted.location, extracted.title]) {
+  // ── Onsite: the location line first, then the title, then the
+  //    employment-type pill — StepStone is the only platform that puts a
+  //    workplace signal there ("Homeoffice möglich" alongside "Vollzeit");
+  //    Xing's Vollzeit/Teilzeit/Selbstständig values never match a workplace
+  //    pattern, so this is safe as a fallback for every platform, not a
+  //    StepStone-specific branch ──
+  for (const source of [extracted.location, extracted.title, extracted.employmentType]) {
     if (!source || wording.Onsite) continue;
     const w = normalizeWorkplace(source.value);
     if (!w) continue;

@@ -31,8 +31,10 @@ const PATTERNS: Pattern[] = [
   { re: /kein\s+Homeoffice/i, home: () => 0 },
   // Percentages: share of a 5-day week, rounded.
   { re: /(\d{1,3})\s*%\s*(?:remote|homeoffice)/i, home: (m) => Math.round((Number.parseInt(m[1] as string, 10) / 100) * 5) },
-  // An option is not a promise.
-  { re: /remote[-\s]?(?:optional|möglich)/i, home: () => null },
+  // An option is not a promise. StepStone's own phrasing ("Homeoffice
+  // möglich" in the employment-type field) is the same "possible, not
+  // guaranteed" claim as "remote möglich" — same honest null.
+  { re: /(?:remote|homeoffice)[-\s]?(?:optional|möglich)/i, home: () => null },
   { re: /100\s*%\s*remote|voll(?:ständig)?\s*remote|\bEn remoto\b|fully\s+remote/i, home: () => 5 },
   { re: /\bHíbrido\b|\bhybrid\b/i, home: () => null },
   { re: /\bPresencial\b|vor[-\s]?Ort|onsite|Präsenz\b/i, home: () => 0 },

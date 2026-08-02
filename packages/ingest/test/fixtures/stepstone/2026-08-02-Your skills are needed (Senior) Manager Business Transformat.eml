@@ -1,0 +1,1246 @@
+Delivered-To: user@example.com
+Received: by 2002:a05:6f02:c24f:b0:127:b2aa:559e with SMTP id n15csp2592826rcb;
+        Sun, 2 Aug 2026 02:52:34 -0700 (PDT)
+X-Received: by 2002:a05:6000:18a6:b0:47f:9447:62bf with SMTP id ffacd0b85a97d-47fd72ba5eemr12935507f8f.2.1785664354626;
+        Sun, 02 Aug 2026 02:52:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1785664354; cv=none;
+        d=google.com; s=arc-20260327;
+        b=jq1htMEQUes1ql0Fwh/WZBBwW7kjXWv7EBOOuQL2yTwWGvomY1dL9b7hhlgA+Y1WkA
+         vuZHNY2wztQZD1aKKOti4BzUlsSCmNYTqYNu2IYUmUsnU/J0KYmcqL1c/sC1jRg/mt1r
+         Dcykvq+0XODZIv34ZZ4ZH6xg29tixivLi3VwtHwGgUqMjiKcpJ47fTy7AxmKPVOYYVmC
+         SF/1z1fU4eUYIHyUkeMcfYGi67xmUq1vaOxHV1QJtUrDogeTdE8OlaOqwr1fJg5hpsgB
+         cFEyZVyTewCeFGaZ4Pao5LGDXbRfCuotyrG+PWToGJ/39kH3/gGFcbq/YSmKBwARWAtZ
+         frbQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=list-id:list-unsubscribe-post:list-unsubscribe:feedback-id:reply-to
+         :from:subject:mime-version:date:message-id:to:dkim-signature;
+        bh=CTTH/MbMyrVh9pXZ1xKQJuaB8lA6kDNP4RvuFOFWUrM=;
+        fh=lPtS0IvqclXhBDSDsp7zpX5KNu+1tP+HhrRb4ag5FRA=;
+        b=D5OfOLRm1GgnmSSYKR6VPGW94N4t4myEYkXNFySWEmvDi2nNy8U52Q4+/SgW39vKY/
+         dsv2HAwHvS673BuR62Fj4RMxTLpSW2wYI4ACy1//5EaobY8VH+nHC+Ar6eyWeKzuGX8i
+         umbV8HSB0Q/CJ8DSzN0eX9W+nReog3v3JSgfyyFxmNUFRtx9bMwG0lE1PU2zPq0VctmU
+         hmGSM6vSD2MnI9bkj0NGKI9pFkuW8hdD9iSWdMv6WyHATyUxe5WXWWIh07mSvFWTIZm2
+         shB4vCj3Omt6dYaKL0gp/3pHF8BURGabHZA+GPoYX98Yfwj83/fwNz8fGtk7CErtQanR
+         HHDg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@jobagent.stepstone.de header.s=scph0720 header.b=IuraI8e2;
+       spf=pass (google.com: domain of msprvs1=206747qahyy-y=bounces-9762-5@bounce.jobagent.stepstone.de designates 192.174.94.3 as permitted sender) smtp.mailfrom="msprvs1=206747qAhyy-y=bounces-9762-5@bounce.jobagent.stepstone.de";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=jobagent.stepstone.de
+Return-Path: <msprvs1=206747qAhyy-y=bounces-9762-5@bounce.jobagent.stepstone.de>
+Received: from mta-174-94-3.stepstone.de.sparkpostmail.com (mta-174-94-3.stepstone.de.sparkpostmail.com. [192.174.94.3])
+        by mx.google.com with ESMTPS id ffacd0b85a97d-47fd45ffae5si12413344f8f.439.2026.08.02.02.52.34
+        for <user@example.com>
+        (version=TLS1_2 cipher=ECDHE-ECDSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 02 Aug 2026 02:52:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of msprvs1=206747qahyy-y=bounces-9762-5@bounce.jobagent.stepstone.de designates 192.174.94.3 as permitted sender) client-ip=192.174.94.3;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@jobagent.stepstone.de header.s=scph0720 header.b=IuraI8e2;
+       spf=pass (google.com: domain of msprvs1=206747qahyy-y=bounces-9762-5@bounce.jobagent.stepstone.de designates 192.174.94.3 as permitted sender) smtp.mailfrom="msprvs1=206747qAhyy-y=bounces-9762-5@bounce.jobagent.stepstone.de";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=jobagent.stepstone.de
+X-MSFBL: Sk/qnyJJIsJBG5gUW1C4Ux20swjm6cLwqP6PILoDQC4=|eyJzdWJhY2NvdW50X2l
+	kIjoiNSIsIm1lc3NhZ2VfaWQiOiI2YTZhNjIxMzZmNmE3MmJmNjc4OCIsImN1c3R
+	vbWVyX2lkIjoiOTc2MiIsInRlbmFudF9pZCI6InNwY2V1IiwiciI6Im5pY29sYXN
+	zYW5wZWRyb0BnbWFpbC5jb20ifQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=jobagent.stepstone.de; s=scph0720; t=1785664354;
+	i=@jobagent.stepstone.de;
+	bh=CTTH/MbMyrVh9pXZ1xKQJuaB8lA6kDNP4RvuFOFWUrM=;
+	h=To:Message-ID:Date:Content-Type:Subject:From:Feedback-ID:
+	 List-Unsubscribe:List-Unsubscribe-Post:From:To:Cc:Subject:
+	 Feedback-Id;
+	b=IuraI8e2y1lff1bo1AU9VSeUeAnU+G08DVkLcL1lgX3MYN24mNus87/vvb4hE8lJO
+	 qYil2jEgvbtSgDorm7+hwwDPPdA0AYtVdtLkJ/vWAJ5D7CCEuZGRz1s4au/tRdxa/x
+	 97ipfdVnvaUsGQI+Vn11Itt1tjXchUPTZZwDrEXI=
+Received: from [10.95.204.82] ([10.95.204.82])
+	by i-00a17aa239b12e3da.mta3vrest.sd.prd.sparkpost (ecelerity 5.3.0.76339 r(msys-ecelerity:tags/5.3.0.2)) with REST
+	id 88/76-20189-2631F6A6; Sun, 02 Aug 2026 09:52:34 +0000
+To: "User Example" <user@example.com>
+Message-ID: <88.76.20189.2631F6A6@i-00a17aa239b12e3da.mta3vrest.sd.prd.sparkpost>
+Date: Sun, 02 Aug 2026 09:52:34 +0000
+Content-Type: multipart/alternative; boundary="_----WoiiEoYCrHENpJpjGHeIdg===_F7/76-20189-2631F6A6"
+MIME-Version: 1.0
+Subject: Your skills are needed: (Senior) Manager Business Transformation (m/w/d)
+From: "Emma Jacobs from Stepstone" <info@jobagent.stepstone.de>
+x-cid: STSTCE_STST_DE_B2C_IJM_EN
+Reply-To: noreply@stepstone.de
+Feedback-ID: 1081fd14-86e8-4127-95b9-bc82122895cd:9c9b6c0e-fd22-4b67-a773-137abfac6777:STSTCE_STST_DE_B2C_IJM_EN:STSTSPARKPOST
+List-Unsubscribe: <mailto:unsubscribe@eu.sparkpostmail.com?subject=unsubscribe%3A1Sbf61EfCiezJKePYujWF3ITIDw3C-XG2NuGHMoRT70~%7CeyAicmNwdF90byI6ICJuaWNvbGFzc2FucGVkcm9AZ21haWwuY29tIiwgInRlbmFudF9pZCI6ICJzcGNldSIsICJjdXN0b21lcl9pZCI6ICI5NzYyIiwgInN1YmFjY291bnRfaWQiOiAiNSIsICJtZXNzYWdlX2lkIjogIjZhNmE2MjEzNmY2YTcyYmY2Nzg4IiB9>,<https://unsubscribe.eu.spmta.com/u/S44CW3svRHNnf1qxSO-FBg~~/AAAmIhA~/F-jOS2JHU9eWTlVUjK44jibDsxa25sGDXnfIKA3WnqIuaM5FghrAz1iU7IAorkfXrWpRMu0wzO8xzT0RAL1BqQ~~>
+List-Unsubscribe-Post: List-Unsubscribe=One-Click
+List-Id: <spceu.9762.5.sparkpostmail.com>
+
+--_----WoiiEoYCrHENpJpjGHeIdg===_F7/76-20189-2631F6A6
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="UTF-8"
+
+Hi there,=0AHere's a job that could be a good option, depending on what y=
+ou're looking for next.=0A=0A=0ARecommended for you=0A(Senior) Manager Busi=
+ness Transformation (...=0A=0AALGOL GmbH=0ACologne=0A=0AFeste Anstellung=0A=
+Homeoffice m=C3=B6glich, Vollzeit=0A61.000 - 90.000 =E2=82=AC/Jahr (gesch=
+=C3=A4tzt f=C3=BCr Vollzeit)=0A=0A6 days ago=0A=0A=0A=0AI'm=C2=A0interested=
+=0Ahttps://click.stepstone.de/f/a/dPhWdOOFpa03ADaahAdEzw~~/AAAmIhA~/8vj_4-W=
+UG3q_V0vUfr4FJzMz2s9LyffW6GbInZ-4yWqIggIBk0PG7YS7tqEPrc22dmgUKbtwx7Pw43cWpX=
+bLck8QXB2uvveFt856dJ_00TuXP0khZWsLv7lYs5DKOa01dotRNqIQjdQYeBBelTDAxzJkVT0cX=
+CphvZZH5x7WRZN1fgzckveb5TIDnXTyerInHmC7liUM3v2mZNePmYK8-r3LeVbT6ybadw909fuq=
+YZrCZGQC3KBAtxKKxZiGkWAjHqvx2Pl70skAz8ZB5qwDQT72e3cYT1JJ3ovPFKLkPTy5SZf05z3=
+khTczPkyBcpubZ6hq1KEKRKLSm4mk1UF-pynWQ8_cnqqNtA1dB32Syqzg8mKbZwAqQuv_son9ka=
+X5Awij78IiTAaZf4E96rUSn1oZzN3QFow3Oz1s9J79D5yw3n1ll-qaYPEjZ8AoMpbA1zJkERf_P=
+26qLnpXiKHS4ZM2TjZVMVBU051U9c_PzhsHZPetug8RczpZgfZfiKhz6Inq70vHDWdf-2HqPVRB=
+bIbSaCvO8CPDzUzcNEAeEiUm342qbO9WXWkihMRQBDV_iU7-tfy8hNcdQONsZtc2wGSS3aEwAQu=
+xZFD-4bR6GSclwiLlvnfxzsJDMWEWakNXP7syYWU4D0gdPQmDzUzvM9bJlmmf7VHTY7KBUT9UqI=
+f3P8z58iPtMpmN5JNvuPhyfQsJvOfvngI_z3A79FJP3L0yooQb5rtmxnDUGnhAak1CMFVW4eyNK=
+vESEBW9mp543f-HfquK4fXd5l6pyt9T4vNYhnXc500Ps4YF8CBT8s3AGj8D7qeiMzKQLl9H6tJ0=
+PlwJr1aLBuQ9fAyLErVKXMSmDLGzPUxSdkknibGm8sN8OJlGnwauQXg4nQH08W0fWe20zhyrbAd=
+LQ7r3bQdTdoPvXtlcWZBit5YphcXqwNYredXxg4k1kHbgafN3BOe9nMkS1pWx7bbTY5iSxbITbR=
+F-vAc_pN7oXaPbhqqKSBcU3u-6H2iWIx1KwiW9H22S1G9SA3n_cg_nEOjIgsV73LvcXcq-9Sp0J=
+dtHyTXO8PQrKVyxngtDyDbuAE5C-CQ81rEvCDbLFhkGtmR45vIfXfyXUADaCXSf-Swwx-Me6pYN=
+OL3XxRZc4LXJw-861N_LzbYZOiDfCuJysUEsyv7EmmfENwF9B62srQMZwkuvqyClkDelWFV9Thg=
+GtajLqIwICg-5VtEtPnRNVsaSOtz0-PHlfKYXXYM3DPAXWVhFOMOWXESF1jOZMx3o-v5Q-MOYJg=
+K2_ZsGh-qwPGa3KhMXr0xY78I8saYM40yJHV284HV5Zdaz-Qzyt_hqwou7AXTGhz0wZuMy_7pZq=
+0lzSYw1Hqh924hVFCMF2sD7Fwi4ydNyUykoKwXMAizTCfzmtGLGMvGRbVS48wtqMHK3r_Kuj2tS=
+O8jSuIOk93PDFD0hF1EkOPZRuy4JzCIwAACtcDf_HZsguJ-No9qy8ixsa3loWsWNor0EtmuudMh=
+NnbuK49axrX1AhllMXtq4wBBS1Rh2A8qEA-7zPVyMSrjh-hbucnTqazNLCGvE4Mq8UMsqyICi12=
+VcVmgtYSbA-kGD0mjE-bkVJb1WDj2VRLrvjK_vqNnAcHL2LQ5_XmrMo_5d1RzoVHAeRKLUJVNCe=
+zmSSgBC-taTdtcbhBELCl9-v8aqqlLgMLShyUAm9NHFMBXPF-L7yzArpSNm_IVTvPC87gkn=0A=
+=0A=0ATop skills=0AYou're a great fit for this role if you have the followi=
+ng skills:=0APRINCE2 - Betriebsanalyse - Programmbetreuung - GPM - Prozessa=
+nalyse - =0A=0A=0AEinleitung=0AWe make work flow. Wemakeyouflow. Als Untern=
+ehmensberatung sind unsere Mitarbeitenden der Schl=C3=BCssel zum Erfolg. Mi=
+t ihnen helfen wir unseren Kunden mit Expertise, einer =E2=80=9E=C3=84rmel-=
+hoch-Mentalit=C3=A4t=E2=80=9C und hoher intrinsischer Motivation die Proble=
+me der Business Transformation zu l=C3=B6sen.=0AImmer ehrlich. Immer mitden=
+kend. Immer l=C3=B6sungsorientiert.=0AGemeinsam schaffen wir bei Algol Cons=
+ulting ein inspirierendes Umfeld, in dem unsere Mitarbeitenden ihr volles P=
+otenzial entfalten k=C3=B6nnen. H=C3=B6rt sich das Interessant f=C3=BCr Dic=
+h an=3F Dann bleib dran!=0A=0APerfectly tailored jobs for you=0AUpload your=
+ CV and see up to 3 top matches at a glance in the next email.=0AUpload CV=
+=0Ahttps://click.stepstone.de/f/a/_opEhIZhK0kXY5pf9JHpVQ~~/AAAmIhA~/UWF9n6d=
+JfmmazLtGrVh5_uVvs56Qf8vqlGxSBhKDRVyTkzna1WYkaMfsXoMbgzyXGI9eG4TXgNztegJQPv=
+0qqCcrWrPCKO-nVfpdm1K3d5eLLr0TVz4N6PS3t2-yKIaQsUscJECdMvUkRxtw1eQMCP8SZ6RCT=
+E57T-Gudl2_TlyooVcBTeHT0oPHJHQoctbaD0DgJ4TFfujyjoFZoD3t5R2O667QeJwDyJ89E32g=
+b94LrNVXm6a1S7Wxp0T7FahaBd6osNNMMFjciPT9uIJYB44CTun9RJRBF1-tBZ3sy8ms7N2FnFB=
+et8OkMF-zUJ6NJ0L4A3CS-e3OT8KDlslKt-7MqjEmDbPzLJeWSkUi9UbMOQQURv-QoMtXcjjdx3=
+mkvdHPRYUTIlflRooGBgBc6yow0wQJ0IaHGrrHHaRNX2ESFFhgVaVKJK6s_oTAUMf0NmsknDiKW=
+Zki68q_ryMjh_vhNXGu0fChZojIUPTTjhU217Pu9Ek8pmKO_335meFG9WA8XMiqHNaQzxqbYEUC=
+oOwkqa1CzP6QNQLKznYKgEytty74ydMZySqd_PK8jbxE7OVOC2lwz7lQoQaDxXZ81EUBc2uBjPW=
+e6rrOuSGkVzgifZ9yj4Dq5y_OmJNR_6AYoSFXz2Wl-s1iY8TswSkndmiA-_nimYESLgV9Ea9zQq=
+T30qC9RSqOhrrCLShYpWKdPSLZLIS7xP7Fb-XYQa-WNl3eeK0_OS4bIV7sZZu1YuqSz3Bz-n5aP=
+lmUrHqopTk5kw4bkzkIx1m3g6SkqByH-3xLXDkh8cX830hdEg6hjb026UrwT1dHJa1f5t6Bfwln=
+bUf7W3Mpp3SIoubfNuJcTmWNJvmxHgQ-Q_gSOSjrUGwpu2g9wr0ugKFn81lKE4gq6u7KkJLcXgL=
+3CpZuNaKQWvdRZjfGlyS9j8D1pIcksHokaL4MmLX7J_1cZW-F7C0c7MmhD-AQY0uxURbG4rHgqU=
+uSNZoMCGdQu26XBmH6CUMbA4e1R0IbWG23ycqw6xbXqFP0Lcersk15Q9VKJYUslecOgX-VDbXqS=
+z_ys5XT91UFlcm-tvkwZNmAzOLf9kANwPM1mIuW9Eg9xGq_Sf_e4FhYjYA5IGN3oguMve0Kk-DV=
+eoLK3iPRtc5Zo--sbTH73X-z-hS5YLHC4wtr0GcZTaKD4_6KX77E1yzI8h5kQqO7eclRZiSeh2c=
+mEg_Us2ttx9tSwMx6iinhNUcse9Y_D0LrHN-3C9gGnec_EvNQ7rbUenKX81U9VVPZmV9cgurluc=
+0zpRccJ2Wg4vYqc9IFeo1ewxvNMO4Ik7IR6fty6QSxLHeroRf2WDxESak7noL4XMwr62FYUjxz9=
+mw3D5F1A7W7BCaqSBm3BhSMz_goYwoHeTSdDx257BLjMRZofGmQ4Chvpk5NL-K71eWPXgR75qdX=
+XETiFP62fK4B4i3c76WueiGHPvDKdUylknxYEEjtHV2M62cGvs0GMBcoDBIGU61SGYFB-4JVOST=
+xjrPnX9ztvKYGJlytJKpssJE4e7DY_RBAht7fCywO9CjpM0INtVW__cjs9CvxFTYoUfOzdt_g5g=
+dMEO1B-XlDOQ30lYKjGAB5sHTkYeOKwvGavWyEScKtiRAL7_9Ek0UFmir1PEmAmAGkNDmSMnsAb=
+YwWUTkXd1w_RYX3XVVWEJISlDMHCZVFwnHKMVimm0mAqNLAcoc~=0A=0A=0AAufgaben=0ADu =
+=C3=BCbernimmst eine steuernde Rolle in unseren Projekten und bist dabei ze=
+ntrale:r Ansprechpartner:in zwischen den verschiedenen Stakeholdern=0ADu be=
+gleitest und ber=C3=A4tst unsere Kunden aus unterschiedlichen Branchen bei =
+der Umsetzung ihrer Projekte in der Business Transformation - von der Initi=
+alisierung bis zum Abschluss=0ADu =C3=BCbernimmst Verantwortung f=C3=BCr Te=
+ammitglieder und begleitest sie bei ihrer Entwicklung=0ADu gestaltest mit d=
+er =C3=9Cbernahme von internen Aufgaben die Entwicklung von Algol aktiv mit=
+, z.B. bei der Mitarbeit in einem unserer OKR-Squads=0ADu wirst Teil unsere=
+s dynamischen Teams mit offener Feedbackkultur und flachen=0A=0A=0ADein Pro=
+fil=0AEin abgeschlossenes Hochschulstudium im Bereich Wirtschaftswissenscha=
+ften, (Wirtschafts-) Informatik oder einem verwandten Studiengang=0AFundier=
+te Erfahrung in (Gro=C3=9F-) Projekten (min. 5 Jahre) mit Fokus auf Busines=
+s Analytics, Prozessanalyse/- optimierung und Projekt- oder Programmleitung=
+=0AErfahrung in der F=C3=BChrung von Teams=0AIdealerweise Erfahrung im Busi=
+ness Development=0AExpertise / Fachwissen in einer der folgenden Branchen i=
+n den letzten Jahren w=C3=BCnschenswert: Banken, Versicherungen, Energie un=
+d Telekommunikation=0AEntsprechende Zertifizierungen sind vorteilhaft (GPM/=
+IPMA, Prince2, ITIL, Scrum, SAFe)=0AAusgepr=C3=A4gte konzeptionelle und ana=
+lytische F=C3=A4higkeiten, eigenverantwortliche Arbeitsweise und eine hohe =
+Teamf=C3=A4higkeit=0AEin sicheres Auftreten und gutes Verhandlungsgeschick=
+=0AFlexibilit=C3=A4t, hohe Motivation und Begeisterungsf=C3=A4higkeit=0ASeh=
+r gute Deutsch- (mind. C1) und Englischkenntnisse=0AAusgepr=C3=A4gte Kommun=
+ikations- und Pr=C3=A4sentationskompetenzen runden Dein Profil=0A=0A=0AWas =
+wir bieten=0AAttraktives Fixgehalt mit einer additiven Bonusregelung und ei=
+ne betriebliche Altersvorsorge, die sich mit wachsender Betriebszugeh=C3=B6=
+rigkeit erh=C3=B6ht=0AFlexible Arbeitszeitgestaltung (5-Tage-Woche/ 40h), d=
+ie M=C3=B6glichkeit beim Kunden vor Ort, in unserem K=C3=B6lner B=C3=BCro o=
+der flexibel aus dem Home-Office zu arbeiten=0AOnboarding mit Mentoringprog=
+ramm und Zertifizierungen=0AVielf=C3=A4ltige Lern- und Entwicklungsm=C3=B6g=
+lichkeiten durch interne und externe Weiterbildungen=0AModerne technische A=
+usstattung sowie zus=C3=A4tzliches Equipment f=C3=BCr das Home-Office=0AReg=
+elm=C3=A4=C3=9Fige After-Work Events und j=C3=A4hrliche=0A=0A=0ARead the fu=
+ll job description here=0Ahttps://click.stepstone.de/f/a/uafAIp6QiyL3bCUUxi=
+VjtA~~/AAAmIhA~/B8u0GSlEcO38veNr5cVLSPQNiaEtwWIyyYQUz9hM83rp3XGFDhcb5sgKkEV=
+gFZUqaIh97ZdvxngAtRTmNChm1-gy4rtW-LtN5sjCyGUxd_jEstWIbkAAWmanILncnp6t1emNK9=
+ovWanvjWqq4Lg_XsLffn8bVTsgxO4z3ncNzBai0ex1tM__SwFNallZf8SndWQ0NsdFgxWAC-BDJ=
+5iyELEs6Njyk9tf7QhJK-wNE89eDiEJ1bqgK69p9DgJXnn6u2G8dK7dJ8h1iBhW2nFgzpDe17rr=
+AQ4VPTBNTLdXOJJxnVcgPUuH-SsqPxfwcFkzXnubf9qC2rf41FZjykrZVZ06DbDRMfGQwg9bmTz=
+ouX6lenGT_auXbhQAV4aAQERqKWpBw3IDSZVYpAWbnWecfT7E04MSReV-rjMNqsPNfYWp2Vof8d=
+prwU-dWUgCzK5DP-h01DPtGh4LWNoDcYPP75hmj2R3Envepcstvl6OgUSSiBXO8r0OHsAFP3pG8=
+BHg4L4Ka4qpO-T9pPuwiYZV7aOu-kHw6RsTu3JUVsodlZzscU_m-JKNWlA5eVKc4bP9sDAZ_tgS=
+RzW7dNZWx0ShdRIDndWKCHJxvza1dA1ptiHAAHAMVdyC7SWIHDVqw090nRfWPycD6xpukiIoBFg=
+fujUBvcsxn8d_ZkjF_UT8Gy_Ie__31IYkwd2Xn7fis_d2ApRI3M-GOmmTb6E9DfbuVSkZ-gu6sP=
+d2r5ddIFkb2IXUrl7jFGSc68wsj7CYs37Omtnupdxj9x5H38KedxtWi5lhpd02y967-AjGQWmXK=
+CkmRMgR15modSLDXBjpmLdpj6BJs4y1Xln2bNwsA1faa0yPuCBVB86l3VGZSmBCuKmyKA8TQwAG=
+kNBHm_Cs0ksMijS8M6e_3S0Nrga03htY83ry48AjPMqjUpuf4hZIn9HWeT5Km0joNShHl2C5jxt=
+IfuTgjbR7S8MXs2WXUL8uLU1NpBu1zBA6k_6iBfkoiIflzb6pTpdQxJXqi_jDIOydOq_fRVDz-m=
+iLabojB4I8djknJQWqIwjPxmIx1Vp2aAW2du9FjWkJVSQTPxFnHZV-YmnbxCMrKYMx5LHvZ7sJI=
+_NGdkb6Kae0SzgQe9ev5CtRvxChPwrsyrZAy5v7Ql-3UI_Td1B1QydCt2Yplu7QgX1E3vkTRlfi=
+5Defs65GIPpn7m5UxgEnuM-qE68ana8b6Er96zp36WU6xU5STafUBBKgSVTLHf9lMiE1RGDphUp=
+gYnQJHwv82cHRB5yUPkb6_jbHFrc5SLQv4x_CmmgrDNHUH6AimpzbSju5RI8_LeWbUAtH32MIIE=
+ThEcKYsgWfP0djYvWoUCogXv9CR4smLD3hTzpLC-TWfp1JCSdrNLf8CUdeIUdrfApxPlW9bdpRm=
+sHfIQjYn7hKiEafBLQnXlLBknsTjsjn__Az3HAVSVt_hVe3qkC6K7ymbREbz8SFuug9Acfeh1vI=
+lLUI9sV2RFlP21eqnBvEMEFrnI--gTgQPHEnI_wU9dV7-ZsD4HJhlpXvavN4jxoS6LhkATOWUci=
+mc5ybyKlXyWzV_thK1NMXuoVHzIZtkBvcYQ8C4-MRIUmKnaQKKsZCMbL5wnm4o4ONqOsdQjCKRi=
+35JIr-rBxd3z3EG7WcMKdOi8dvB2tIX6JLAEcya-7EFHtx3NG5Yg~~=0A=0AReport this job=
+=0Ahttps://click.stepstone.de/f/a/0iztpGdb0ExZv3cL-Rvq3A~~/AAAmIhA~/mCcYF9T=
+cRTk4fz_MFuf7BHHishcKY7QFgit46lchyxzAdAfiLlAsNO4KSKd36v20-Yo4PQ77ncaGQjKaLf=
+HJbRgYgQy7DPKQd3ORlIkv4GnTOUWp4XTbU-IfjkpEDL1l5mVOS5dwsBGx3_91VM8AjR_EUJlFM=
+B-89wop3TnANBfftihNphTETxx-Fqdhg0bfMccZzTWwnh5K81fpEMrlyLDb_EXXNYBPNYMe9wuo=
+aDtiSpUMMYxk7z_-Effcdov_PFP6VkRJlvGT_zrxkatnszC7NX2LRNW-R1_yrtw2S7Oj9E13QBG=
+t5EcJccTbz22_KEfqZuHhr9d5QD1XgHG-whsqQ3rcaHzmmAjQEHJsbFQ8rMyZdE2qvIN6nd8RLR=
+l4pbE7JL7CAuo2dg4cNtH8TNanS7v9-qiCyX1TdEBsVDeCtXN7PACo8eyWr7P-A8LGSmlDsDFmB=
+flC4GuTBfJ6N-PwKzzTcMWTEsezIythLsff1r75nZCjexZaKxRDPbq2LAHOAd-_--WRMOX7O2Yh=
+bQ8BSnLtdBYNenMiyWEsQPSj83ajbWgeoIp9Hy5kb7IuGai5-QysI_hRpBYoihEcccFZF5sfWPH=
+4-jO6shNN6y4_--Ql2NFELRCU_QF2tg8l-n5v5_CCm0EvsOmGZfyb4yoBPKzTEEsa8dDukylqAW=
+kFIGP7ezMQfnTrU9KggClrue0UyXSSEmQqm7UlRR5fpQp_-iT0Z2i9pfn0bNkz4qMYzQkfq6fVn=
+pr6iK14R0Fz-pcVhxkwLwgZ-5Nn07xJSzbJPzRxgzD-AMqSINEpcyuj9yQfSlo5JDpRux7OJx1p=
+M_Fz8doD30H_e0O26sSCs-S5e8dcRSrqHEICnn8Z8QOiztvFDblWWkSLk9Cfs0xt3thQXEGU-FK=
+b1sGn0HqyQgAz5o_VSmA0xkF6KjCI2Uxbxcmuz7_uLWNHCyuMXOIGlI_MKREjVqq2p93V-InMz2=
+SXBdG2cfvlK3nKlVLjQme2R-eA9VnJ9me4PnJvzC9uKtpLMOGqp-XyW8r5kMILEDBx8v3-ZoC7C=
+8fyEoKf0KF95CxT18-CZ6aKNvJMQ10iDHwiCqPdaIzdztomavwNoTtbzNtHO17YhP-xQTZUkCcI=
+FuG1NmWe4Q-V_jRfCw5sCHV98Krqlm50XBJn8gvbS7QQ0QaIeNyApCnH5bmFhzWlxkfhpXkaadd=
+teFakdcwQhtLPp2A3FrYPQ7Bmw5k7DjseGFkHeWUHAWaF_sU6kZxVxiqWRvlGYH5tt-he7loGzY=
+N20ElwMx3poSkkLRRls7ev8OgRaX3K1qn3eqQ2KgY8TwlZqbsAS6feA5mrbyXDOMFyvp-SU8mVN=
+Pi2nbHLNldtg1pia9SfjKQrrLfxXAlG3vFHeqzimEP_dvJjc0ufWkHJPWqBD2J21ox-shNQntBq=
+Kl_zS38FoHOsoWTWE1GVNwxyPeN3KPaLsv8JtQuljhV3ueDsQl3xAFOlJ1KokoSnM-N7Q12L2Jl=
+27HprJ6tY1-po06hDGnFcK0xsYpnBf-fhNqaA-3eg0xg5P1kymAjzaRLDfYMASUr_2-NraTyWBy=
+mst9EaE_ifDSSI0FvL=0A=0A-------------------------------------------------=
+=0A=0AManage all your subscriptions=0Ahttps://click.stepstone.de/f/a/8U1L6r=
+uhyUyLK8LaDifGfg~~/AAAmIhA~/DtpXegXIHdRDvz8xhTO-C5e6eZcDDEzRn5r9opOMDIOd2up=
+SNXmQLSU77R3rp5AhgsotGgm_a0hWq2KH67ahQOQnzx5viUiq1NmCF-ZsxQLDPDQezxpUwoxwBd=
+XlcX1EpI6AsupjiLMwl_5QFBrFNTKzBkKJ8y9GD7BqWiZCd79l8c0EWwdK6oCKVxhxN0OZke7qO=
+K9uX6GPn2YTCyLK3JM6aNmlUNTexLzU1-S82T4~=0A=0AUnsubscribe from this email=0A=
+https://click.stepstone.de/f/a/MdhrPCJjshDGfBsGO1k3vw~~/AAAmIhA~/rWn5PjoURI=
+kTw8B2tPTOoMUuGTVN9pcTiCSIwkMSbJF348PXl30V-bdwULen18E4aEKTsEejr4RIurKsae_FV=
+FcKdxFnOnMHuf9PLHO3luziwo-jIUsxliUcJorO7dlmDb1uOhxaO-eyOTBGwt7ro1fxm78V4bg4=
+NukhSXY5fNHXX7-nvSzcvzeoncYdj6M4oBFbIYF89vdSPNiCQHR10a_KXAKWLB6kbsyoaAemlGK=
+ZU9O5vGsqqAl2-Gaj-p2IzCxpt35hB5PhNVv9gvFIsoVqKNohq8rvMbUz6qr4-ZxnZkybPWqaXB=
+NCBw3gSgy1iji9HQcOY_cZX_2J-k8jy6iBkzGJCQKDcdbtLn45gp7hj-yv6w9-AC229MjmpSZ2E=
+ixAbIFrng-VDlu9ykxWa3eVBoN6gP1DJ2zdsPLYNp-vGt-T7MaPLlzADurB0TNJeVZLtEalIbCD=
+12ndoevmKNovbD4EwBe9rXJ8z9I6hlUTokfd_yvr9MunREERK8YE-wDGuVd7yU4yZjh9sQHFiPK=
+1H5z6-I7qqJa8Jr-6dgpnML7z0tpC7C7QKfUTkWYK0PTz3qBXm9UfHSsY9WQYZnEWqBeyAUW8ay=
+Ov62s4LOrAlAjI5VHcDs_PkfZEIRko4Etxr0FMvDAIfRtu9U1L9VRat2Dbr3TkB3hhCJfc_0FfZ=
+OgSV-yAmYOMeFHfArDRTIn0L5padDdSUxam9rRjkXsGwDC7uKvRz8HGyRwlh6hPu7AtQDJTOJk9=
+1hjUNFQTGBHag1JpBdh5LSgn96_IOiTbRWz9z_fX7QOEwr0Dh8D98eGZpPyMr2wgLVZoSXSUecW=
+0Viq5uq3QHjk_L4hj8YiYkSzYhDHHpObOJv-d8ImyR64oUmxltw_Z7zend3mxwRbonD72EsG26K=
+XQwsWcvhXo3DrLn5EBhNS9qfOcXaKrqfFcdJsK109zOSZXJx4HXgM1ivb6h8uLdAgErYrqeHIRD=
+0NDXH9aJrHG1mto3CiBrAmiNF7KW-QwVrC-M24upBrZmPYlUxk0SvupHEFD3pVYTF1NUK2aQwcx=
+K7yBYnpF64Tdu2LLBsUTFYf0OexlR4bnZ_cv7IFUVBDeXlFnTnlo4PktZw-uQo4G_5e8T_yYdRo=
+wRqoYeFL6CJC7ypePfG_y_KsA8vZdwAYOjOKRO8TQtIv3mszX3Ewjia0PGBP7pcfldAxBzjn8Ec=
+Q-_cW_jos4xGOeQExEK93HrqtA-ZIlF0riYV7wrs5UQQWvYts0FhzvlXf3ZPWinfpyi3wYQ-ify=
+CK5MvKdBKTxQJdAAhnv7ASjtgl-A8cI43p3ywmfhH2QIniM6-N1caJl-WMT_iVTcRTNGq5Avwrd=
+YvSDeckcSJ4TZvu7qeyO95NmYXSXP8SExE3Z8iHQ7z0PQOU0yHAzcVbOvd6PTqZ0k9n5xIAuT2d=
+D6JZJm1Vie201NvMHbYKGi5EkZjoDmRIFzrZT-dyP4zZjeLpgRp1Azjc_P3Mojrm9WQYCUgiFNQ=
+o4_lAfmG3YbYRJCrrSXUyel9ZNTQSzBkeKQzneuW2A01wFTZMqgm5A7ZFNN8Eeru_l7csIwDwKB=
+P4AtsatP9a77y7H=0A=0APlease be aware that this email and its links include =
+data about your individual search profile. In order to avoid that third par=
+ties can access your personal data, you should not forward this email and t=
+he links contained in it.=0A=0A--------------------------------------------=
+-----=0A=0A=C2=A9 2026 The Stepstone Group Deutschland GmbH=0ACompany headq=
+uarters: V=C3=B6lklinger Str. 1 | 40219 D=C3=BCsseldorf=0AD=C3=BCsseldorf D=
+istrict Court, HRB 64185=0AManaging Directors: Jan Neumann, J=C3=B6rn Slink=
+=0A=0A=0A=0ATerms of use: https://click.stepstone.de/f/a/uv7utalooyAH4ulsgl=
+bMIg~~/AAAmIhA~/soctF592XmwYN6oP2jwrexrStmkNunQB7pEQpkwwRnTLWNdrZFExqi61eKR=
+NxueWx4fh39fJC4Skllx8yfb3qnv1hnfTWsBghQQtsirSnl33tCMXyePkNrJ1WSAa6BbLZJUq3N=
+9A69NT_RZmVH3zagQvH0pG0bY2e4AZMSOgTFZtHuJDM0OFU9XdJBnk_7FmvU6SiZQ0sehDms2-7=
+cNAtwSvUekToms3CnU4QgpoC9u-cKTveALG52Ff8epClH3LRcsEWhpIEZRD9zJRZYU8P_OTfjtt=
+pKrJzofZpDv8ECts_UoLVKaoYSf8QRaNQXjtAtbnY-VpBANp5TPp8icRqNUx6we2rgh8hNRknxj=
+XCd4N4wgSKjdh4lEd9OcBufgthXw9nwj7basgZuaHHrZNpTc51K_wnnSa-a3cSONfCg6lA16auD=
+E_5eqBWlRltSblZq-UIjW9law2BlXYcxxBVOfQ2B32W0QlxU-HRkuLmXlCqPBvpyfE6vujsUwLH=
+edXGjYBzwyYz-OUNq9O0gfyBsx3m5OuiGemxIzx9ehWcjcVWrn9ohyLQF_qh2oxSElns7dt4rXj=
+OrMMujcLhmersSl71fVzlIiwjspvwGTWdMtCUXl5kIMe3hfzuNsTBQJS1Oy5LINWNEI-4d4Lk9j=
+8LBlJy6xpml3pqmtmbO77t_hgLybQHWQ_LbkXP__27GCF3KQrke_hh08SMEwVbT88YlFUyU6I_f=
+58CwK1Db0BgnPyzwNJh-R-APijd2c-TKJE0Fnn8acPtMJwigCjNY8TxPY9b24Xj8oT0Zv2l619V=
+dLVkJ8JWa6IFIMwGoOc3FM0T7eQMtkbpdvxLqOzyY3GKwXOVLOIPBdHtMW5M_pUDbPSy0czgG3m=
+QwMLtQZgyrLmcETAgauVtPuZu7nHbEt7dLaO70BLdNIKtE7XjkcQmzet60ItQwOwqlaF6qKGuJ9=
+OlPX-De5NJmYhR6u2_YOENrj1GfDAtRoLli6v5zdEENGNh-vheY_QPKgqEVrOxNLs7TQHKAEygr=
+idXMSYQM0eD1J5VtBN1OBL2Mv-kwZsCRKHHGBfpMhvEzwdaszTJ10rhpqoikS5CLC1uWYTWENiR=
+O5otmShUJquKQoSqEpyriy4X_3mKwqzXTzNiRGDXEqBY4SbrGUZwoCvpUMkrsqZ0wMrWOIHxS3g=
+suJs5hO_FL0QdPD3ufSCHetcmvyQwCfRv6BycAs2ojJoiHAjTEz4ZXlVE7EwpfuFAPhfCMcT_cF=
+hJ8kyh1G3oA1vQP9FF_pUcTS6WCkSHb-_cQ0v8oao-Ei-hKx3pzsHoB9URCgxuWTtXmvf5wt4n2=
+1f679CppBOJUpKyTHZgUZV3d4gFVEGapIOm-TgfvydvU1L2eCUPY8PcieSaa_S2bIeDQrYmhXHv=
+ydVpnQhWy2D4BlT6Zx5kiPvQTc2tsTP9gWEqLGgfketUlYtlVAbIsg6WSELBJCOIPw_lDJjPQvV=
+7q6bLlliMj0diTeq0nepwmftQfdHW1RtBGvM0icZJe8IFxOHmeb0=0APrivacy policy: http=
+s://click.stepstone.de/f/a/zaxSsawMA1soi3kn7STCxw~~/AAAmIhA~/tdiM4D5YKYKqxK=
+TTQ4QyjpX3NbKpjlPlPUBjKllmHI9Fu2z8RRhvAFp5RVr_4L7mgkNJXtgacNX3AIzPPKHQQ_rE1=
+A42A84WcETfFZVmA8abQ1HQzJram4QBQCCplV3fOETYQf-zpLNLbyi-pTYF-gnC-bOHlEbxcSdQ=
+6S4-9MYWgrVZ_vHUg6B9j5xTzLQTu2hWTE5zZCayA9EDagriUIQJMC4LF1LD-_-pmLO6K7oPBHB=
+ax2jIv8kqa7k8uOEDAL_Yn8KV6tWYyufBlZsRM0XwI-PARopah-hEdzVJmpKEZgliUsfdjkAW3e=
+HJxp3OAtaKBMfTxX9n26VF3WT084w-ikJWej2To-Ch-skBS7qRuQfRU_EXRnEb3Ez2xmY2Jmcur=
+YASxOwROkIBTcT7yuuRJGCwuLTY2addWZ59Vj8nrgfbIRxhMvaRFRbGiDASQoBs8RRyHak8AiNs=
+vrEkdkOY082mervIYjw2AuK4hzCStfgOi1t6Z37Lcr01OI5SKVPST6CE_Ldrw9G-uNxq00CzJuL=
+TjuapbG0Z_NM4DDJFS1f9It_JIpvMnqeo4K8QY7GrtpTcpIYAkHeZNBE0dI1G4WTDs8518UVJeA=
+tDIxg9syBbNmlSGdQ71ax-5OnshsT9gaVoWL4HQORrAtZSP-vDOG8kYO0fwKxLi1aclBcJ8MG8U=
+laO0VghPb00rNt68DmMqzrowug_BVCABR0QGhjw_vDGDVmvXEgJ-M3zvBtDa2qzW1nAdqskjdLz=
+qCMC209vBeU7WuwOCEU6pkX9-ELfQD12BON9QG4PQsE26IakJ-_D2B8iL_bBmfzHmsxssuXaZUj=
+9zRCnaMXqpcd1AlEdu7YnaMDb2x7PtKLGNhip0h3oKHkbxyKXygIJQz3sGhLOc9PBm1Igknt9B2=
+X5BDOOw-nyPh_9HcA4YfnnAQR-sctKXK2JxL3Ve61ZadojN5Ac3sIoXB4kXkqZImDSBWe-4FVRZ=
+7dmWhbtr4VzOlmur5gWLRpMTFRRLFV64GKhqRV_kTELOYoZWVxjLZ-JeHdB-iaaFUWisNXhUWqd=
+KB-TZNpQpnky_4t1h8KiDGfsExmwepizy1T2pnzT9e7rwpnsEd9S8-ONWuZCHg5TJWxIFX9zoO0=
+5h8JT28YkTj6njl888Z_VKYzFXwJ1rSLifKeGMTywdgEdcBzzWk0Cngc5C2c-5rm_S1PsA8ch0t=
+2nWQIdyy2ZwoX4cyVf8k5DVRR5QD1QW0nVJyTQGmFDWU6qTlYZ7rx0z_5ASW_FiVSr03K8SOELv=
+e3i21xFSqblJx0lT1F7PH68VzGiVUGIvYk37ngQnxul6s6w5dkFEbEEqg_4tRhnXk_Ek6qvbz4Q=
+L9RP_7pTZZ-xwOtQZA3yGmaHXF3GlH19Jav80RJ7K0QNX0jUZ5vni0TG-0yUVHxHDZiPzCPvkZw=
+xXJlJnQhtAJCFaTrSHbrw5kmykkDQbEuPiC4giArlm68S-k9of9xbHZqbXFkThmH0Ww8oXNeDwg=
+FqBdcfOLNKwhf5xURnaDdO=0AContact us: https://click.stepstone.de/f/a/qGGLL5M=
+CsftRiKc8PZiyIw~~/AAAmIhA~/TWQe3yH_g80TmQMi-cPIyLNdPlXbRpToj9qldCn1TppC1eCf=
+RmfF_Ti1nHOW_kag6-foAPj66rhIJ8L2fMyh_cdJ2l6-YOfOghB-ct_byrAy9Fee7UWNKdE9Rql=
+OY0oeDxv2GQ9Mwkl2E2dflDB0qzsNHGXWpxLYcysqyeT5QVxOipsHTUBeNYr1D26aLXJNhNOOA9=
+3erP92ZP_WLTZWRO-yOkwxkZ1w4PCygXLBGMZnMYAhRn9A4dQXfRMr5OCO8aCUNFBuWl-vDwDsi=
+fut-zvOzx9VEiXPMUmpJ35_s0bvbDuqBGQ2c52ocEjVT2XgfZmIKQ1TbAmX8BbLMXxywOEYvncM=
+3Ut0FcgQkHvZJT4eU0QNmImbvdLbeYua7RhzU6XWaSlluYVhH-OkASYT5XwaOsfJFad9cN2MIXV=
+R-v9KnQK65FFM1stXqm2F4IBoq25wSZ-gS1qOkkg2OYYd1UtLvAvHScR1wkRXeoJ4jXK8Zo4QFY=
+sqk40E454ET8bCJbNeukNUNFx3AeyFlDKLY60DvUMPc3qzQjPY_avX5AJ3UF6qfBegNpSo9oxym=
+mttBwkH84BUJCwcRJ72HyYQTT7An1FiqTxeRD81r9R03_3tL-46GcKwvIu2oB9Y_Zbv6zPWeyDB=
+dXlrte7iNKHSOKo4L8xP4GRK_qOgQyGDXxUzBCA3Pj59jFkGrLNTZld4gPdKvNfxtYWekh96A7Y=
+xSOkG9vlOUIjTbPIXKYw-ot0NsbrNbXsswNFTMZ0jS7Q3G9iVEU2l8_GSrQdOil7Sx7txODVerC=
+nV7Cz1syMOgig_sgbFQXRxxtYnuM8T2BZj0X-4sXbrKkg_JdojkBwpkh3bJB74azfCkktgO2Tau=
+CLmeBouO80Gkf1yxSXQKHyVJoOycN8qAHAq-YUTNnkRtx9zyEE_0U_8gJWxtreM1rmVRbzT2K7G=
+I8gQu_uA4s3ZwNKt-BYd-3pJT8MhwZ_oUFu1VDayiVdO6XDhZ59UGww7EZn3zVVlqnatSFGK8XN=
+b-Bwc0rbRilxLxim6J-XdiUHRLLKqgAoBfuHddKA-SPXAL1o1rZhfDdG0AYeYOy7G0FvYeJv3SS=
+eR-kLydkTzaZyqTUukmujFo6juQNTYXbTb3R7k7uClV92FRCZhv5PbTUG0GGA6Ao2hWQ5MG89vc=
+EZmP7EHN799zWHSNvmxmO3y9qA9bW_4NMe796SEHEQrpUHytYJUO4z21gaQYvlve4VzD3HgxNzk=
+lc8YwEAIgm-Ycw-FE8JexgJ78k2ng5RR7qj1JevWFdnbBjRz0jNhBq8PQX-Q0MDbGm_ZBlS1b05=
+62HRxjBGywXML0QrPEpP9tHBJghYzw6EJbcN_dIXMcKsw_7qTZOGBfOmbNlXTU2vv4Dj61fhrFb=
+tx5Q8WNcC5h0E4GqhVvZzE2E8EAs31O7hA0y4ke-NDtNysubCYXJJNSiWWUXCLYZO8pY2_PIYfK=
+uM-IzIVDSEcy0wzzlmyWqM86a69F0IWCsUOJMT6FfciwsQIpXzPTnyPSsGRvGfJrqbdNBl3Miqe=
+pXrgZWaq8dV0C5aRXv2ElpSKGKQkpTw~=0A=0A=0AFacebook: https://click.stepstone.=
+de/f/a/tGH1-xLOCZzNq64bRYbIyA~~/AAAmIhA~/dohnk7ELzu6RXJCYH90YL6IlxehfolV9s-=
+ULlEcg7jpesoIW7QOMmziP_CkvYdesEBjm2C_alnHznEN8eMafVtl1EklhlUIZC9pEPO1Ke2YMo=
+ugLoqTBjWQvhRRRCWbytp4TZLnWNZC7tuR7u33aFQ~~=0A=0AInstagram: https://click.s=
+tepstone.de/f/a/0UakmlrOdV8i-dwDsChoNA~~/AAAmIhA~/VSORuCeITIz_aM0JJS5Ykk2Tn=
+Rqhj9AX5isxm0JJsT_finyGRopM0bHLXxx85U4rd6-ltUaGPuDcEH_Vh-ZjZheGeGRmgt8Jr-uN=
+xL9Rj64tZF12fzFYTUfR4F5WFz-NCvH1iP_W8_et8oB-up6GQQ~~=0A=0AYoutube: https://=
+click.stepstone.de/f/a/jYIeHvJ1W8fvoSPfArMD2w~~/AAAmIhA~/ncQiT1FiGzovWbihjk=
+3OnGcs2Vx27FBGDQcq-S-PlicNOeuPoImR1MkPkxZWN7LqPDprieqjdQQVp9hN6KwA84AxsqXUR=
+CRj8NqX44usKnkOYnNHyOVJpwkmTnnCvKpfFTMLv0U-ApVL8DNTrevpsw~~=0A=0ATwitter: h=
+ttps://click.stepstone.de/f/a/MTvYXV8nbkWZmsOqDoo3PQ~~/AAAmIhA~/TD3O-HII9HY=
+Aq7OYohNz8N-c6hI_40owB6hhjDllCgNtzrVbzg2OA4b8vdK_1Gih4GMVq4hjING97rOPc0PHoP=
+9g3RCjBxS_qCZZjSEGFcaIgo0A4oydL-p2CYcqFDmv=0A=0ABlog: https://click.stepsto=
+ne.de/f/a/lBOBegnF6Gmz5_tSTAGJHA~~/AAAmIhA~/WR0nVTEIb1x1pj5i628CjsfvAqn5ClL=
+O9WS-qKfLK3mhxHyhG6hAh8yB4UMuZB8bY2Rp83AsenAovqFhQ1-U745j6MLGH9VDQsBJGl4RtU=
+4o9FjamIO7fPs1AnHAXrc0SII2Hcjc2XYpYImIBx_xpQ~~
+--_----WoiiEoYCrHENpJpjGHeIdg===_F7/76-20189-2631F6A6
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/html; charset="UTF-8"
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.=
+w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns=3D"http://www.w3.=
+org/1999/xhtml" lang=3D"en" xml:lang=3D"en" xmlns:v=3D"urn:schemas-microsof=
+t-com:vml" xmlns:o=3D"urn:schemas-microsoft-com:office:office"><head> <meta=
+ http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dutf-8" /><meta=
+ name=3D"viewport" content=3D"width=3Ddevice-width, initial-scale=3D1.0" />=
+<meta name=3D"format-detection" content=3D"telephone=3Dno,date=3Dno,address=
+=3Dno,email=3Dno" /><meta name=3D"color-scheme" content=3D"light dark" /><m=
+eta name=3D"supported-color-schemes" content=3D"light dark" /><!--[if !mso]=
+><!-- --><meta http-equiv=3D"X-UA-Compatible" content=3D"IE=3Dedge" /><!--<=
+![endif]--><meta name=3D"x-apple-disable-message-reformatting" /><!--[if gt=
+e mso 9]>=0A    <xml>=0A    <o:OfficeDocumentSettings>=0A    <o:AllowPNG/>=
+=0A    <o:PixelsPerInch>96</o:PixelsPerInch>=0A    </o:OfficeDocumentSettin=
+gs>=0A    </xml>=0A<![endif]--><title>Your skills are needed: (Senior) Mana=
+ger Business Transformation (m/w/d)</title><style>/* global css */=0A:root =
+{color-scheme: light dark;supported-color-schemes: light dark;}=0Atable, td=
+ {mso-table-lspace: 0pt !important;mso-table-rspace: 0pt !important;}=0Atab=
+le {border-spacing: 0 !important;border-collapse: collapse !important;}=0A.=
+text-decoration-none {text-decoration: none !important;}=0A.text-align-left=
+ {text-align: left !important;}=0A.text-align-center {text-align: center !i=
+mportant;}=0A.text-align-right {text-align: right !important;}=0A.padding-0=
+ {padding: 0 !important;}=0A.margin-0 {margin: 0 !important;}=0Aa.link-defa=
+ult, td.link-default a, td.link-default a:visited, td.link-default a:active=
+ {color: #0C2577 !important;}=0Atd.link-second a, td.link-second a:visited,=
+ td.link-second a:active, div.link-second a, div.link-second a:visited, div=
+.link-second a:active {color: #008194 !important;}=0Ah1 {font-size: 30px !=
+important;line-height: 48px !important;margin: 0;padding: 0;}=0Ah2 {font-si=
+ze: 22px !important;line-height: 32px !important;margin: 0;padding: 0;}=0Ah=
+3 {font-size: 18px !important;line-height: 28px !important;margin: 0;paddin=
+g: 0;}=0A=0A@media only screen and (max-width: 420px) {=0A.w-left-right {wi=
+dth: 4% !important;}=0A.w-middle {width: 92% !important;}=0Ah1 {font-size: =
+22px !important;line-height: 32px !important;}=0Ah2 {font-size: 18px !impor=
+tant;line-height: 28px !important;}=0A.w-full {width: 100% !important;}=0A.=
+w-fullblock {width: 100% !important;display: block !important;}=0A.mobile-h=
+ide {display: none !important;max-height: 0 !important;overflow: hidden !im=
+portant;background-repeat: no-repeat !important;}=0A.mobile-show {display: =
+initial !important;max-height: none !important;overflow: visible !important=
+;}=0A.spacer-mobile-show {display: block !important;}}=0A=0A@media (prefers=
+-color-scheme: dark) {=0A.color-darkmode {color: #FFFFFF !important;}=0A.co=
+lor2nd-darkmode {color: #008194 !important;}=0A.bodybg-darkmode {background=
+-color: #2a2c2e !important;}=0A.bg-darkmode {background-color: #202124 !imp=
+ortant;}=0A.bg-darkmode2 {background-color: #0B0B05 !important;}=0Aa.link-d=
+efault, td.link-default a, td.link-default a:visited, td.link-default a:act=
+ive {color: #FFFFFF !important;}=0A.positive-color-darkmode {color: #00B046=
+ !important;}=0A.negative-color-darkmode {color: #FF8472 !important;}}=0A=
+=0A[data-ogsc] .color-darkmode {color: #FFFFFF !important;}=0A[data-ogsc] .=
+color2nd-darkmode {color: #008194 !important;}=0A[data-ogsc] .bodybg-darkmo=
+de {background-color: #2a2c2e !important;}=0A[data-ogsc] .bg-darkmode {back=
+ground-color: #202124 !important;}=0A[data-ogsc] .bg-darkmode2 {background-=
+color: #0B0B05 !important;}=0A[data-ogsc] td.link-default a, [data-ogsc] td=
+.link-default a:visited, [data-ogsc] td.link-default a:active {color: #FFF=
+FFF !important;}=0A[data-ogsc] .positive-color-darkmode {color: #00B046 !im=
+portant;}=0A[data-ogsc] .negative-color-darkmode {color: #FF8472 !important=
+;}=0A=0A[data-ogsb] .color-darkmode {color: #FFFFFF !important;}=0A[data-og=
+sb] .color2nd-darkmode {color: #008194 !important;}=0A[data-ogsb] .bodybg-d=
+arkmode {background-color: #2a2c2e !important;}=0A[data-ogsb] .bg-darkmode =
+{background-color: #202124 !important;}=0A[data-ogsb] .bg-darkmode2 {backgr=
+ound-color: #0B0B05 !important;}=0A[data-ogsb] td.link-default a, [data-ogs=
+b] td.link-default a:visited, [data-ogsb] td.link-default a:active {color: =
+#FFFFFF !important;}=0A[data-ogsb] .positive-color-darkmode {color: #00B046=
+ !important;}=0A[data-ogsb] .negative-color-darkmode {color: #FF8472 !impor=
+tant;}=0A/* END global css */</style><style>/* jobcard css */=0A.jcs-specs =
+{display: inline-block;}=0A.jcs-specs td {white-space: nowrap !important;}=
+=0A.jcs-image-square-table {height: 64px !important;width: 64px !important;=
+}=0A.jcs-clogo-left-space {width: 15px !important;}=0A.jcs-content-section =
+h2 {font-weight: 700;letter-spacing:0;font-size: 22px !important;line-heigh=
+t: 32px !important;color:#0C2577;font-family:'Helvetica Neue', Helvetica, A=
+rial, sans-serif;}=0A=0A@media only screen and (max-width:530px) {=0A.jcs-c=
+logo-bottom-space {line-height: 0px !important;height: 0px !important;}=0A.=
+jcs-image-square-table {height: 46px !important;width: 46px !important;}=0A=
+.jcs-image-square {max-width: 46px !important;min-width: 46px !important;m=
+ax-height: 46px !important;min-height: 46px !important;height: 46px !import=
+ant;width: 46px !important;}=0A.jcs-image-square img {width: 46px !importan=
+t;}}=0A=0A@media only screen and (max-width: 420px) {=0Aspan .jcs-mobile-hi=
+de {display: none !important;}=0A.jcs-specs {display: block !important;}=0A=
+.jcs-specs td {white-space: normal !important;}=0A.jcs-clogo-bottom-space =
+{line-height: 10px !important;height: 10px !important;}=0A.jcs-clogo-left-s=
+pace {width: 10px !important;}=0A.jcs-image-square-table {height: 36px !imp=
+ortant;width: 36px !important;}=0A.jcs-image-square {max-width: 36px !impor=
+tant;min-width: 36px !important;max-height: 36px !important;min-height: 36p=
+x !important;height: 36px !important;width: 36px !important;}=0A.jcs-image-=
+square img {width: 36px !important;}=0A.jcs-pr-sm-1 {padding-right: 8px !im=
+portant;}}=0A=0A@media (prefers-color-scheme: dark) {=0A.jcs-badges-darkmod=
+e {background-color: #4d515f !important;}=0A.jcs-badges-text-darkmode {colo=
+r: #FFFFFF !important;}=0A.jcs-bg-cv2jobs-darkmode {background-color: #2026=
+37 !important;}=0A.jcs-bg-cv2jobs-darkmode-box {background-color: #4d515f !=
+important;}=0A.jcs-square-img-darkmode {background-color: #fdfeff !importan=
+t;}}=0A=0A[data-ogsc] .jcs-badges-darkmode {background-color: #4d515f !impo=
+rtant;}=0A[data-ogsc] .jcs-badges-text-darkmode {color: #FFFFFF !important;=
+}=0A[data-ogsc] .jcs-bg-cv2jobs-darkmode {background-color: #202637 !import=
+ant;}=0A[data-ogsc] .jcs-bg-cv2jobs-darkmode-box {background-color: #4d515f=
+ !important;}=0A[data-ogsc] .jcs-square-img-darkmode {background-color: #fd=
+feff !important;}=0A=0A[data-ogsb] .jcs-badges-darkmode {background-color: =
+#4d515f !important;}=0A[data-ogsb] .jcs-badges-text-darkmode {color: #FFFFF=
+F !important;}=0A[data-ogsb] .jcs-bg-cv2jobs-darkmode {background-color: #2=
+02637 !important;}=0A[data-ogsb] .jcs-bg-cv2jobs-darkmode-box {background-c=
+olor: #4d515f !important;}=0A[data-ogsb] .jcs-square-img-darkmode {backgrou=
+nd-color: #fdfeff !important;}=0A/* END jobcard css */</style><style>.btn {=
+text-decoration: none !important;}=0A=0A@media only screen and (max-width: =
+420px) {=0A.btn {width: 100% !important;}}=0A=0A@media (prefers-color-schem=
+e: dark) {=0A.btn {color: #ffffff !important;}=0A.btn-secondary {border-col=
+or: #008194 !important;background-color: #000f0f !important;color: #94C9FF =
+!important;}}=0A=0A[data-ogsc] .btn {color: #ffffff !important;}=0A[data-og=
+sc] .btn-secondary {border-color: #008194 !important;background-color: #000=
+f0f !important;color: #94C9FF !important;}=0A=0A[data-ogsb] .btn {color: #f=
+fffff !important;}=0A[data-ogsb] .btn-secondary {border-color: #008194 !imp=
+ortant;background-color: #000f0f !important;color: #94C9FF !important;}</st=
+yle><!--[if mso]>=0A<style type=3D"text/css">=0Aa.btn {border: none !import=
+ant;background-color: transparent !important;text-decoration: none !importa=
+nt;}=0A </style>=0A<![endif]--><style>h1{font-size:0!important;line-height:=
+0!important;margin:0;padding:0}</style></head><body class=3D"body" style=3D=
+"background-color:#f5f5f5; margin:0; padding:0;-webkit-text-size-adjust:100=
+%;-ms-text-size-adjust:100%;-ms-interpolation-mode: bicubic;" bgcolor=3D"#f=
+5f5f5">=0D=0A<div style=3D"color:transparent;visibility:hidden;opacity:0;fo=
+nt-size:0px;border:0;max-height:1px;width:1px;margin:0px;padding:0px;border=
+-width:0px!important;display:none!important;line-height:0px!important;"><im=
+g border=3D"0" width=3D"1" height=3D"1" src=3D"https://click.stepstone.de/q=
+/88aGB2dc01q75nu9R0r0GQ~~/AAAmIhA~/G92bvCH5Oq0w9z13GKYJrkb3fE12rn7BJADAvaA4=
+mGszPWb3ria79KnE5IObSZoSkGnnLAOlmlt96o5oclCYIg~~" alt=3D""/></div>=0D=0A<me=
+ta name=3D"x-stepcast-id" content=3D"2026-08-02-1081fd14-86e8-4127-95b9-bc8=
+2122895cd" /> <span style=3D"display: none;">(Senior) Manager Business Tran=
+sformation (m/w/d)</span> <div style=3D"display: none; font-size: 1px; line=
+-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden=
+; mso-hide: all;">&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;=
+&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&s=
+hy;&#847;&zwnj;&nbsp;&#8199;&shy;&#847;&zwnj;&nbsp;&#8199;&shy;</div><table=
+ width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" bgcolor=3D=
+"#f5f5f5" class=3D"bodybg-darkmode" role=3D"presentation"><tr><td valign=3D=
+"top" align=3D"center"><div style=3D"max-width: 600px; margin: 0 auto;"><!-=
+-[if (gte mso 9)|(IE)]>=0A                    <table cellspacing=3D"0" cell=
+padding=3D"0" border=3D"0" width=3D"600" align=3D"center" role=3D"presentat=
+ion">=0A                      <tr>=0A                          <td valign=
+=3D"top">=0A                    <![endif]--><table width=3D"100%" border=3D=
+"0" cellspacing=3D"0" cellpadding=3D"0" align=3D"center" bgcolor=3D"#ffffff=
+" class=3D"bg-darkmode" role=3D"presentation"><!-- Header --> <tr><td valig=
+n=3D"top"  colspan=3D"3"  align=3D"left"> <a href=3D"https://click.stepston=
+e.de/f/a/f0VtBR7id22-j2pqjzw8Pg~~/AAAmIhA~/VNyHe7c4d0VGSia9l4nzElWcYY4WL9IK=
+Tm1LLrxJEUyNKw8DYehW_BTGbg96SMKNEMgwxNS7zUAYvk6ni20ISGvaHHLcL2crVJYZEeuvFIt=
+-6EqpOrqKztACMoaOdvL18glRtAPRGyVnTYAdjRzlKrckj5wr7gyLVTEX0sBK_pXO4q_wu4yMLK=
+FMM7w9NS2_NQYO2ihjyr3f5YncASamgQ8cD9SmTJOqoN_GIvQGIdu2o0AJGUbhx7Y8W4SQM_Rpb=
+Or0SV9DmLuxMb22T3zDOV1Jeay0jAPJIKoUQrWYDl2ZJuVjrslQrFVi1HjInjeWtHxAvWb2QaVW=
+t5dQGOpGdBtOXqvW56cCucNcwuTm_tUHY7D0kVZtbPT2MMGWdpJjEcoSg7UzlKt-kpKMmTwL969=
+JG4cr2lsy_fmw_viy-1PZnDpLINX7Oxlni22-W39CvEbZMHBg6fPcMSMM1qa2HU-sdRDHVYru2i=
+yGX97HsLjeMVgz8rglOAsfy6durMLMUnRspnMCF-r63BpOh2aqxMVko8mgcBnBi2YsjDTg-Nb4x=
+IxuHOD9rxKHCrYy1yFyK4GtU9UhspTOueH4KYZaCj_vFg1HeQXnqaV-zmkuyO4Q-R_UdhtzdOeY=
+laBSLQdeiCDallXq4Tqox0SihaGmPwID6eE9S0kb5ACTOiGI6s40RJ6adnilFcxS2zwPYPXuKKl=
+JYpVLgtXcSLuV_mb7KkqMfuZA5E7VjRRkrmKSU_6q_BjNaA60ZLVKUtSGIy-DLK255-3cA8G-v4=
+85423AxQeTvz7fPfyo2_UUMY8uHdIXaGThJTr46sKCvWmE3RLAw65ZGgFLAEKTE3GTMK7dM8gaa=
+1RiKwWczRC5BWB-HSx9736k2OPZPH6RHteqP7VLDHw4Zwc1U5LQ3awTFDS2T3jETtySIWoXHRsY=
+2ezr5TpSDIgLY7asdpU5_k3zCmMVrK_7u13H6hFH_En9-tzoCkQdIevZVwzqlSWY9kDKY0lCxdW=
+e3N7tBzfoSFUaIgdwF427jFaRat7U2GyqsIVKjI6GT698UXmXPCMc2Ugpj0po7cp9O6ZjhPQfSW=
+TqXCkevfEZroHEBJfWIxUklkMwvoQWlpq8nCBQ0Qgnd7uxZaKPFc7mJaoxRFz1z9DIxJRs-Osqo=
+kns1yS7DN17WzD192YN5tUq5brmuhMYvSpXshr2jF5uNbJqM30pVfDxUYISYUQGnmKrehP2jXsh=
+MU0g2YXEsvqFJnqWh11VH0NbGiyYb50O2pSVCFSP0xscuQaP1uR3qg069-9KG2ud_6pktyEj5qq=
+VL7mqMSEeSqnLdmWiQ8P0OLfXrBGUVNPQ-S6cVJAvxTuOKmWX5JTqo3gmoccQ87YDjz8CuX_a-L=
+-CaQaJ_BFW04nP2WO8O0pmiSEBOdhfKAl6IO-xKhGOsgLx2S5se3aOt1mP9FEllaTlh-WFX-Q6j=
+l9AorNDUqVzH4SuIQQgtUpIuPZHFHAZwnObNvwNosZD1FwUq9Y623aOT2Gx52ZLVX284_ewjANc=
+a1pgEDBMlNq3VGvvc_Xhazr92gUcGDQZP48dAiklGGHEYQU~" target=3D"_blank" ><img s=
+rc=3D"https://email.stepstone.de/images/ITE/lg_B2C_IJM_ani-desktop.gif" alt=
+=3D"Stepstone logo" width=3D"600" style=3D"display: block; width: 100%; hei=
+ght: auto; max-width: 600px" title=3D"Stepstone" border=3D"0" class=3D"mobi=
+le-hide" /></a> <span style=3D"mso-element: field-begin"></span><div style=
+=3D"display: none" class=3D"mobile-show"><img src=3D"https://email.stepston=
+e.de/images/ITE/lg_B2C_IJM_ani-mobile.gif" width=3D"390" alt=3D"Stepstone l=
+ogo" border=3D"0" style=3D"width: 100%; height: auto; min-width: 100%" /></=
+div><span style=3D"mso-element: field-end"></span></td></tr><!-- END Header=
+ --><!-- Content --> <tr><td height=3D"24" colspan=3D"3" style=3D"font-size=
+: 1px; line-height: 1px; height: 24px;">&nbsp;</td></tr><tr><td valign=3D"t=
+op" width=3D"4%" class=3D"w-left-right">&nbsp;</td><td valign=3D"top" width=
+=3D"92%" align=3D"left" style=3D"font-family: 'Helvetica Neue', Helvetica, =
+Arial, sans-serif;font-weight:400;font-size:16px;color:#0C2577;line-height:=
+24px;" class=3D"w-middle color-darkmode"><span style=3D"display:inline-bloc=
+k; max-height:0; max-width:0;mso-font-width:0%;mso-style-textfill-type: non=
+e; white-space: nowrap;"><span style=3D"max-height:1px; max-width:1px; disp=
+lay:inline-block; overflow:hidden; font-size:1px;color:rgba(0,0,0,0);text-i=
+ndent:9px;"><h1>New Job Opportunity based on your recent search</h1></span>=
+</span>Hi there,<br /><br />Here's a job that could be a good option, dep=
+ending on what you're looking for next.</td><td valign=3D"top" width=3D"4%"=
+ class=3D"w-left-right">&nbsp;</td></tr><tr><td height=3D"24" colspan=3D"3"=
+ style=3D"font-size: 1px; line-height: 1px; height: 24px;">&nbsp;</td></tr>=
+<tr><td style=3D"font-size: 1px; line-height: 1px;">&nbsp;</td><td valign=
+=3D"top" height=3D"17" style=3D"font-size: 1px; line-height: 1px; height: 1=
+7px;"><div style=3D"height:1px; border-top:1px solid #CFD6E7;">&nbsp;</div>=
+</td><td style=3D"font-size: 1px; line-height: 1px;">&nbsp;</td></tr><!-- O=
+FFER IJM --><tr><td valign=3D"top" class=3D"w-left-right">&nbsp;</td><td va=
+lign=3D"top" align=3D"left"><table border=3D"0" cellspacing=3D"0" cellpaddi=
+ng=3D"0" role=3D"presentation" style=3D"border-collapse: separate !importan=
+t;width: 100%;" bgcolor=3D"transparent" ><tbody><tr><td style=3D"" class=3D=
+"color-darkmode"><table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" wi=
+dth=3D"100%" role=3D"presentation"><!-- Recommended job IJM --><tr><td alig=
+n=3D"left" valign=3D"top" style=3D"font-family:'Helvetica Neue', Helvetica,=
+ Arial, sans-serif;font-weight:400;font-size:14px;line-height:24px"> <span =
+style=3D"color:#008194;" class=3D"color2nd-darkmode"><strong>Recommended fo=
+r you</strong></span></td></tr><!-- END Recommended job IJM --><tr><td vali=
+gn=3D"top" align=3D"left"><table border=3D"0" cellspacing=3D"0" cellpadding=
+=3D"0" style=3D"width:100%" role=3D"presentation"><tr><td valign=3D"top"><t=
+able align=3D"right" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=
+=3D"float:right;" role=3D"presentation"><tr><td style=3D"width:15px;" class=
+=3D"jcs-clogo-left-space">&nbsp;</td><td valign=3D"top"><table style=3D"lin=
+e-height:24px; border-collapse:separate!important;" class=3D"jcs-image-squa=
+re-table color-darkmode" role=3D"presentation"><tr><td align=3D"center" cla=
+ss=3D"jcs-image-square jcs-square-img-darkmode" style=3D"padding:4px;width:=
+56px;height:56px;max-width:56px;min-width:56px;min-height:56px;max-height:5=
+6px;border:1px solid #CFD6E7;border-radius:8px;"><img align=3D"center" src=
+=3D"https://www.stepstone.de/upload_de/logo/alt/143795.png" border=3D"0" st=
+yle=3D"max-width:56px;vertical-align:middle" width=3D"56" alt=3D"ALGOL GmbH=
+" /></td></tr></table></td></tr><tr><td colspan=3D"2" height=3D"40" style=
+=3D"font-size: 1px;line-height:1px;height:40px;" class=3D"jcs-clogo-bottom-=
+space"></td></tr></table><div class=3D"color-darkmode" style=3D"font-family=
+:'Helvetica Neue', Helvetica, Arial, sans-serif"><strong style=3D"font-size=
+:18px;text-decoration:none;font-weight:bold;color:#0C2577;line-height:28px;=
+" class=3D"color-darkmode">(Senior) Manager Business Transformat...</strong=
+></div><div><table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" align=
+=3D"left" class=3D"jcs-specs w-fullblock padding-0" style=3D"float:left;" r=
+ole=3D"presentation"><tr><td style=3D"font-family:'Helvetica Neue', Helveti=
+ca, Arial, sans-serif;font-weight:400;font-size:14px;line-height:24px;"><sp=
+an class=3D"jcs-pr-sm-1"><img alt=3D"company" width=3D"18" height=3D"16" sr=
+c=3D"https://email.stepstone.de/images/ITE/briefcase-icon.png" style=3D"ver=
+tical-align:middle" /></span><span style=3D"color:#0C2577" class=3D"color-d=
+arkmode"><span class=3D"jcs-mobile-hide">&nbsp;&nbsp;</span>ALGOL GmbH<span=
+ class=3D"jcs-mobile-hide">&nbsp;&nbsp;&nbsp;</span></span></td></tr></tabl=
+e><table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" align=3D"left" cl=
+ass=3D"jcs-specs w-fullblock padding-0" style=3D"float:left;" role=3D"prese=
+ntation"><tr><td style=3D"font-family:'Helvetica Neue', Helvetica, Arial, s=
+ans-serif;font-weight:400;font-size:14px;line-height:24px;"><span class=3D"=
+jcs-pr-sm-1"><img alt=3D"location" width=3D"18" height=3D"16" src=3D"https:=
+//email.stepstone.de/images/ITE/mapmarker-icon.png" style=3D"vertical-align=
+:middle" /></span><span style=3D"color:#0C2577" class=3D"color-darkmode"><s=
+pan class=3D"jcs-mobile-hide">&nbsp;&nbsp;</span>Cologne<span class=3D"jcs-=
+mobile-hide">&nbsp;&nbsp;&nbsp;</span></span></td></tr></table><table borde=
+r=3D"0" cellspacing=3D"0" cellpadding=3D"0" align=3D"left" class=3D"jcs-spe=
+cs w-fullblock padding-0" style=3D"float:left;" role=3D"presentation"><tr><=
+td style=3D"font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font=
+-weight:400;font-size:14px;line-height:24px;"><span class=3D"jcs-pr-sm-1"><=
+img alt=3D"contract type" width=3D"18" height=3D"16" src=3D"https://email.s=
+tepstone.de/images/ITE/document-icon.png" style=3D"vertical-align:middle" /=
+></span><span style=3D"color:#0C2577" class=3D"color-darkmode"><span class=
+=3D"jcs-mobile-hide">&nbsp;&nbsp;</span>Feste Anstellung<span class=3D"jcs-=
+mobile-hide">&nbsp;&nbsp;&nbsp;</span></span></td></tr></table><table borde=
+r=3D"0" cellspacing=3D"0" cellpadding=3D"0" align=3D"left" class=3D"jcs-spe=
+cs w-fullblock padding-0" style=3D"float:left;" role=3D"presentation"><tr><=
+td style=3D"font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font=
+-weight:400;font-size:14px;line-height:24px;"><span class=3D"jcs-pr-sm-1"><=
+img alt=3D"time" width=3D"18" height=3D"16" src=3D"https://email.stepstone.=
+de/images/ITE/clock-icon.png" style=3D"vertical-align:middle" /></span><spa=
+n style=3D"color:#0C2577" class=3D"color-darkmode"><span class=3D"jcs-mobil=
+e-hide">&nbsp;&nbsp;</span>Homeoffice m=C3=B6glich, Vollzeit<span class=3D"=
+jcs-mobile-hide">&nbsp;&nbsp;&nbsp;</span></span></td></tr></table><table b=
+order=3D"0" cellspacing=3D"0" cellpadding=3D"0" align=3D"left" class=3D"jcs=
+-specs w-fullblock padding-0" style=3D"float:left;" role=3D"presentation"><=
+tr><td style=3D"font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;=
+font-weight:400;font-size:14px;line-height:24px;"><span class=3D"jcs-pr-sm-=
+1"><img alt=3D"salary" width=3D"18" height=3D"16" src=3D"https://email.step=
+stone.de/images/ITE/salary-icon.png" style=3D"vertical-align:middle" /></sp=
+an><span style=3D"color:#0C2577" class=3D"color-darkmode"><span class=3D"jc=
+s-mobile-hide">&nbsp;&nbsp;</span>61.000 - 90.000 =E2=82=AC/Jahr (gesch=C3=
+=A4tzt f=C3=BCr Vollzeit)<span class=3D"jcs-mobile-hide">&nbsp;&nbsp;&nbsp;=
+</span></span></td></tr></table></div></td></tr><!--only IJM--><tr><td vali=
+gn=3D"top" align=3D"left" style=3D"font-family: 'Helvetica Neue', Helvetica=
+, Arial, sans-serif;font-weight:400;font-size:14px;color:#0C2577; line-heig=
+ht:24px;"><div><span class=3D"color-darkmode" style=3D"white-space:nowrap;c=
+olor:#0C2577">6&nbsp;days&nbsp;ago</span></div></td></tr><!-- END only IJM-=
+-></table></td></tr></table></td></tr></tbody></table><table border=3D"0" c=
+ellspacing=3D"0" cellpadding=3D"0" role=3D"presentation"><tbody><tr><td hei=
+ght=3D"8" style=3D"font-size: 1px; line-height: 1px; height: 8px;">&nbsp;</=
+td></tr></tbody></table></td><td valign=3D"top" class=3D"w-left-right">&nbs=
+p;</td></tr><!-- IJM Button top --> <tr><td height=3D"16" colspan=3D"3" sty=
+le=3D"font-size: 1px; line-height: 1px; height: 16px;">&nbsp;</td></tr><tr>=
+<td valign=3D"top" class=3D"w-left-right">&nbsp;</td><td valign=3D"top" ali=
+gn=3D"center"><!--[if mso]><noscript><v:roundrect xmlns:v=3D"urn:schemas-mi=
+crosoft-com:vml" xmlns:w=3D"urn:schemas-microsoft-com:office:word" style=3D=
+"height:56px; v-text-anchor:middle; width:240px;" arcsize=3D"50%" stroke=3D=
+"f" fillcolor=3D"#008194"><w:anchorlock/><center></noscript><![endif]--> <a=
+ class=3D"btn" href=3D"https://click.stepstone.de/f/a/niCaOUqm0pXcqlXB-mPVl=
+w~~/AAAmIhA~/wj45ZOUHz3lw4-b9-pjA1uGU8dnZ166cQFcoxQ06QnKvdMobO0DZfmqIg1SGSO=
+_ZL4oUdJOkZRz6tXltB6ExMiddWYZfZ3vVaKyhF6ialOEb0niHUT_TDPG2gxP8GRgRvlNsofqVr=
+iP-smsj-VYGyiPkLiYdTkM8_rZHqxdn8fvKMLGFq-P7MFf7vyBN8jBwLEPxmyq5ft3sh2570tTI=
+rUuZrljr6WQonoTP_DYtVB0FmRoyjtUGyS4RBb3xK0yJFDz8IcMJsOoezzAg6LNpy6YmxzhVjVg=
+u38I_driwtRgTcqHhkj71tcG3etk8hZkX3Z_4hcZrzOjRG7sddRXw7JiOnjc-Fa8OuIOrhRO8Ut=
+FoLVCbjgqfSPIq9Ilk2emfjUIizKMQbUltP35s5JnnlgS8YnAOls4CwY0Oo6UjoiFdHXHZNdH4B=
+xYm74Xhvi9t4rj1PNwjtovk27t6FboVWEeIzqLO0C3JLZkxehH5uZWU7iK1UsxUvMUzY_9aRDy0=
+3qKh3Y-cF2Kf0rYgC17xxmdBduROXtfx0BG3cO0Lm6LPE3fSN0MNU5g2pDjksLq4Ee4luBTbHtK=
+FDNlyk2HTPYCXI_NKkCYK_Gt75OIZHKJigQJK-czciTR-_4hejyovePvm9b8-vmQrR1n7XuuO2r=
+H45qWtQsKpAhvHgHfKESsfVZsXx6S3i0COpt0w6PL9ELj1ECVf2K27BDExe7NGocnIFA_Gj28xQ=
+R4QbTAKgiJ4ty69dOtnUMsu5RJvrso9hq8NmM_b9m4M1_cbpldX9jsHI9ns7NL5DjKpX7LWtdWL=
+rDG6SLLYQVAp_HZ5172nlbj83-KJANI3fjWVscDg7xrSn-8v8Pb_0IAID9PVXkXdW6m4QqfB2rD=
+zdyI7LclqF497RioJyG2jAUK-Ldwqcc7oWszr3HDE5wQY2r0ePjNNyM9kLXovFmlM0Aob9EWyRg=
+EXFTxpJije0IpJdpXDM9B2zwtm46VmOIz8a1NE0Ma0j0E7caX2JQZKSdtvpRnJDzJMK8-9NytLm=
+_nFNeDBar4BzH1A7_TuPZwe8mE-tq4kHmsvyb6TsQxwz3-j6NP_uKGciumU1SePdnrE2b92PaMH=
+mWnoXlEAhn7nVaICzfl3PmyTLYmqGhxr4JaJIRehV25NJsi-HSPzZ9bd5v0KdVw-2_5I75CGM6k=
+-VNkxk2EHYk7a0CR44bspbAA4gFgYH_qkjpTsVZWw_QYl7GrdO5HCjjKWnxDsf8cwIVld8NszXP=
+lqs9Qb_gKjQRSa-p72Uxg73I53nuelR0EhpjYar6JhDDL-5KBnClqYOoFZ06XEoLJ49fxqYMJ_J=
+8nJkfrC2IwwVjSR523kt5CLjq84KpWmAbfZW_HqOptztgzNpCeVfhjWTzzP2r_593gPP-b6hpA3=
+voCJfzuZceJDwbxfxtPqjM2BUSLWYkPvp29jCSKRJC-1BPR75bet0zavcT3-yp3ymyKMqQhzHXF=
+hpFgGKIcI3a8d78C3EvETiNa1xGf2U5BLYGhxQloq0SYXZwsp0ecZ35ZsDSjFXfLQzncv-nuCMR=
+aSlWZGzZ3Cgixr_FbbMRihQfRyPhMXYWeaS9ZadDpAgyHY-dzteE_yKiRp6GWoRxJL775HuWfsM=
+h48Ux4HA6cosQESnBS8MB0Cohb3iJbSwPqayQU-tZn6cw_pfUinkQgNq3V5fMgJTQTB6tjlK7WV=
+_NpWx2K8t7FLXyNS4rOKaK9GasDEiYgD5DoUUA~~" target=3D"_blank" style=3D"displa=
+y:inline-block; width:240px; padding:14px 0; border-radius:30px; line-heigh=
+t:28px; color:#ffffff; text-decoration:none; text-align: center; white-spac=
+e:nowrap; background-color: #008194; font-family: 'Helvetica Neue', Helveti=
+ca, Arial, sans-serif; font-weight:700; font-size:18px;" ><span style=3D"te=
+xt-decoration:none;" class=3D"btn">I&#39;m&nbsp;interested</span>&nbsp;<spa=
+n style=3D"mso-hide:all;"><img border=3D"0" style=3D"padding-bottom:3px; ve=
+rtical-align:middle; border:none;" src=3D"https://email.stepstone.de/images=
+/ITE/chevron.png" width=3D"9" height=3D"16" alt=3D"" /></span><!--[if mso]>=
+<span style=3D"font-size:20px;">&rsaquo;</span><![endif]--></a><!--[if mso]=
+><noscript></center></v:roundrect></noscript><![endif]--></td><td valign=3D=
+"top" class=3D"w-left-right">&nbsp;</td></tr><!-- END IJM Button top --><!-=
+- Top Skills --> <tr><td height=3D"47" colspan=3D"3" style=3D"font-size: 1p=
+x; line-height: 1px; height: 47px;">&nbsp;</td></tr><tr><td valign=3D"top" =
+class=3D"w-left-right">&nbsp;</td><td valign=3D"top" align=3D"left"><table =
+width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" role=3D"pre=
+sentation"><tbody><tr><td valign=3D"top" align=3D"left"><table width=3D"100=
+%" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" role=3D"presentation"><=
+tbody><tr><td align=3D"left" style=3D"font-family:'Helvetica Neue', Helveti=
+ca, Arial, sans-serif;font-weight:700;font-size:22px;color:#0C2577;line-hei=
+ght:32px;" class=3D"color-darkmode"><h2>Top skills</h2></td></tr><tr><td he=
+ight=3D"8" style=3D"font-size: 1px; line-height: 1px; height: 8px;">&nbsp;<=
+/td></tr><tr><td align=3D"left" style=3D"font-family:'Helvetica Neue', Helv=
+etica, Arial, sans-serif;font-weight:400;font-size:14px;color:#0C2577;line-=
+height:24px;" class=3D"color-darkmode">You're a great fit for this role if =
+you have the following skills:</td></tr><tr><td height=3D"10" style=3D"font=
+-size: 1px; line-height: 1px; height: 10px;">&nbsp;</td></tr></tbody></tabl=
+e></td></tr><tr><td valign=3D"top" align=3D"left"><table border=3D"0" align=
+=3D"left" cellspacing=3D"0" cellpadding=3D"0" style=3D"float:left;" role=3D=
+"presentation"><tr><td style=3D"padding:0 8px 10px 0"><table cellspacing=3D=
+"0" cellpadding=3D"0" align=3D"left" style=3D"border: 1px solid #CFD6E7;bor=
+der-radius: 20px;border-collapse:separate !important;" role=3D"presentation=
+"><tr><td align=3D"left" valign=3D"top" height=3D"40"><table align=3D"left"=
+ border=3D"0" cellspacing=3D"0" cellpadding=3D"0" height=3D"40" style=3D"bo=
+rder: none;" role=3D"presentation"><tr><td align=3D"center" style=3D"font-f=
+amily:'Helvetica Neue', Helvetica, Arial, sans-serif;font-weight:400;paddin=
+g:8px 16px;text-align: center;font-size:16px; color:#0C2577; line-height:24=
+px;" class=3D"color-darkmode">PRINCE2</td></tr></table></td></tr></table></=
+td></tr></table><table border=3D"0" align=3D"left" cellspacing=3D"0" cellpa=
+dding=3D"0" style=3D"float:left;" role=3D"presentation"><tr><td style=3D"pa=
+dding:0 8px 10px 0"><table cellspacing=3D"0" cellpadding=3D"0" align=3D"lef=
+t" style=3D"border: 1px solid #CFD6E7;border-radius: 20px;border-collapse:s=
+eparate !important;" role=3D"presentation"><tr><td align=3D"left" valign=3D=
+"top" height=3D"40"><table align=3D"left" border=3D"0" cellspacing=3D"0" ce=
+llpadding=3D"0" height=3D"40" style=3D"border: none;" role=3D"presentation"=
+><tr><td align=3D"center" style=3D"font-family:'Helvetica Neue', Helvetica,=
+ Arial, sans-serif;font-weight:400;padding:8px 16px;text-align: center;font=
+-size:16px; color:#0C2577; line-height:24px;" class=3D"color-darkmode">Betr=
+iebsanalyse</td></tr></table></td></tr></table></td></tr></table><table bor=
+der=3D"0" align=3D"left" cellspacing=3D"0" cellpadding=3D"0" style=3D"float=
+:left;" role=3D"presentation"><tr><td style=3D"padding:0 8px 10px 0"><table=
+ cellspacing=3D"0" cellpadding=3D"0" align=3D"left" style=3D"border: 1px so=
+lid #CFD6E7;border-radius: 20px;border-collapse:separate !important;" role=
+=3D"presentation"><tr><td align=3D"left" valign=3D"top" height=3D"40"><tabl=
+e align=3D"left" border=3D"0" cellspacing=3D"0" cellpadding=3D"0" height=3D=
+"40" style=3D"border: none;" role=3D"presentation"><tr><td align=3D"center"=
+ style=3D"font-family:'Helvetica Neue', Helvetica, Arial, sans-serif;font-w=
+eight:400;padding:8px 16px;text-align: center;font-size:16px; color:#0C2577=
+; line-height:24px;" class=3D"color-darkmode">Programmbetreuung</td></tr></=
+table></td></tr></table></td></tr></table><table border=3D"0" align=3D"left=
+" cellspacing=3D"0" cellpadding=3D"0" style=3D"float:left;" role=3D"present=
+ation"><tr><td style=3D"padding:0 8px 10px 0"><table cellspacing=3D"0" cell=
+padding=3D"0" align=3D"left" style=3D"border: 1px solid #CFD6E7;border-radi=
+us: 20px;border-collapse:separate !important;" role=3D"presentation"><tr><t=
+d align=3D"left" valign=3D"top" height=3D"40"><table align=3D"left" border=
+=3D"0" cellspacing=3D"0" cellpadding=3D"0" height=3D"40" style=3D"border: n=
+one;" role=3D"presentation"><tr><td align=3D"center" style=3D"font-family:'=
+Helvetica Neue', Helvetica, Arial, sans-serif;font-weight:400;padding:8px 1=
+6px;text-align: center;font-size:16px; color:#0C2577; line-height:24px;" cl=
+ass=3D"color-darkmode">GPM</td></tr></table></td></tr></table></td></tr></t=
+able><table border=3D"0" align=3D"left" cellspacing=3D"0" cellpadding=3D"0"=
+ style=3D"float:left;" role=3D"presentation"><tr><td style=3D"padding:0 8px=
+ 10px 0"><table cellspacing=3D"0" cellpadding=3D"0" align=3D"left" style=3D=
+"border: 1px solid #CFD6E7;border-radius: 20px;border-collapse:separate !im=
+portant;" role=3D"presentation"><tr><td align=3D"left" valign=3D"top" heigh=
+t=3D"40"><table align=3D"left" border=3D"0" cellspacing=3D"0" cellpadding=
+=3D"0" height=3D"40" style=3D"border: none;" role=3D"presentation"><tr><td =
+align=3D"center" style=3D"font-family:'Helvetica Neue', Helvetica, Arial, s=
+ans-serif;font-weight:400;padding:8px 16px;text-align: center;font-size:16p=
+x; color:#0C2577; line-height:24px;" class=3D"color-darkmode">Prozessanalys=
+e</td></tr></table></td></tr></table></td></tr></table></td></tr></tbody></=
+table></td><td valign=3D"top" class=3D"w-left-right">&nbsp;</td></tr><!-- E=
+ND Top Skills --><!-- Content Sections --><tr><td colspan=3D"3" height=3D"2=
+0" style=3D"font-size:1px;line-height:1px;height:20px">&nbsp;</td></tr><tr>=
+<td valign=3D"top" class=3D"w-left-right">&nbsp;</td><td valign=3D"top" ali=
+gn=3D"left" style=3D"font-family:'Helvetica Neue', Helvetica, Arial, sans-s=
+erif;font-weight:400;font-size:16px;color:#0C2577;line-height:24px;"><div c=
+lass=3D"content-section"><div class=3D"color-darkmode" style=3D"font-family=
+:'Helvetica Neue', Helvetica, Arial, sans-serif;font-weight:700;font-size:2=
+2px;color:#0C2577;line-height:32px;"><h2>Einleitung</h2></div><div class=3D=
+"color-darkmode link-second text-decoration-none" style=3D"padding-bottom:1=
+0px;"><p><strong>We make work flow. Wemakeyouflow.</strong> Als Unternehmen=
+sberatung sind unsere Mitarbeitenden der Schl=C3=BCssel zum Erfolg. Mit ihn=
+en helfen wir unseren Kunden mit Expertise, einer =E2=80=9E=C3=84rmel-hoch-=
+Mentalit=C3=A4t=E2=80=9C und hoher intrinsischer Motivation die Probleme de=
+r Business Transformation zu l=C3=B6sen.</p>=0A<p><strong>Immer ehrlich. Im=
+mer mitdenkend. Immer l=C3=B6sungsorientiert.</strong></p>=0A<p>Gemeinsam s=
+chaffen wir bei Algol Consulting ein inspirierendes Umfeld, in dem unsere M=
+itarbeitenden ihr volles Potenzial entfalten k=C3=B6nnen. H=C3=B6rt sich da=
+s Interessant f=C3=BCr Dich an=3F Dann bleib dran!</p></div><!-- CV2JOBS: n=
+o CV --> <table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" width=3D"1=
+00%" role=3D"presentation"><tr><td height=3D"8" style=3D"font-size: 1px; li=
+ne-height: 1px; height: 8px;">&nbsp;</td></tr><tr><td valign=3D"top" align=
+=3D"left"> <a href=3D"https://click.stepstone.de/f/a/ewqLUySStNW_8fq4hhTouA=
+~~/AAAmIhA~/TWniYS3juGBdNYEyd2JeT6GRkZt1BIhcj8dcA3DgA6VsXdkV5mviDeDBRunV1HW=
+3ICwaz09P_XdSwKugiZQzenRNvpOtT0TSFjJ15Ojm7rphJVf3hinqww6a07BJVVfnd09aHO5EGL=
+Rsab9dN_1Grj7Wc4PkxlWGVodS9AZtabpeKd1kXOaRRx5BNNrqwT2mqALhM9TMD7dLzI3SaQ-7R=
+cSbXMwL_-pjA1ZkG14tNHPncpy-3alhvfWGRpUmK5k5kWAGFDlKokrRT95iQfXnjDtqDnbaNQf8=
+yzeRPK9Ak3a7CvTlv-2kZ5J2zv55x-05S6rf67thj2XbiDDZEMZxRw2qHrEr4JkJFpy8osZbDXi=
+0gCg2YoWOq8HXKFN0WYpmzoicDen3JoOqftGnX77knSgA5xF1fq9awkiaD3N7jIS867oq5mOAz8=
+MRaNSzT4Mv5q1mbuZX-QnZqsrzak56cYaSKZB2Uz3ss8rPB4vdUOXahzfqOwcBlrMabKnKJTwJg=
+MtC5bnixmVujDYtLV8SEYQgumKnlke1N0qfmibHfM8g4vPXpN4RwIilwTchsLnwRU7ZClRE3SG1=
+YvSyetx3UA3pg5s01WC0XMUO7nhZ7PU2d4Lp7s4GxKAh7NBvFSBEBrZLBDviggRO9G5jyFb4qOK=
+GcJLlAv9f7uW9jofopeKmQOCTxYCWo21CRkWXmodAnvr1Zpliubbv0apienJuvQq2U9IvebYVsV=
+G2RM46bplG9WsQwNyXc4P_gIRBuLG-6kgSiqdftSXtxJGCbIR33xpa3jdIVmelBYkovb2xJJa3H=
+9HDCP6SCtyY_xyjQ2c1XnRMpDYu0IeMwFogvLu3-9XySvZM9ASeffMb_JdmMwaaWZBgsZXpQLAI=
+0ej8f8g71Q5QPExRF5D65-M-ATeOG0EDIAhsM6S40NHw_e6u3p8zC83u3qmeujj5KhbH8EoswSN=
+xbGmmP1dbqiNPQ_XrZ6TYjmytbFYr9TaOocVRgAvUSw5gZsJIXANCFmFhJQhGyHNemspNJjddDV=
+0uqqrEfD8kaCkQvf1o26TRzmJCtq8_U0G2zy3B7swmyG8vViTiYNn1RtKBopLGV4dEz14iSjPCx=
+l7N8YdpP8f8uX1dyjCP_4zJMCv1FFpsGxIFvIOrbAfI3lyW57Al9Iq2bUwp3J77fY8-uV4x1EIx=
+lthQ4kB3p8KP2T9WXUBxffUDIYBFRGwM5YbDfBddX07LrgkXuA9xaNAFlKlsnARVvSq-uSH4uPU=
+x5Gye8xyRPSqz0uj1RCrRwhdIlHqOA4Cin39Af_AZeT9AVzInhnxh4Ei9V6rI4sSTR620s9mTBJ=
+F7fTVFVN-jRBQ03WYBcSY-DQXJo-pSc8qCTj83pyG2rQOWkuc-yOJp4X9UW8MGcvUn4XnZ943Rt=
+hWdc2a5zfhB1pmXvqkSLEGCgJdfVd6Yq5onu3BlFOvBqi5T_fbL4y-a7OShFSqVznZ2avM6ikZT=
+UIMeY8sH7_2-Lg53NhjqwyvH3dbaoFRG1glEqRaMWKaPzTj2ysuvWB1HJUXLEl2XIy_dbcBGtAK=
+lw4RVSLiLMJD4xm1gIYjhlmqhZejcVVQKufsY-Mug0rhIXihr_qJz10LGjYeczpa-pWQ6gLtLjG=
+4GDosyyqZ30mFvP2F2eHunNUQVmWGFGUCYj7ZWgrFyVW9SjZe20zGEILa8QGdnmHnhyI9BsmLeF=
+U00ByEIw4dB5ZWp" ><img src=3D"https://email.stepstone.de/images/ITE/cv2job_=
+no-cv_en_desk.png" alt=3D"Ready to discover your job match=3F" width=3D"552=
+" style=3D"display: block; width: 100%; height: auto; max-width: 552px" bor=
+der=3D"0" class=3D"mobile-hide" /></a> <span style=3D"mso-element: field-be=
+gin"></span> <div style=3D"display: none" class=3D"mobile-show"><a href=3D"=
+https://click.stepstone.de/f/a/ewqLUySStNW_8fq4hhTouA~~/AAAmIhA~/TWniYS3juG=
+BdNYEyd2JeT6GRkZt1BIhcj8dcA3DgA6VsXdkV5mviDeDBRunV1HW3ICwaz09P_XdSwKugiZQze=
+nRNvpOtT0TSFjJ15Ojm7rphJVf3hinqww6a07BJVVfnd09aHO5EGLRsab9dN_1Grj7Wc4PkxlWG=
+VodS9AZtabpeKd1kXOaRRx5BNNrqwT2mqALhM9TMD7dLzI3SaQ-7RcSbXMwL_-pjA1ZkG14tNHP=
+ncpy-3alhvfWGRpUmK5k5kWAGFDlKokrRT95iQfXnjDtqDnbaNQf8yzeRPK9Ak3a7CvTlv-2kZ5=
+J2zv55x-05S6rf67thj2XbiDDZEMZxRw2qHrEr4JkJFpy8osZbDXi0gCg2YoWOq8HXKFN0WYpmz=
+oicDen3JoOqftGnX77knSgA5xF1fq9awkiaD3N7jIS867oq5mOAz8MRaNSzT4Mv5q1mbuZX-QnZ=
+qsrzak56cYaSKZB2Uz3ss8rPB4vdUOXahzfqOwcBlrMabKnKJTwJgMtC5bnixmVujDYtLV8SEYQ=
+gumKnlke1N0qfmibHfM8g4vPXpN4RwIilwTchsLnwRU7ZClRE3SG1YvSyetx3UA3pg5s01WC0XM=
+UO7nhZ7PU2d4Lp7s4GxKAh7NBvFSBEBrZLBDviggRO9G5jyFb4qOKGcJLlAv9f7uW9jofopeKmQ=
+OCTxYCWo21CRkWXmodAnvr1Zpliubbv0apienJuvQq2U9IvebYVsVG2RM46bplG9WsQwNyXc4P_=
+gIRBuLG-6kgSiqdftSXtxJGCbIR33xpa3jdIVmelBYkovb2xJJa3H9HDCP6SCtyY_xyjQ2c1XnR=
+MpDYu0IeMwFogvLu3-9XySvZM9ASeffMb_JdmMwaaWZBgsZXpQLAI0ej8f8g71Q5QPExRF5D65-=
+M-ATeOG0EDIAhsM6S40NHw_e6u3p8zC83u3qmeujj5KhbH8EoswSNxbGmmP1dbqiNPQ_XrZ6TYj=
+mytbFYr9TaOocVRgAvUSw5gZsJIXANCFmFhJQhGyHNemspNJjddDV0uqqrEfD8kaCkQvf1o26TR=
+zmJCtq8_U0G2zy3B7swmyG8vViTiYNn1RtKBopLGV4dEz14iSjPCxl7N8YdpP8f8uX1dyjCP_4z=
+JMCv1FFpsGxIFvIOrbAfI3lyW57Al9Iq2bUwp3J77fY8-uV4x1EIxlthQ4kB3p8KP2T9WXUBxff=
+UDIYBFRGwM5YbDfBddX07LrgkXuA9xaNAFlKlsnARVvSq-uSH4uPUx5Gye8xyRPSqz0uj1RCrRw=
+hdIlHqOA4Cin39Af_AZeT9AVzInhnxh4Ei9V6rI4sSTR620s9mTBJF7fTVFVN-jRBQ03WYBcSY-=
+DQXJo-pSc8qCTj83pyG2rQOWkuc-yOJp4X9UW8MGcvUn4XnZ943RthWdc2a5zfhB1pmXvqkSLEG=
+CgJdfVd6Yq5onu3BlFOvBqi5T_fbL4y-a7OShFSqVznZ2avM6ikZTUIMeY8sH7_2-Lg53Nhjqwy=
+vH3dbaoFRG1glEqRaMWKaPzTj2ysuvWB1HJUXLEl2XIy_dbcBGtAKlw4RVSLiLMJD4xm1gIYjhl=
+mqhZejcVVQKufsY-Mug0rhIXihr_qJz10LGjYeczpa-pWQ6gLtLjG4GDosyyqZ30mFvP2F2eHun=
+NUQVmWGFGUCYj7ZWgrFyVW9SjZe20zGEILa8QGdnmHnhyI9BsmLeFU00ByEIw4dB5ZWp" ><img=
+ src=3D"https://email.stepstone.de/images/ITE/cv2job_no-cv_en_mob.png" widt=
+h=3D"420" alt=3D"Ready to discover your job match=3F" border=3D"0" style=3D=
+"width: 100%; height: auto; min-width: 100%" /></a></div><span style=3D"mso=
+-element: field-end"></span></td></tr><tr><td height=3D"24" style=3D"font-s=
+ize: 1px; line-height: 1px; height: 24px;">&nbsp;</td></tr><tr><td valign=
+=3D"top" align=3D"left" style=3D"font-family: 'Helvetica Neue', Helvetica, =
+Arial, sans-serif;font-weight:700;font-size:18px;color:#0C2577;line-height:=
+28px;" class=3D"color-darkmode">Perfectly tailored jobs for you</td></tr><t=
+r><td height=3D"10" style=3D"font-size: 1px; line-height: 1px; height: 10px=
+;">&nbsp;</td></tr><tr><td valign=3D"top" align=3D"left" style=3D"font-fami=
+ly: 'Helvetica Neue', Helvetica, Arial, sans-serif;font-weight:400;font-siz=
+e:16px;color:#0C2577;line-height:24px;" class=3D"color-darkmode">Upload you=
+r CV and see up to 3 top matches at a glance in the next email.</td></tr><t=
+r><td height=3D"24" style=3D"font-size: 1px; line-height: 1px; height: 24px=
+;">&nbsp;</td></tr><tr><td valign=3D"top" align=3D"center"><!--[if mso]><no=
+script><v:roundrect xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:w=3D"ur=
+n:schemas-microsoft-com:office:word" style=3D"height:56px; v-text-anchor:mi=
+ddle; width:320px;" arcsize=3D"50%" stroke=3D"f" fillcolor=3D"#008194"><w:a=
+nchorlock/><center></noscript><![endif]--> <a class=3D"btn" href=3D"https:/=
+/click.stepstone.de/f/a/qbYBpzKLkcBF6rYb2O7KWA~~/AAAmIhA~/TvRxx1V3B4I8oAohu=
+TEgEvLn6GNbwBlmeCCGY8_REyRz4DwWZobSB-Rmzl0kEUEMQXMNl5btBwAPb_Da_vSWXhHu5__7=
+gkZ1uYIhKrzzB7H0i4rfBIm3-t2jyBE2IN_vVaNVaD-4Mb58kAWVu82tL5L5onlXPn7cPUv892Y=
+FRnCk9pJnsZZziYkF2h4VrQZc4Tg76DujiQmmvUa7YpMVwnvBIGhunBYDyfr5hlSnHUqWsBcIug=
+diVoyhN1vWTzb1gLL_pgDO6vYwlvYhQTbgMhPD1I3Ww0m4s18u0rKnQRJboUo_oWrJcLxmxges9=
+xGK70091ATzaKqFKfi0m3ncCBAYfqo1Wzl5m-I8qzxY8_ADTdVfoxucuP3XqxcjPSMc4gRVGz8D=
+Zr1BCrmawJziALtLDhXE1EMXcb8y-D5TjAqDyOVkNYLTG4_LLT7uqCRvo3ss8DYcHD-6nq2YMbw=
+w-6eyelFZQz3V7E3ZdfaBljyser3ayHw5uBMC-pJrxcSTg9KU4rcoZltGVDjOlfm6DpatoueOwh=
+w2bztQ_ZmlP_P_XSml_Jnbf06jp5OtPmEvhwnAfymRNtpf01rSw6znw9gdL_UeAaOlaEbp2DyhL=
+38WW-WNzR0IeIYwZhkA4uyfHzbasA2c7jLYykjV4Ojge7jHjGw9wQoid4Zk3S3B8PvgTrTUkeHe=
+aFnQ0nv3Cxled1PHUCXJl87W7yivx4W-Fp39yZeAhAX7BF4-itQjWua1T_7ql3I1WVl2MfBYSmP=
+hqJaffxWDoqlc8ciHzEXQlsi3Y-saFQkJxWoVWyJUwyAQ-S2DHU_aPsakWzsYdopL5snG1LxW02=
+8J8tQBI_KLA3D4kdTds76MtXMTGJRavYEci1ACl-EDTR-DuKgthF_OwvGInjOpFK4jZurw4iREx=
+K7TaG-76tf1g0qNc4-_cnLWU3ylf26JBiL7VdysgxSYehHzLNURA_9px4fnnCrQfXkUy2dUeE9O=
+R0DF9CbTkYW5KHV-ODTwy5DXJ_w-vtao3x4rJfeKnl5Jko4Thwr1kOF2a3gWBLYtMPeWQ3FSapf=
+vgzO7VYn9L-ohGMJLDqZCiuPaDoA1_Qd4Pw4zd61gQNkm5g3jAn-Yz-rVdDC1ZUt-XhLa0E64SJ=
+hKFvYQki2hxeMqeGOQt3SBc8XqEC2mxNOCRQsTPD2uaFKX3vKy6I9yyYNi4gWpiPtI4e47HGxQx=
+kC_9PJn4VtdevMn5s0pS2oTgsS6BbhKkNwlBfTl77fDjQc_rWqxMsywTA9KnhG49MIK9mfnlhzE=
+RwJB1dcge0dv9uxmahzIi6Buv3pYFXGstTP2TPn1T0MTpkzWCTpwCNGqabJUjpN3BVbY_H37gCh=
+7_pHMmoqjpQtgo2TPWvMSBjRpb_G0c9pV9K134WkwsmGW0xe7d7tX9N6xprzJINKhyGfWr5SPaI=
+jNwHMY62cZmneudMSB6CePn-K1XCBSWjzoFyYurjiVj11QSIfOXf5C5bnGWebtJSVLla26w7XLd=
+LH_9iQ1AmLskSugU41yoIfNzB5sM8lJOWTtGGRXHj7W841ENJR8lYzi26PNizkDpbhKFXUYnAGs=
+svwrhgK1OPUgQdrjj4aic1K2UDiUxR1mgBvTEXtNb1o0GGlHEJXH8mAPZtno1_tmxRcx2nSX4If=
+h_5-tZ_obEXq3mdgrJOkowqz4uxz_vUjnT-6WMkyFQ4aLRHUoMiF1WnSBSeCI" target=3D"_b=
+lank" style=3D"display:inline-block; width:320px; padding:14px 0; border-ra=
+dius:30px; line-height:28px; color:#ffffff; text-decoration:none; text-alig=
+n: center; white-space:nowrap; background-color: #008194; font-family: 'Hel=
+vetica Neue', Helvetica, Arial, sans-serif; font-weight:700; font-size:18px=
+;" ><span style=3D"text-decoration:none;" class=3D"btn">Upload&nbsp;CV</spa=
+n></a><!--[if mso]><noscript></center></v:roundrect></noscript><![endif]-->=
+</td></tr><tr><td height=3D"24" style=3D"font-size: 1px; line-height: 1px; =
+height: 24px;">&nbsp;</td></tr></table><!-- END CV2JOBS: no CV --><div styl=
+e=3D"height: 24px;border-top:1px solid #CFD6E7;">&nbsp;</div><div class=3D"=
+color-darkmode" style=3D"font-family:'Helvetica Neue', Helvetica, Arial, sa=
+ns-serif;font-weight:700;font-size:22px;color:#0C2577;line-height:32px;"><h=
+2>Aufgaben</h2></div><div class=3D"color-darkmode link-second text-decorati=
+on-none" style=3D"padding-bottom:10px;"><ul>=0A <li>Du =C3=BCbernimmst eine=
+ steuernde Rolle in unseren Projekten und bist dabei zentrale:r Ansprechpar=
+tner:in zwischen den verschiedenen Stakeholdern</li>=0A <li>Du begleitest u=
+nd ber=C3=A4tst unsere Kunden aus unterschiedlichen Branchen bei der Umsetz=
+ung ihrer Projekte in der Business Transformation - von der Initialisierung=
+ bis zum Abschluss</li>=0A <li>Du =C3=BCbernimmst Verantwortung f=C3=BCr Te=
+ammitglieder und begleitest sie bei ihrer Entwicklung</li>=0A <li>Du gestal=
+test mit der =C3=9Cbernahme von internen Aufgaben die Entwicklung von Algol=
+ aktiv mit, z.B. bei der Mitarbeit in einem unserer OKR-Squads</li>=0A <li>=
+Du wirst Teil unseres dynamischen Teams mit offener Feedbackkultur und flac=
+hen</li>=0A</ul></div><div style=3D"height: 24px;border-top:1px solid #CFD6=
+E7;">&nbsp;</div><div class=3D"color-darkmode" style=3D"font-family:'Helvet=
+ica Neue', Helvetica, Arial, sans-serif;font-weight:700;font-size:22px;colo=
+r:#0C2577;line-height:32px;"><h2>Dein Profil</h2></div><div class=3D"color-=
+darkmode link-second text-decoration-none" style=3D"padding-bottom:10px;"><=
+p>Ein abgeschlossenes Hochschulstudium im Bereich Wirtschaftswissenschaften=
+, (Wirtschafts-) Informatik oder einem verwandten Studiengang</p>=0A<ul>=0A=
+ <li>Fundierte Erfahrung in (Gro=C3=9F-) Projekten (min. 5 Jahre) mit Fokus=
+ auf Business Analytics, Prozessanalyse/- optimierung und Projekt- oder Pro=
+grammleitung</li>=0A <li>Erfahrung in der F=C3=BChrung von Teams</li>=0A <l=
+i>Idealerweise Erfahrung im Business Development</li>=0A <li>Expertise / Fa=
+chwissen in einer der folgenden Branchen in den letzten Jahren w=C3=BCnsche=
+nswert: Banken, Versicherungen, Energie und Telekommunikation</li>=0A <li>E=
+ntsprechende Zertifizierungen sind vorteilhaft (GPM/IPMA, Prince2, ITIL, Sc=
+rum, SAFe)</li>=0A <li>Ausgepr=C3=A4gte konzeptionelle und analytische F=C3=
+=A4higkeiten, eigenverantwortliche Arbeitsweise und eine hohe Teamf=C3=A4hi=
+gkeit</li>=0A <li>Ein sicheres Auftreten und gutes Verhandlungsgeschick</li=
+>=0A <li>Flexibilit=C3=A4t, hohe Motivation und Begeisterungsf=C3=A4higkeit=
+</li>=0A <li>Sehr gute Deutsch- (mind. C1) und Englischkenntnisse</li>=0A <=
+li>Ausgepr=C3=A4gte Kommunikations- und Pr=C3=A4sentationskompetenzen runde=
+n Dein Profil</li>=0A</ul></div><div style=3D"height: 24px;border-top:1px s=
+olid #CFD6E7;">&nbsp;</div><div class=3D"color-darkmode" style=3D"font-fami=
+ly:'Helvetica Neue', Helvetica, Arial, sans-serif;font-weight:700;font-size=
+:22px;color:#0C2577;line-height:32px;"><h2>Was wir bieten</h2></div><div cl=
+ass=3D"color-darkmode link-second text-decoration-none" style=3D"padding-bo=
+ttom:10px;"><ul>=0A <li>Attraktives Fixgehalt mit einer additiven Bonusrege=
+lung und eine betriebliche Altersvorsorge, die sich mit wachsender Betriebs=
+zugeh=C3=B6rigkeit erh=C3=B6ht</li>=0A <li>Flexible Arbeitszeitgestaltung (=
+5-Tage-Woche/ 40h), die M=C3=B6glichkeit beim Kunden vor Ort, in unserem K=
+=C3=B6lner B=C3=BCro oder flexibel aus dem Home-Office zu arbeiten</li>=0A =
+<li>Onboarding mit Mentoringprogramm und Zertifizierungen</li>=0A <li>Vielf=
+=C3=A4ltige Lern- und Entwicklungsm=C3=B6glichkeiten durch interne und exte=
+rne Weiterbildungen</li>=0A <li>Moderne technische Ausstattung sowie zus=C3=
+=A4tzliches Equipment f=C3=BCr das Home-Office</li>=0A <li>Regelm=C3=A4=C3=
+=9Fige After-Work Events und j=C3=A4hrliche</li>=0A</ul></div></div><div cl=
+ass=3D"color-darkmode">Read the full job description  <a href=3D"https://cl=
+ick.stepstone.de/f/a/6rkCMbro7TEuamOsRqCYOw~~/AAAmIhA~/lP-UNAFLIRh9bME-ZBw4=
+bHSvW5Wqg7kcV6GDhKVO3DSQMrCHRzFktiJKLCShH6o_T18PbBy4V2J5ezALMIhDmakDimeH2Yh=
+0Yfna9iPBzJqJWjtJ1k_f1M35UZa9VQ2nkQqT4c5Lp7yfoyHzRnuravclDWAWO-xssLfRCwwkeq=
+OdFDFCdGBfBIbsUh_U0A-uPWT5dTcNbDp9I-LeISpzlkMMqgL3aJS1250uykZAwR7TCW6hd367i=
+F7Fd9YT0fNJQ_2hw6Cxn08Lvfdpj47mOE13uerOm-YfPwfQU29ipYhCrCIgnto1YjWvak9k26Mm=
+-8eMLeQrxNVhBkq3lvsNUdufQN7aW465nCdYe-Yvlftf9g2iLdj5rIiNXVkxyM7fpbGEK8i-hPU=
+zH9iehxQB9thtu-DFGgTUQfkmwpYeXHQe2dsxyH82UM2TKrcQVskoXNGUkJoNef74A7L5G_i65k=
+ctxQv0U8oFhCiiFc9X5uJXU7LBJwrZsrZqAFWa5y8c-lX1Kj3-p1H5yezDsQEjyDQLLELLmkL5Z=
+fAAjSHlOTr86veDJdsbkBC4Z_-_YtgMlTeHo7QgL73pfuvE6C123bjE_AasyUSN9Yf0sUBbN9kj=
+7Dykydz8Et3nq-UEmmbEfhxXrI_TO9OOzvayKNXL2AlPLTw7KDsEp4AmVgi6LSesyOeP2_4Awfo=
+TUFL_hmsSgx1GtdytpJqoHfmYBcyiY4Cb7y51NdEvWS70gKRhNHUeiW3NcEaCjYodbTn2cVqRi7=
+AB59l4hNxs_nS_zWqSg3GlXtayiTQFky2C-gV6MQB6lGdRhlQlHkN8r0459iRK2tvyweG3lTBmn=
+ntFbXXqDsIcLhGg3cFbbtFik7ReXgdQQZ4L7BiKyNaFp8GLMZuJL7WVuy4f_CKAkHhJ66iO0Dco=
+kEYG54Halym5Cv4ZQKwGqLgwzU0xURmWqSU3-gnvytQfdRkJ1rUwp3pVL5-wh1cpbg0Pf9DbwUr=
+DdwM5WAhUtSczIA7VL4B1EpqTYIEWdJstcXtYwlxqu17QA3rL3ShcPblddKt8GzUWyDzCzRcWoC=
+J-q1RGKG7NIB9oODMmoOHB2q_BgBt8Y7cNDAhQhzQMwHsPzgqDX6lszLMhZmGWVAhphpWBV4-rh=
+4Iw43LP3jmodnoi1zkMUHGbSbZflgvaN3e9J6wMMAy-0b7x8MEd3HLFfkk4UXngYqZi7nxU3-Gi=
+jyhkVi3L-z0kqXhx4qyiYuhPwsWqnA5EpIokO_Wt4xKZNDhKlRBlWZfyl8Bm1ifXTqVFqUZ2VkN=
+9wFpbm8IEDXHbvA8gc1HSl0JJyvcMfF2ii2tzYJ1KEAOkj5A3F-iMSbkA8FApKn54QzULsAtTkz=
+uIFqoqGAzqKTaNr36KXKBkyG3NZgLg7R-_wFAKi_Uo5KzcWQ3s-0a3TSFFXMziS9BgHqdmwqNUE=
+rQ2BWa2ytBA9MRIsKiNI0MMBrawiu-6GdlobfsNdioILSI9yckZGd_Vh55PU8ELeMF3ktVe6rPM=
+9mpjXae97x6FLIG-zy3tbWBneXS1fcRrOLdODZKRnkx2jZ-6bpnsKZngrohQzHLa6bPFjh0N3sM=
+sPA1AMES_AWDYmuwyEM6HlcEqsSvoORWB5gN2awIMQ2LIBQt0CG5S4Sb9Z52Y4MbwbLMK9igcDI=
+tXmSl0rg0P1yepbobYNMENzp8fxS0lswiNYKQ~" style=3D"text-decoration:underline;=
+font-weight:normal;color:#008194;" target=3D"_blank" >here</a>.</div></td><=
+td valign=3D"top" class=3D"w-left-right">&nbsp;</td></tr><tr><td height=3D"=
+14" colspan=3D"3" style=3D"font-size: 1px; line-height: 1px; height: 14px;"=
+>&nbsp;</td></tr><!-- IJM Button bottom --><tr><td valign=3D"top" class=3D"=
+w-left-right">&nbsp;</td><td valign=3D"top" align=3D"center" style=3D"paddi=
+ng:30px 0 0;"><!--[if mso]><noscript><v:roundrect xmlns:v=3D"urn:schemas-mi=
+crosoft-com:vml" xmlns:w=3D"urn:schemas-microsoft-com:office:word" style=3D=
+"height:56px; v-text-anchor:middle; width:240px;" arcsize=3D"50%" stroke=3D=
+"f" fillcolor=3D"#008194"><w:anchorlock/><center></noscript><![endif]--> <a=
+ class=3D"btn" href=3D"https://click.stepstone.de/f/a/GjTN_Hl7e4z4G-2bLmeOD=
+g~~/AAAmIhA~/xQEGVeMwJslvLFl48B7QVUWY3nQblEUisfoZdxjp5Ix-hKrKbtFit8_QV_pZ8q=
+pVJ3J1_g95DnmVtXdtBEvrP5b5oE2lNwnSGNyYYd_a8XCwwOTLKi782iqvtjZgTb2LxhUGKNYag=
+BNRR0c1aBn90813EXO1VcL31i2pWeWIZ5qkjwq7pF8Q8cGDydIGCwYJNW4XTtcMNgkkQjfb6VvK=
+WT1ufeNuew4VbLTkDMfukbeckuyxcVa68auv876XSofSKhHsCCc_mfCSCElw9yFdNgE0GDoKEED=
+1s056fWh33gtIzWKZUZ9eCtKImve80MQaZnmB898Cvb46JrQ_iilWtgXnN_rWc0WspfkAyn8F9X=
+WG0eHHAeBLBr-jFBCI1_NfSRnBNqobtjRlTfZdLO7zJcAWtpxy4L9w-yybwLmMz8JZO8nrkVfeN=
+EBZtvNNNK9oghY_AC13EmogT-jJBtlxKXsmz5Yp6tcnTxmqdF_A5zhRfnCQNdfDU_O0z9gIL8Wk=
+p1bhXJeUatLB9bahyiO1rs_5vDk0uC0cR_y1q7S2nHBnW2j5gISzt74yFJEqjzIICWoSS-lh8y5=
+R4xNVNVEytsiI7J-Y6l_dvbnCYW0VGyjDe4u8bzIPonT6oP0W3YEJo-pw5EOMout8w5O8SKhqMI=
+QCew8LPZQamqYS66-cbwIkk11ggqPCgrylCbeBMEHP0IwD6hItjWlRleF7ykzocgNStFmdTSWkE=
+ME-_86bTq4AxnntRxxITHRq_u-ImZLF4k0g2ujdsVzYS0m6gDdpHLwe2MhxDckidjnbMtFeprwK=
+Y93hretdHlk37pnZ3G1qKQnyWb2-dcscDrWxqvMOE_1Pr95cTq1emqQe0fvvAz3K0qofc-88nJD=
+8Us8nbfvEhbAiBXwXUAbzeCWfvoNlbUI-v_7wbd9w4Fmx1Hf50j2SzEoaSAwhQ062UXwh6-hJNl=
+6giAp2Uh-JiF-wpZ2ewMwr9-TP817X9y201F-Ccjn3UmmHGx3lDWMj1MRXKl_dHAYRXbShaI8-C=
+X9pQAERVgXPbmi7YBGsHSeNIDQhTeN-VXsFa_6hctBMKqtFDvbyxxHkKWmw0zVL44_7Op8CkrH4=
+jyX-4QgDF3U-1TjDwz49cmDpQgX6D7dg3IUOCoXOD5I2SAqUc-N8TJIWzQ9k9CnznRxBcL6k4dW=
+agq2Vl0LatTlXr5jGINuspXY4TvHdLC-FACn7XK61yAplZEcAGAqo53P19EIWcEDnvD8czTtCM3=
+y-bWhU9x9DfDGMka1hs0gEexVwf71M-XTQxj-ef0S5G-VBs7rUJMPRMfGAHSn_wm8MMTlW1Owl5=
+dUR7PTxMDVf1k4x6p3TQZTQJEzfIY-sNqcrG8vMf0J1ILFlIcoeeNGKRjQg5FLD-eVQ2St8Cn32=
+ReCYHgv6izPdDuJdebUkQfgRmpIfJoTwaTgG3j0IzCxReKsgQbVykI1hB7tSJQ5QiAsr1qmKrl6=
+7q7rT5BiDhVYxxiwGwmUKu5l7-jcvdudUDXYshfOVIvkXJzukq6ApDJC04Rp7Gb5rEWEmCbpNqY=
+NhVr2OnUqZctm4IyOcmDoo6fT0KWMD_fx2HjgtkDnoX5EiiW1JOvWIUHlKLo_94SgjHEEtRPWVq=
+ken0UVmSsw4_8UBYg2nKK7CW2wB5tvy0Nbu1KR1sp27WSJpxp579SsJnO5kmGYtK81Ao9SbQ9vZ=
+0lvWbDlFWjPcoH_zxruDHQLlrPSZ4GGQ5RDjXA~~" target=3D"_blank" style=3D"displa=
+y:inline-block; width:240px; padding:14px 0; border-radius:30px; line-heigh=
+t:28px; color:#ffffff; text-decoration:none; text-align: center; white-spac=
+e:nowrap; background-color: #008194; font-family: 'Helvetica Neue', Helveti=
+ca, Arial, sans-serif; font-weight:700; font-size:18px;" ><span style=3D"te=
+xt-decoration:none;" class=3D"btn">I&#39;m&nbsp;interested</span>&nbsp;<spa=
+n style=3D"mso-hide:all;"><img border=3D"0" style=3D"padding-bottom:3px; ve=
+rtical-align:middle; border:none;" src=3D"https://email.stepstone.de/images=
+/ITE/chevron.png" width=3D"9" height=3D"16" alt=3D"" /></span><!--[if mso]>=
+<span style=3D"font-size:20px;">&rsaquo;</span><![endif]--></a><!--[if mso]=
+><noscript></center></v:roundrect></noscript><![endif]--></td><td valign=3D=
+"top" class=3D"w-left-right">&nbsp;</td></tr><!-- END IJM Button bottom -->=
+<tr><td height=3D"40" colspan=3D"3" style=3D"font-size: 1px; line-height: 1=
+px; height: 40px;">&nbsp;</td></tr><!-- Report Job Ad --><tr><td valign=3D"=
+top" class=3D"w-left-right">&nbsp;</td><td><table border=3D"0" cellspacing=
+=3D"0" cellpadding=3D"0" role=3D"presentation" width=3D"100%"><tbody><tr><t=
+d align=3D"left" valign=3D"top" width=3D"20" style=3D"padding-right: 3px; p=
+adding-top:2px;"><img src=3D"https://email.stepstone.de/images/ITE/warning_=
+icon.png" width=3D"20" height=3D"20" style=3D"padding-right: 3px; vertical-=
+align:middle; border:none;" border=3D"0" alt=3D"Report this job" /></td><td=
+ align=3D"left" valign=3D"top" style=3D"font-family:'Helvetica Neue', Helve=
+tica, Arial, sans-serif;font-weight:400;font-size:16px;color:#0C2577;" clas=
+s=3D"color-darkmode"><a href=3D"https://click.stepstone.de/f/a/iQ5GJps31ip6=
+BrlRutPKOg~~/AAAmIhA~/XBJKD72kJCoNt50M5HELCkLiRdmH-FDBEEFtCREFGMj34ELMNj7no=
+oli9VOMFzc_iLRpjAM-U2OgTfqyXg8z1wWMjAzjjdtJaXDdxFWvUM7n4Z_v45pkEYfMjff-bwK-=
+DGW7YldllGpku-fbfxg3o77sXF-Fs9NbDg3ip04V0fvUZVoUaKT3HMR_nMquTlHT1rTotCpBN1Y=
+2uoIM4cVLrS7qiXZBWb1qd5WyZtb3FlglQn0yoiVvheSBvVn2DjF_W_QjWzZjzNCQQG5gH2JEFX=
+2p-secpWLR4535gyadhkAHZALb5Xj5s3QgarvdVuOXOkuq9VN6HwzwvxvOOuOWbyswVtSvKPpSH=
+tf9PfWAzAaqYIK1MhTfK_SPDF1XIpkwtkiB780VyeleMge2kVUgucRmqjjweuOdbbIkuzA_2ghl=
+_qmve_1hXJPyYm4y16wIi4SMfxuF2kLb4EwV_kMZpZJDe8jK82k276_7DT6JOr-Zrka-4B6fOJs=
+yau1Wol3F2x3bDzy6efUIrPHMhSbke_WevtuAS4nyJxbDLdNbxBiNnHPxB7TktayqJwsse7qKvd=
+J4_6RFA0JKWwKfnLYkVymn6BIbBTF_69ZV3BFnac70psaVIyaXR9InQzC9rC3mIolP1CGqUaYfH=
+ODtwRsBTPlFwybhaAQooDE017zfCzmPnm8vPHYtifDjezQbzaFKDxQbgOaAQcFpykW9dBmSWoeV=
+cJYP7CYMDytaHU_tB1DEzAHvtUO8jDON800qx7bqrGMXul7q2w_PcZS2OWhw5OFbMyST4hhjFw9=
+_-gTMB2W5w_CmniaZfqwB4xEzuUc6bJVQsZ9SGOCm-jUlljPs16p2TtB4ovl8D-jA3EW1S5cRfM=
+53aduvVFXSeXbS07kg8fiv8bgvGZ46XjLsu7NKYbJfuoAUiCvbbz2tThM3AnBIojybGjT7VWKkf=
+V8LE93spVHu7V6ak5pvmXNA9FDoO0b1tbF1e9DTy9z7RIF2PlGYz-2pm8MyXv-8RTf0b-dtC8OS=
+ADQZOsgrCrbjY2OMOpL4ZCtSWmfYHN4EbBW8-SKlDyUO7_l1xrOysTqUdU274in7waoL_YJKO7F=
+05aC8Zb7W7buMTYtg7liG28FEWmiC5yxyDOXQeqHv8fDVlgCHMdPvfoo9HitET_diho4p8laJX1=
+YqPSe1_1SsGD8N51ZDB5RTbbv--gC6Q42JSrx-Bu7K-m27uvNbesK9wSEhsBZwaJAXFZtV_CTU1=
+67zHON2em2HCBjAFP_gllnDIWGN5MHJz5HRLG_uplTONbniQo9wn7QqAvErZQGxGjBd_QdTZugG=
+81nt5fqaCHrHSV4Y9yBkrXCbgqJHMpJwYQxNsRqcIg9Ghmqeq6XRMXXNLPQhPGPgTosTqE4d48E=
+cJVC02LmonMyd0d2lg-oAfrkd6_RJDC1qzMf6dh3RwauKiPSbU8aZ4twF2HAmaTMI2QFFAK0XDY=
+3zLY9Wt76TBYx9LijJ6V8CPVPv4y3W8Ds8hbJifYXVKzUA4TwSgaKmwtwhGUbvqRlcu9PV8GFg9=
+iGWd930H2QkKTTfnq0lU19TVibw3sfsTvubrTApHhiIqEvgPWrigmoRhr83eMKv-uVnVg~~" ta=
+rget=3D"_blank" style=3D"color:#0C2577; font-size: 14px;" class=3D"link-def=
+ault text-decoration-none"><span style=3D"text-decoration: underline; line-=
+height:24px;">Report this job</span></a></td></tr></tbody></table></td><td =
+valign=3D"top" class=3D"w-left-right">&nbsp;</td></tr><tr><td height=3D"40"=
+ colspan=3D"3" style=3D"font-size: 1px; line-height: 1px; height: 40px;">&n=
+bsp;</td></tr><!-- END Report Job Ad --><!-- END OFFER IJM --><!-- Footer b=
+ox --> <tr><td valign=3D"top" bgcolor=3D"#F4F4ED" class=3D"bg-darkmode2">&n=
+bsp;</td><td valign=3D"top" align=3D"left" bgcolor=3D"#F4F4ED" class=3D"bg-=
+darkmode2"><table width=3D"100%" border=3D"0" cellspacing=3D"0" cellpadding=
+=3D"0" role=3D"presentation"><tr><td height=3D"35" style=3D"font-size: 1px;=
+ line-height: 1px; height: 35px;">&nbsp;</td></tr><tr><td valign=3D"top" al=
+ign=3D"left" style=3D"font-family: 'Helvetica Neue', Helvetica, Arial, sans=
+-serif;font-weight:400;font-size:14px;color:#0C2577;line-height:24px;" clas=
+s=3D"link-default"><a target=3D"_blank" style=3D"text-decoration: underline=
+ !important; color:#0C2577;" href=3D"https://click.stepstone.de/f/a/I8Xjloz=
+YuFOtDPp-qu4cHQ~~/AAAmIhA~/ODFt2HrD_5hJsk03RxbO4ZGiS_0kxSHVaAkfsOoXhIn2QM9D=
+KGTDSqFgda_ein8RSzfBtYyD1lJ6lPUo-KxMwJTveUvrCy2s9xXtqqOD5PhjKXgEWbCtk0yVmyh=
+zuyonJUalhUZ-3BpKV531vXQ9WecTB0r7mt0CHBlPCFuPxzcuPOgMHyC5IlpEoCe5v3eL22SkVl=
+vY95ZAv8SliyTMsp18Mk_3cwxUMleK1X2uSHWOEzdb1lEnfP6JCfNKQKnI1syUbeKVtzvU3Y0Jx=
+9ZAIA~~" class=3D"color-darkmode">Manage all your subscriptions</a><span cl=
+ass=3D"mobile-hide">&nbsp;&nbsp;&nbsp;</span> <span class=3D"spacer-mobile-=
+show" style=3D"display: none; mso-hide: all;"><br /></span><a target=3D"_bl=
+ank" style=3D"text-decoration: underline !important; color:#0C2577;" href=
+=3D"https://click.stepstone.de/f/a/RunkKSGRr-d_vUMDt0PmTQ~~/AAAmIhA~/Le47Fs=
+dUvGrHoZyUE9Adh4uHCgRn4TwIYkMhc9MeE_agFtE-PjvQ0QilkQrAMjW_OjOqezYK8St8wXr65=
+x_UBA9xXlUiK4ukzLrFk-WBEWi2zUW9CRfcLNekPnm8NBuLDY4B4fcSZZLTqKRkP75_OSY4xF-9=
+n2wnOeF-ijHGeH9H2g-DNBbhxgC11d2zdk9Ho8PjjrlBE49j0RlTXtTmR7ASqkVx_jeGwxZMrQv=
+O3HJoVP9ZJM0WEzsqwneihqceVLmbLLByeElcSUmGyz1t5SiDtZAMGzckZRPnsZzNKXZP1EgDHU=
+Dl2tKAfBhYzH3qk0HJXcSAWWn5qw2j70IwIzp-85oac30QyESS4f51SKbNSSBMKfimVXN1R3Jjk=
+hNYjXqpPs2cMgtWx0dHq3yBaxc7p-qNdLijfogWbLvKoOzLVBoz0NrLYoMGGVGQN3BCyAQ5kD5G=
+bezZwjQeSho7L5Krxo4drlXHxsJZlTbAtKTRHhD7s-Q70lSQHL3nGHwlLwOPmTWp3LbmoZ_GGtR=
+GuUs2IfVK81pAhAef38yAPr-Le--06gHNp5Q6Azl5QuEeNh9ITMa0Ak22BS-tdXNET6euZSDuHB=
+hJQzZUc5wMTQxdRoMcFJWF69zZOdCpmRCrlWm8yYei2KXTxpzl2tiY8pSL77raYhCcqfGO1Ldsr=
+lM0NihkKZM0r2og24Ks6orEDL8AO_5V0grfXhja6btKmUTKH2qDksAWetITtN8FXzuQUufiCfUG=
+wOjku9voMgIn5mb9ZOTaJ7yLL0QpQaH2GcDbRblgUktd_ga6j22E_-NXfVP6ep39mBn0u1U6LHc=
+NJbSrcG212QIYUNOJy9nZPRtM2_RcNc1XrARgOVYjIFEFHNccnEhnYuMcTQ-3_gh2evaOnekbQp=
+CYvypThzQPnPCVXr8RKOUJLiKR9KbHoQOBtpISluz2nditXSV1LzBqc1lAzqvVPdFJQpHJN5cKk=
+l9nAhZpNXMLgMNpW8vlmaZRCTmbNFF5WKwL_U9pCojMvhcpaN7mdvGAzcD4AwP-dakb1Y-L3LhS=
+pG4hIJa9TkE2bGm1CwkN6tQMXfKgUb2dkZfnP0xf37GP2hN1j-OPjYbuYhwRh4mPLw-Byt5eW7M=
+OkOKb7Rw-CH9mSCnIhosA1bjKeRQO8g9CH-KGgoQ8XtoCL7q7163HqNYhl9E14JJUglNW4zCMTi=
+jkk6LfRM5AhRf45U1FAuVN7vRdgYCgNNX4XbHegNVj6ep-pfozQqGkhBxCH8cfsvdwuhaifwkMP=
+DIZyM5J-Y6uOeyU6yS3otPv9pt1llsr7I7JcLTriTRbCsa7OB3w3whzRwrdV_k_OV_JjIKcUDc5=
+ew5FmmtnMOm0JGlhsWOysau1o-z07HpT3pZ3vkpY3g7XMUoJAFggZVUrc8rHpfJUixtqZemdKUU=
+DWoMbIcouoZefd2CYIfDVSRazrWJOOr_FCpvo87NL9RDJMM4r8Z8W1_suZ1g8XqjFrIMifHGbNM=
+3j71OJa8Y-UFiNN2wLAq887LzVRx3oCUbu-8uiM4VKiYUkrtmu_Wgi4lgyyXN8gEtYlbOXe6EFI=
+2wrahaUgpJruOVl-CzVZgsBT6CT8jqawTIrFzmPzg~~" class=3D"color-darkmode">Unsub=
+scribe from this email</a></td></tr><tr><td height=3D"35" style=3D"font-siz=
+e: 1px; line-height: 1px; height: 35px;">&nbsp;</td></tr><tr><td align=3D"l=
+eft" valign=3D"top" style=3D"mso-line-height-rule: exactly; font-size: 12px=
+; line-height: 20px; font-weight: 400; color: #0C2577; font-family: 'Helvet=
+ica Neue', Helvetica, Arial, sans-serif;" class=3D"color-darkmode">Please b=
+e aware that this email and its links include data about your individual se=
+arch profile. In order to avoid that third parties can access your personal=
+ data, you should not forward this email and the links contained in it.</td=
+></tr><tr><td height=3D"24" style=3D"font-size: 1px; line-height: 1px; heig=
+ht: 24px;">&nbsp;</td></tr></table></td><td valign=3D"top" bgcolor=3D"#F4F4=
+ED" class=3D"bg-darkmode2">&nbsp;</td></tr><!-- Footer Logo --><tr><td vali=
+gn=3D"top" colspan=3D"3" align=3D"left"> <a href=3D"https://click.stepstone=
+.de/f/a/o9u_ky-DS5TCMVjwANM9jw~~/AAAmIhA~/5BHtq6WToB-BctqzkwseJjmDW89nOP-M=
+mAaOKS5kdkRdGDggCkAzL2ogVVKDnS4S0XCPH0z0K1G_WWeK3ztBknHPGkffsg9IkEK_05X0VqC=
+vAPOTxDcWC01ZymOnI1tlQF6ltfoUmJcWGZlasvXiDv_tqPIeJchjNajxCB8B2Ck7OpwRXFnUsY=
+vIckRZH5HvFsY4_8K7gN-7OD0KLeRCrsiHzwZFMwEVmFUZQz_KtZP_LuS4WuaAB2IRwNWs2h9RR=
+GGlNirJxzthWvu2nPLRMjGN0vxZEqeR086-TithUVKrZ6IYi4QjlvdKpqKWNjpzXi01Xwxqw67k=
+VQ1surx43m8T1Khzm99hgQjF0ELAhUbCDeQ8fnLd4PZhU9TGvLzDKv51G7tc0a8tAXoJ0h1l2tt=
+BqCGGj14hvQGHT7Yh06NXJyqmhc5KOm6k9Z35ijjmsduBXe826XhUcD-rT7XF5kFOXimNKfVJC4=
+9o-gejCUU2sBc8auzW-8BmIsST-cHcUh07Cki3ZLspukLtfrODPWBL_1qSdSJZgpRAyOvWVD8Np=
+L55Jn3ZMjoRC6TxYJocvCw1RU-DNj8m82RWCtwYi_1KTnvKWXwTlllw1wR8JD8KJfVy_c5fZzzg=
+lbaVJJ9U3rUqbfRdWnzSvNREl4RZ-OtdjckxgQ3TppEnFJZAchQdC50H7Zov7e3d4ejUQivt04O=
+6poePatqHnjDaon-Gr9i1PqOKXsQ21Sy5fAcO1D0E5G-MIc7gQcU8PPfbCtbqWhgvP0V-6UARZp=
+nafYrE5u79T6XcL3uiGII2WtJ3KOoBybeBpLYXMbWJS7WGOSUMn3SE1v0XXRngkEC3hLC34cFrd=
+pHKLV1mdHiiIsosGuraPDwhDuC29sfhn07cP8gZtHGkuugvaHDr_ADCcWTj0cqZsJ52bqfbpklU=
+6mDSH1h0LTk4pHmF_93V67yX-sqcCKEzbOUyNpZv_PViwBe8gBp52jMcXN-zVpZAHXstFJKbAOg=
+T8XqpUOdyBYJKFBplcBgTyWXGTBjfzNOv449rQc2OWUq9mfjw3PiETQRsKfx7ZM02zLcAVHqOQu=
+CODfi728GcuXJuVWBqvLTiIZxk0jk6Zz_qB9oKK7SI1p49njvd0no9vxjqc2yj86i94JJrhLUDw=
+u96JCp4Z4krjHgB6yejN2jlcCuA4CXfgqgBIH_yU3wqSLA3f4QPcT4cje_SuD0K22aYngbaGitx=
+FOF8rFHwGaxMAaOUIOBFMHdJp-pLU4gtRdtcp8tthh3iS2IdPCiHP-2PyHlzRpTmttd_3IWBjH6=
+fRc0tED9HWPHMkKK9QBHW-2X8MWKNYg-RVh17gOm1qvmN2ujiU9J3A0eSBZ6CS7lqt88EQs86Lg=
+dT0TsG2uCbShFgcGorZ4lhltq_1_3cR9DcI2MZ9Apom_HkXZ8S_XG2L13xuFK2rRKFxCQ8ClfgJ=
+uKQqMQqd7gDZl1XAaxtEzhUh38uonfbv1U9taAms8dCXSnjioQjM2zuVpwJ9mCwnUU-U2SlVDSi=
+1JdxPZ2JHwf9YlzPDBu3SMcLgctADWoYd5O8uIr0WFIdfxQ~" target=3D"_blank" ><img s=
+rc=3D"https://email.stepstone.de/images/ITE/stepstone-footer-logo-desktop.p=
+ng" alt=3D"Stepstone logo" width=3D"600" style=3D"display: block; width: 10=
+0%; height: auto; max-width: 600px" title=3D"Stepstone" border=3D"0" class=
+=3D"mobile-hide" /></a> <span style=3D"mso-element: field-begin"></span><di=
+v style=3D"display: none" class=3D"mobile-show"><img src=3D"https://email.s=
+tepstone.de/images/ITE/stepstone-footer-lg-mobile.png" width=3D"390" alt=3D=
+"Stepstone logo" border=3D"0" style=3D"width: 100%; height: auto; min-width=
+: 100%" /></div><span style=3D"mso-element: field-end"></span></td></tr><!-=
+- END Footer Logo --><tr><td valign=3D"top" bgcolor=3D"#F4F4ED" class=3D"bg=
+-darkmode2">&nbsp;</td><td valign=3D"top" align=3D"left" bgcolor=3D"#F4F4ED=
+" class=3D"bg-darkmode2"><table width=3D"100%" border=3D"0" cellspacing=3D"=
+0" cellpadding=3D"0" role=3D"presentation"><tr><td height=3D"16" style=3D"f=
+ont-size: 1px; line-height: 1px; height: 16px;">&nbsp;</td></tr><tr><td val=
+ign=3D"top" align=3D"left" style=3D"font-family: 'Helvetica Neue', Helvetic=
+a, Arial, sans-serif;font-weight:400;font-size:12px;color:#0C2577;line-heig=
+ht:12px;" class=3D"color-darkmode"><strong>=C2=A9 2026 The Stepstone Group =
+Deutschland GmbH</strong><br /><br /> <div style=3D"line-height:21px;">Comp=
+any headquarters: V=C3=B6lklinger Str. 1 | 40219 D=C3=BCsseldorf<br/>D=C3=
+=BCsseldorf District Court, HRB 64185<br/>Managing Directors: Jan Neumann, =
+J=C3=B6rn Slink</div></td></tr><tr><td height=3D"40" style=3D"font-size: 1p=
+x; line-height: 1px; height: 40px;">&nbsp;</td></tr><tr><td valign=3D"top" =
+align=3D"left" style=3D"font-family: 'Helvetica Neue', Helvetica, Arial, sa=
+ns-serif;font-weight:400;font-size:14px;color:#0C2577;line-height:20px;" cl=
+ass=3D"link-default"><span class=3D"color-darkmode"> <a href=3D"https://cli=
+ck.stepstone.de/f/a/DD7hpGC95-inM1VFQdRxgg~~/AAAmIhA~/k-x11txOztqNW_CrzYR9T=
+BT1EnCbcrKLt7-dxHw4FoFLB9u_vRUBD-SLHRKbluNMA7BoVC0Eep5nPLJDXcbEAVtZ3KsnNS3n=
+NBEgTW1CZ3fmqeKS1OsrBu1TLfueRp3LsxTZD_2Fj-h8-JMHLIh7u4ETggZBFUJdsId7sgzKXnG=
+zchy0_nwiqLaLUzVg9upIdpwb-l34t-bvBKbE2ymhMYiCc5JN3lLa7UXHRWgR6x0cGXCf5FclOo=
+DyPdGo_XAFtzmRXpQ11kbM9Wr5kTPQdUP3OmUezXuoaEEZVivdBaf_nmSqcmZxKDVNnVgtBKQcK=
+Z4ppomVg4MLt0rw-uDcJrB9GuMOyBKMOjPFrgJ7NgEDpwT322nmwaY4KIjH1Evtnxuz-6P-xzD9=
+mQcMPzvKj6FCF8SML1Ejx9txNQtSRXwD4AeoNNf98r2rLo2ABGotdFRh8LtMcblSKHBsL1uWNJE=
+u6VOeFIL_rtrHLu6_sufg_Y-lY1BpUET89GQjqFmZ_cQBI-gDW-iI2WUk-yl9x0eveZH-SZ7kuW=
+MbXy-jEDsxW8yBb_zdzIt6-c0UsFK92CHUagehQF9SJE0ksRHj9X79wtHnqHdmAJDSb6VS4gprs=
+uohz0yCTAm95VN3b_CZI0Jo4qP6Vut33jcx6qnSwKXOcDYNVrGdBBKjl1QxTCMLlOat3lfVtQQW=
+xXtlcG3dUZxFVXrMIFyAxIPjxah7x9YHLUlP0G3CTlyLJgUIWTn7EFNL1ov0CSJW8ANGwrleIXT=
+R2kbgnwQdmvxOjAhHAp0eObVcSnkyRA0uWtYPKuvn-SAl9yHW-NzHq6zWxGj8Z9eUeV9LFZXFpZ=
+-C14kyJtBp_Nitz0bdDbPji1Ym0yj725Bbw7jCiSc1sDe-7WzB4BAXPE1OWhEO1w4tz1E9K2FLs=
+QG404enEPJQbBE7c-NdYUIC0di1mRIP5-npz3y5FM7UtI6GGnnilJ_ySqUVUYBxxK2VbPw02S50=
+n4gVnjNr7izeE_wYaWiAhRcYfInQc4oGuO6PdHX8iCHYWRYYYz9c6SMnJRjQZsvWDV9qQT-JFkV=
+YTiJn5fvvsubOwu2Wq2AzJUwb7YaGIxFs1oAESE6WpRwoqbuhusltdVJ3R9FnyZ0hanz3ORwC9d=
+DJP2JqfVs4nmWUw_dubl2RkX7wZ4s8uRUkmHcef3c_wPwkQQEwirqV4sYmbmw50pDm7HOB8Og-d=
+OINoOJQr0EcY8olNbuTxeYc8Ioxi29C8hOQb0Cz_9xZUxUo-IUR1GaqbNmI8VS7e41mjTa_soTw=
+r3gRDdZoLUsNWG0NKoMnFff5BLe739HGs-3E-qJkMGVRXI_b6GyTWJTRN4pO0hLhur2sMGV6BY6=
+ZLO4kGWq-YEn2x9DPGvIHjeUmdl3jCL_y8hEMpQwFKEg2v5DPR2M-i6snYk2CTmgffnLuhOT8Km=
+6rLJogr5w23V-7WrB8gaK8MUMgv2BtPTk78lH_fL0UUOHAWFjHZDyVpqdQCtg6Grj78kAOANW6b=
+7e67MqMpHbilR4X3FSjmmC4cTvc_KJjyKC65g~~" target=3D"_blank" style=3D"text-de=
+coration: underline !important; color:#0C2577;" >Terms of use</a> -  <a hre=
+f=3D"https://click.stepstone.de/f/a/M7C-5t6XHmPKzHDI9Wolew~~/AAAmIhA~/C_hFg=
+CGBLPxIX2SGn1E4qWZ4L6mHta2_FIskYEwenBZtkOBbNNlWaCv0PjjBRHkm7t2-6B7UfMp9Ud_w=
+d8QEdg_KE_1ySjp33pDg9uT-NB5i7ILPdc1AmS-c1XpCIf8x3Bosq3DyaTkHxnsjyLF80glzXfR=
+aTcCEmUvEmvmL991zSm_6ReWSUW-Q-QPyHTznHrgm3fDb_E1JLsaYOU-mH3UimebqzSQ6fmeT6s=
+r-JpomhRxhGYKu6Lwl1zKAGj4pLp5nuk9G3O8PZ9-xTGd3mcMk0FFXXk8XtSx4g5rX8MoqQ9Oqo=
+5kxe56SkDLbZ7PhPUowxlSYc5zBBcFE4jyq7J9Iy3sPUuBz8k0hWL5dVBKAxkRS055d5nRm8HnZ=
+PLEbFu_igfyzBoENdT_fLl2x6ltdq6WhJeHvxDoeCVocTh78Pi_tkNiNIReyI0uB9oaLz1dr6g1=
+lLu7Eou_zMSDXNnk44vVTwYsC345xnKDZD7OwO7dUPrPC_NUmjCPnU9tQxWYrceE1OdYi39MNMB=
+747ebhkuNqrFqi_smsfdzgKlZZE4weQP4oAjmeRfrqVOcuS8mLygtThDC47FjxjmDJ_wubg5kVB=
+BroOSE5rBvA7dlr2la8zUaMga0Vyyzo4I_3LQltWzjr8_04q2qJ9gnBM_LXSSHeTd0YLPdQbNw2=
+eRzRUEvemkDlcxfT1wtpEhe3ywxl7a5QFbMMp5dzGyRjoOwFwSZiQkGTFI6mtbBRin17gUS7I5_=
+EZQ_VxPv_HHvJrem9HumyQh-xH1mr_0gBZe_6rUdbIOuwonGoSeSLHg-u5_MwsNaabvNgluLNpf=
+ovScuVhug7SzPdFcMy5YZ5rkzOBzrJoat-5gYhqE0s-N-3m0Gez9RgNMUHrkRPcQwHlVx9vNyX6=
+L-5nsruh1pyZod3Q8USLCEn07XvdM1cipO_nJboOUpi-FS3c85XgLtUBOce1l-x1MlV0FxJ68a_=
+cLYO-eq2DoEtYmIuZEZVzNGDicK12-j2lBfDVVKVTxg7QkO_pJ-_qUI4OmkU4uPrc7L27q8xDEl=
+01O122jkdlgcKkV8WbnhGGa_3Vwq25I3iWOVExQmF8QHYZyVr-Y2ZyjIrbDig99yvIIB-ODU4zh=
+ADAmtm0WcIX-8h0mRGf3WiBjFDArK3qmwBBKEW84UNQ5UxbULuMTWIonJO3vtQgxD-Ea6loYxR3=
+7ssd4IJ64qrXMG09vB-ySm-JXdffh7Ol5xnFW0V2ZHXvAKz2VSPTc0kcPX0_6m4kXsdqPx3VkuQ=
+ZhHv1O0QamTwdYQBHbdPjjkEXI21NKw9j0tJMu17wnSOkT1jJTOltsvClX2g8lHCK9cONXQny6N=
+WmjcnWVvVxBbLJZjyLWcrKx134oKuLQAQ9FB3Xm9vuF3DZ0533zc5Oo5woIUfOT2xLg71Bs2bEv=
+i-1rJtaJN2_kdc7AwWqxyynfk7KHyGNJsdstMTwo89NFBADhVB6HV0PDT6mULe3soDoe77fbfS9=
+Vx2oHEkBkstPm8FMvGw4OtFIP9D-0g1IKqVMJF7CL47anbztY665TtpA1DA1YUj0ueMzkJHnbQ~=
+" target=3D"_blank" style=3D"text-decoration: underline !important; color:#=
+0C2577;" >Privacy policy</a> -  <a href=3D"https://click.stepstone.de/f/a/c=
+22RFy0i3rRqQNW_vjhlNA~~/AAAmIhA~/NUeFcer1ndFkWSW7bVO-V1xs8h-SG1usEUJI2pvNHx=
+4XoiRWYG8d8IK3nns6QCQY_hcLo2_porDvjEek5giSh3Jy1T2_oWdt9qWe3yeHJ_IdCYLz7UCEb=
+7I4gciAxEH_C5yU9uRTODb2oA1GiLVG-XqRvg1AcjqmtVm-3xTOuURsCI3fJLQ_gj8Lshqh5iU-=
+LLJGTYIPDeasQojypNb05dsgIDVMhTzlup_fk0ftET0clAfEFIsl31awnGfQ2w6DmNGZrYUaGGK=
+naNYWq2BTon3sFzzU0uNOVsSGB5zC1kdvhPNb4t1-_a2oGKG5-Pt-BmPIjSfIvkGE6hHoKQyzZd=
+gUuTsYzd3udp13d8jB82xTfRinEjXTa4XtkwGBtruOCXtqOYyuBDG1rwvpxINm-OFBpLKCNXSI4=
+qUh6yy9twszhHURKhmkxLpoA2znjnV6CfOoAqCmQw7BaPTa90ICT9bKaR1jb7zNn7a7R5UgDxBJ=
+LXT5vyZv1Sd9tbptfcD2GESi3LskoaaPDFA-L06eK7hrcJjaUv68sZZOyJ95F8B4JpYdqELUGZ1=
+KV4AtjxplSGHeS43V0XCZivqnKsrTNgZBlCXQdT0U6PFEuvaJ_Fy_K3A3K_iQzcdEGqIo04-YjY=
+QR_SE_7jRQQ4LS8Z6zh0nH-OZ1VZwRFX5BbN3ih9ORdImpIlZxo9f7o-8Qq_FPEGeoMGdJxadZy=
+6AbihhmfeJY_Lf3jNBbvbhkQZhNrTWHeszysta7h34bh1DO_ATPtSuwEHz8L48n4ooM9GsMr7wW=
+LTVmaLDZvDLgkPmaDdX8HNnzRK7LdnEBKL4p6w-tfVuGF2rf8HoljwQDc8Wyna4RPY6rFBZCGpI=
+L_Wi8l7dl1Nzb_-gqyb7cwo2AAQS7tZihhm9l_bVM2itZuSidBNC-05CUsmbiQEXqkPQNOzbHxk=
+gMo7DzWA3AUy-zO5KZ6SsZWX1XIY6cpzcCsqmEMqUZAt1qQ8uI6SFfQroSAe9J2PnKa4Pe0ovfL=
+mm62G2ixyzXq-8gxQOFrdrlmnJLH3dY1e8u0y1jMVW9Ux7qo9lDgKyWW-1OXaGMaXN8VoAn_p_G=
+2IoFYAQuAhBfLvg3F45q5yuvOiE-uRpVnl6b77yZv2zzX3Ou1jmuZDaQ3AyYnwh5dUcwf1wDjc6=
+e25LogyTzi5Sum9cONKnJwMAieubmncTcfvvZ7TVbzmwErdOkp8fveECd78nce2lSiVsUQeFDmM=
+6SyJXm0Zl0TIMExtTOVqDCQ6_yiAouv3yRckrbRNCjeXUDAYK3Jp6_Neh56CwvAQFIrOkemNBFe=
+fMnS0TpEqddeqZ2UznzQahjq1pHIvAox8IGS5Tq5YSI4sBO2pJxCQVVnJxUhiKIUzCqBRd653RI=
+tcAksipUoLa4coP9dRF5lCEWN1TKFPmUt945XXfCfenD0B50ondhArTy0zdDCHtIMefUyuszp7I=
+0atMholKd1J3o2FB5VL-kCkMviRBTHiC8F0gT04c9-8gicH44nhfwIWIpVbxEvzqi2lsG12pSXn=
+WCwmmgyvCm-6fmbPuSqHE71uoBC780F2OWC8pdpyq1cbLYfY_mN4jN6mqX" target=3D"_blan=
+k" style=3D"text-decoration: underline !important; color:#0C2577;" >Contact=
+ us</a></span></td></tr><tr><td height=3D"34" style=3D"font-size: 1px; line=
+-height: 1px; height: 34px;">&nbsp;</td></tr><tr><td valign=3D"top" align=
+=3D"left"><table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" role=3D"p=
+resentation"><tr><td width=3D"40" height=3D"40"> <a href=3D"https://click.s=
+tepstone.de/f/a/lwusUtdkyah7NGTVjI_PPw~~/AAAmIhA~/vJQXHB_IjRd1WJp3uSiZRhaOn=
+LCDY2cWSX3B6YtTTAPM9CEFY-4z5Y5ishbALuaWuf2ozAlIX9B5GUIhY7YtNGepiSDXCu56Bdvf=
+XmpB8zmO_OgPpEfNiPnIJ4-E5_HSVz5GfSU3ClFt16_ytoFomg~~" target=3D"_blank" ><i=
+mg src=3D"https://email.stepstone.de/images/ITE/social-facebook-gn.png" wid=
+th=3D"40" height=3D"40" border=3D"0" alt=3D"Facebook" style=3D"display: blo=
+ck;" /></a></td><td width=3D"16">&nbsp;</td><td width=3D"40" height=3D"40">=
+ <a href=3D"https://click.stepstone.de/f/a/6FMxFCRIijIMQCZZC3PvJA~~/AAAmIhA=
+~/2a5gYn3mvwuZCNRcoqSzKpBAodPv-TiF9W0W8RhDBxsDz_k1PBNVpYC8DGbVwZWJa6cObChYR=
+NjGJ2vRviNlpJ90IyygSIy_BIcI58IcrQUVWAkwZdlyayjizNyijtQSNyW_CG21l6HiI8LpehWF=
+2Q~~" target=3D"_blank" ><img src=3D"https://email.stepstone.de/images/ITE/=
+social-instagram-gn.png" width=3D"40" height=3D"40" border=3D"0" alt=3D"Ins=
+tagram" style=3D"display: block;" /></a></td><td width=3D"16">&nbsp;</td><t=
+d width=3D"40" height=3D"40"> <a href=3D"https://click.stepstone.de/f/a/S-e=
+mFQ_CLtVccElAgJSbLA~~/AAAmIhA~/S-5yBzE3OeSP8TihqmvNwFJLx87GBEgFpeDfeQDFsrDO=
+xC_NCV8oSM0Tdj7dQKq-NV8m1nqmsJOEr7IVeZOcOjK5KwZT-aL2S0wj0Yo46CsVpq-1LYtqY5x=
+rZMzhXyNw2HzE56WxuQNK3jANFjLTJA~~" target=3D"_blank" ><img src=3D"https://e=
+mail.stepstone.de/images/ITE/social-youtube-gn.png" width=3D"40" height=3D"=
+40" border=3D"0" alt=3D"Youtube" style=3D"display: block;" /></a></td><td w=
+idth=3D"16">&nbsp;</td><td width=3D"40" height=3D"40"> <a href=3D"https://c=
+lick.stepstone.de/f/a/g2EiNtzthjlHtsId6-kOcw~~/AAAmIhA~/mxVdY13U2_KHPkLQgHf=
+URs-ZlzF1hKkrLr2lOaNkjrWujTce1YioVbtgSQQXsfmVHa3wyNixKKdG5b-z0KO-HHc_aR_Zhu=
+-Rs3WZcdfEUKAeacAEx_I3ag5ychPCa1vqCSzYJTy_A34VEca6gxlQGw~~" target=3D"_blan=
+k" ><img src=3D"https://email.stepstone.de/images/ITE/social-twitter-gn.png=
+" width=3D"40" height=3D"40" border=3D"0" alt=3D"Twitter" style=3D"display:=
+ block;" /></a></td><td width=3D"16">&nbsp;</td><td width=3D"40" height=3D"=
+40"> <a href=3D"https://click.stepstone.de/f/a/l1H9Z710Zlf7w0yanyxo2g~~/AAA=
+mIhA~/24NdC23GZIANtzVjTejfOuuhTCbfl46_OXh9WytgrsC4DWVbmXk8tsy_ImKwDgMbd8OxQ=
+SLI-b36JWIKXBPbw5gTTtaCTIseqkSUqTzbosHs7lGmfJ5gYDWf5MWttmI2SmNoTdtRp-OGpfWs=
+EIA4YjAkWm2xKplcYn7noOyoWrM~" target=3D"_blank" ><img src=3D"https://email.=
+stepstone.de/images/ITE/blog-gn.png" width=3D"40" height=3D"40" border=3D"0=
+" alt=3D"Blog" style=3D"display: block;" /></a></td><td width=3D"16">&nbsp;=
+</td></tr></table></td></tr><tr><td height=3D"34" style=3D"font-size: 1px; =
+line-height: 1px; height: 34px;">&nbsp;</td></tr></table></td><td valign=3D=
+"top" bgcolor=3D"#F4F4ED" class=3D"bg-darkmode2">&nbsp;</td></tr><!-- END F=
+ooter box --><!-- END Content --></table><!--[if (gte mso 9)|(IE)]>=0A     =
+                           </td>=0A                            </tr>=0A    =
+                      </table>=0A                    <![endif]--></div></td=
+></tr></table>=0D=0A<img border=3D"0" width=3D"1" height=3D"1" alt=3D"" src=
+=3D"https://click.stepstone.de/q/-wubDDrMI33_h0d9aDsDxg~~/AAAmIhA~/RBexdF-A=
+dFSLUZlq2susG-erm6AMwOwgk1kRqdbpo3MfN3rMkZ8iJlr-DnqHUJ5M7wwupiwC_CsBySGoC-_=
+LfA~~">=0D=0A</body></html>
+--_----WoiiEoYCrHENpJpjGHeIdg===_F7/76-20189-2631F6A6--
+
