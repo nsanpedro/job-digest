@@ -17,6 +17,7 @@ export {
   type PayFacts,
   type WorkplaceFacts,
 } from './normalize/index';
+export { extractTitleFacts } from './normalize/title-facts';
 export { extractorFor, registerExtractor, registeredExtractors } from './extract/registry';
 export type { ExtractResult, ExtractedAd, Extractor, FieldSpan } from './extract/types';
 

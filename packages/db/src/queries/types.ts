@@ -6,7 +6,7 @@
  * the UI can show the ad's literal German next to each verdict — facts feed
  * evaluation, wording feeds the UI (§9).
  */
-import type { Verdict, Wording } from '@job-digest/core';
+import type { TitleFacts, Verdict, Wording } from '@job-digest/core';
 
 export type Platform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
 
@@ -23,7 +23,13 @@ export interface DigestAd {
   saved: boolean;
   incomplete: boolean;
   incompleteNote: string | null;
-  /** Alert name and arrival of the most recent sighting in the window. */
+  /**
+   * The subject line of the most recent sighting's email — not the name of a
+   * saved search. Checked live (3 Aug 2026): no platform's alert email
+   * exposes which configured search triggered it, so this column has held
+   * the raw subject since the field was added; the name survives from before
+   * that was known. Do not read it as "which alert produced this ad".
+   */
   alert: string | null;
   receivedAt: Date;
   firstSeenAt: Date;
@@ -31,6 +37,14 @@ export interface DigestAd {
   repeat: boolean;
   verdicts: Verdict[];
   wording: Partial<Wording>;
+  /**
+   * Facts read from the title and location line — seniority, discipline,
+   * stack, workplace. Null on ads ingested before this column existed and not
+   * yet backfilled (`packages/worker/scripts/backfill-title-facts.ts`); the
+   * card renders as if every field were empty in that case, which is correct
+   * — it genuinely has not been computed yet.
+   */
+  titleFacts: TitleFacts | null;
   /** Generated prose (§6.8); null until narration runs. */
   fit: string | null;
   gap: string | null;

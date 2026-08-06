@@ -126,6 +126,7 @@ export async function getDigest(
       repeat,
       verdicts,
       wording: row.ad.wording,
+      titleFacts: row.ad.titleFacts,
       fit: narrative?.fit ?? null,
       gap: narrative?.gap ?? null,
       applicationStatus: appliedByAd.get(row.ad.id) ?? null,

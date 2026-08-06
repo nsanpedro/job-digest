@@ -61,9 +61,15 @@ export function DigestHeader({ digest, rules }: { digest: Digest; rules: Ruleset
         </div>
       </div>
 
+      {/*
+        The lane no longer renders all five rules on every row — since 3 Aug
+        2026 it shows the ones that read something and collapses the rest, so a
+        legend promising a fixed five-column order would now be describing a
+        layout the cards do not have.
+      */}
       <div className={styles.laneLegend}>
         <span className={styles.laneLegendText}>
-          Rule lane, same order every row: Shift · German · Onsite · Pay · Contract
+          Rule chips show what the email actually said; the rest collapse. Open an ad for all five.
         </span>
         <span className={styles.laneLegendRule} />
         <span className={styles.laneLegendText}>{hardRulesNote(rules)}</span>

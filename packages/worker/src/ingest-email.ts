@@ -15,6 +15,7 @@ import {
   declaredCount,
   externalId as computeExternalId,
   extractorFor,
+  extractTitleFacts,
   layoutHash,
   normalizeAd,
   parseEml,
@@ -38,7 +39,15 @@ export interface IngestInput {
   mailboxId: string;
   runId: string;
   raw: Buffer;
-  /** Alert name from the mailbox folder or filter, when known. */
+  /**
+   * Alert name from the mailbox folder or filter, when known. No caller
+   * passes this today (gmail.ts, forwarding.ts, actions.ts, seed-dev.ts all
+   * omit it), and no platform's alert email exposes which saved search
+   * triggered it — so in practice this always falls through to the email
+   * subject below (I4's shape: absence, not invention). The parameter is
+   * kept for a real source if one is ever found (e.g. a Gmail label the user
+   * names after their search).
+   */
   alertName?: string;
 }
 
@@ -273,6 +282,8 @@ async function upsertAd(
       .where(eq(ads.id, prior.id));
     adId = prior.id;
   } else {
+    const title = input.extracted.title?.value ?? '(title not read)';
+    const locationRaw = input.extracted.location?.value ?? null;
     const rows = await tx
       .insert(ads)
       .values({
@@ -280,12 +291,17 @@ async function upsertAd(
         dedupeKey: key,
         externalId: extId,
         externalUrl: input.extracted.url?.value ?? null,
-        title: input.extracted.title?.value ?? '(title not read)',
+        title,
         company: input.extracted.company?.value ?? null,
-        locationRaw: input.extracted.location?.value ?? null,
+        locationRaw,
         source: input.platform,
         facts,
         wording,
+        // Computed once here, from the same title/location that are
+        // themselves fixed at first sighting (they are never overwritten on
+        // the merge branch above) — so this never goes stale independently
+        // of the fields it is derived from.
+        titleFacts: extractTitleFacts(title, locationRaw),
         incomplete: input.incomplete,
         firstSeenAt: input.receivedAt,
         lastSeenAt: input.receivedAt,

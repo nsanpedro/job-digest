@@ -21,6 +21,19 @@
   font-size: 11px;
 }
 
+/*
+ * The collapsed "nothing to report" chips. Deliberately quieter than the four
+ * state colours: this is the absence of a reading, not a fourth outcome, and
+ * it should read as a footnote next to the chips that carry something.
+ */
+.chipMuted {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 3px 10px;
+}
+
 .glyph {
   width: 13px;
   height: 13px;

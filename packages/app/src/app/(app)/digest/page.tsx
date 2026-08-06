@@ -1,8 +1,9 @@
-import type { Ruleset } from '@job-digest/core';
-import { getActiveRuleset, getDigest, NoActiveRulesetError, type Digest } from '@job-digest/db';
+import { eur, type Ruleset } from '@job-digest/core';
+import { getActiveRuleset, getDigest, NoActiveRulesetError, summarizeWeek, type Digest } from '@job-digest/db';
 import { DigestHeader } from '@/components/DigestHeader';
 import { DigestList } from '@/components/DigestList';
 import { ParseBanner } from '@/components/ParseBanner';
+import { WeekSummary } from '@/components/WeekSummary';
 import { currentUser, withTenant } from '@/lib/session';
 
 // Reads live data and drives server-action revalidation — never statically cached.
@@ -43,6 +44,12 @@ export default async function DigestPage() {
   return (
     <div className="container">
       <DigestHeader digest={digest} rules={rules} />
+      {/*
+        Pure derivation over the digest already loaded — no second query. The
+        floor is passed rather than looked up inside so the summary stays a
+        function of what the page already knows (I6's shape).
+      */}
+      <WeekSummary summary={summarizeWeek(digest)} payFloor={eur(rules.Pay.condition.minMonthly)} />
       <DigestList digest={digest} rules={rules} />
       <ParseBanner parse={digest.parse} />
     </div>

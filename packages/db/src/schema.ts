@@ -9,7 +9,7 @@
  * them), including the I13 column-level rule: `app_user` cannot SELECT
  * credential ciphertext at all.
  */
-import type { Facts, Ruleset, Wording } from '@job-digest/core';
+import type { Facts, Ruleset, TitleFacts, Wording } from '@job-digest/core';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -280,6 +280,24 @@ export const ads = pgTable(
     facts: jsonb('facts').notNull().$type<Facts>(),
     /** Partial: an alert email rarely carries wording for all five rules. */
     wording: jsonb('wording').notNull().$type<Partial<Wording>>(),
+    /**
+     * Facts read from the title and location line — seniority, discipline,
+     * stack, workplace (design note, "chips = hechos, no veredictos", 3 Aug
+     * 2026). Deliberately its own column, not folded into `facts`: these do
+     * not feed rule evaluation (I6) the way `Facts` does, they feed the card
+     * directly. Computed once at first sighting, from the same title/location
+     * that are themselves fixed at first sighting (see `upsertAd`) — not
+     * recomputed on a later merge.
+     *
+     * Nullable, not `notNull` with a default: this column was added after
+     * ads already existed in production, and every extractor in this codebase
+     * signals "not computed" as an absent value, never as an invented empty
+     * object (I4's shape, applied to a migration). `null` means "predates
+     * this column"; `packages/worker/scripts/backfill-title-facts.ts`
+     * computes it for those rows from data already stored (title,
+     * location_raw) — nothing to re-fetch, nothing to re-parse.
+     */
+    titleFacts: jsonb('title_facts').$type<TitleFacts>(),
     /** Enriched facts (§6.6): commute etc. — no quote, marked as inferred. */
     enriched: jsonb('enriched').$type<Record<string, unknown>>(),
     /** Per-field provenance: method (deterministic|llm), extractor version. */
@@ -309,7 +327,15 @@ export const adSightings = pgTable(
     rawEmailId: uuid('raw_email_id')
       .notNull()
       .references(() => rawEmails.id, { onDelete: 'cascade' }),
-    /** "Where this came from" in the expanded panel. */
+    /**
+     * "Where this came from" in the expanded panel. Despite the column name,
+     * this holds the email's subject line, not a user-configured alert name
+     * — no platform's alert email exposes the latter, so `ingestEmail` always
+     * falls through to `email.subject` (see `IngestInput.alertName`). Kept
+     * as-is rather than renamed here; a real rename touches this column plus
+     * every query and type that reads it and is a decision for its own
+     * change, not a side effect of finding the mislabel.
+     */
     alertName: text('alert_name'),
     receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
     /** A later sighting disagreeing with a stored field is recorded, never overwritten (§6.7). */

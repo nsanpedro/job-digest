@@ -1,0 +1,22 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0 2px;
+}
+
+/*
+ * Deliberately not one of STATE_VISUALS' four colors: these are facts, not
+ * verdicts, and a colored chip here would read as a rule outcome it is not.
+ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-soft);
+  color: var(--text-secondary);
+}

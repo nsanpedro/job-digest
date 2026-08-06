@@ -5,6 +5,7 @@ import type { DigestAd } from '@job-digest/db';
 import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
 import { RuleLane } from './RuleLane';
+import { TitleFactChips } from './TitleFactChips';
 import { EDGE_COLOR, STATE_VISUALS, worstOf } from './rule-visuals';
 import styles from './AdCard.module.css';
 
@@ -108,7 +109,18 @@ export function AdCard({
 
         <div className={styles.main}>
           <div className={styles.mainLeft}>
-            <RuleLane verdicts={ad.verdicts} wording={ad.wording} platformFields={ad.platformFields} />
+            {/*
+              Above the rule lane on purpose: measured on the corpus, title
+              facts populate more often (avg 1.67/ad) than the rule lane does
+              — the more informative row goes first.
+            */}
+            <TitleFactChips facts={ad.titleFacts} />
+            <RuleLane
+              verdicts={ad.verdicts}
+              wording={ad.wording}
+              platformFields={ad.platformFields}
+              source={ad.source}
+            />
             {(ad.fit || ad.gap) && (
               <div className={styles.prose}>
                 {ad.fit && <p className={styles.proseFit}>{ad.fit}</p>}
@@ -233,7 +245,20 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
       <div className={styles.panelRight}>
         <p className={styles.panelLabel}>Where this came from</p>
         <p className={styles.sourceLine}>
-          {ad.alert && <>{ad.source} alert „{ad.alert}“<br /></>}
+          {/*
+            `ad.alert` is `email_parses`' subject line, not the name of a
+            saved search the user configured — no platform's alert email
+            exposes that. Checked live (3 Aug 2026): for a single-job
+            LinkedIn send the subject happens to read like a job title
+            ("Full Stack Engineer en Arrows"), and for a multi-job digest
+            it's a marketing line unrelated to any search ("SOMI Group,
+            Seaside Collection GmbH & Co. KG, adjoe und andere spannende
+            Firmen suchen nach Kandidaten wie Dir!"). Calling either one
+            "your alert" would be a claim the data does not support (I4's
+            discipline: say what was read, not what would be nice to say),
+            so this reads as the email's subject instead.
+          */}
+          {ad.alert && <>{ad.source} email „{ad.alert}“<br /></>}
           received {formatTimestamp(ad.receivedAt)}
         </p>
         {ad.incomplete && ad.incompleteNote && (

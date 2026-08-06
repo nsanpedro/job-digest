@@ -1,4 +1,5 @@
 export * from './types';
+export * from './title-facts';
 export { eur, describeCondition, describePredicate, predicateFactName } from './describe';
 export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked } from './evaluate';
 export { DEFAULT_RULESET } from './default-ruleset';

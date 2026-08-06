@@ -76,6 +76,7 @@ function toDigestAd(row: {
     repeat: false,
     verdicts: evaluate(ad.facts, rules),
     wording: ad.wording,
+    titleFacts: ad.titleFacts,
     fit: null,
     gap: null,
     applicationStatus,
