@@ -18,9 +18,9 @@
  * whether RLS happens to be active for the connection running it.
  */
 import type { Derivation, Direction, DroppedItem, Skill } from '@job-digest/core';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { directions, profiles } from '../schema';
+import { ads, directions, profiles } from '../schema';
 import type { DerivationProgress, DirectionRow } from './types';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
@@ -221,4 +221,34 @@ export async function listInterestedDirections(db: Db, userId: string): Promise<
     seenTitles: r.seenTitles,
     state: r.state,
   }));
+}
+
+/**
+ * The user's own distinct ad titles, for `deriveDirections`' second input —
+ * capped here too (not just inside `deriveDirections`) so a user with
+ * thousands of ads doesn't pull more rows than the model will ever see.
+ */
+export async function getDistinctAdTitles(db: Db, userId: string, limit = 50): Promise<string[]> {
+  const rows = await db.selectDistinct({ title: ads.title }).from(ads).where(eq(ads.userId, userId)).limit(limit);
+  return rows.map((r) => r.title);
+}
+
+/**
+ * How many derivations this user has started since `since` — the rate-limit
+ * check `uploadCv` runs before doing any work. Counts every attempt
+ * (running/ok/error alike), not just successes: a user retrying against a
+ * transient failure still spends the budget, same as a retried Gmail sync
+ * still counts as a run.
+ *
+ * Counts every `profiles` row, on the assumption that role discovery is
+ * still the table's only writer (true as of this feature) — if `profiles`
+ * ever gets a second writer, this needs a `where` narrowing it back to rows
+ * that came from a derivation.
+ */
+export async function countDerivationsSince(db: Db, userId: string, since: Date): Promise<number> {
+  const rows = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(and(eq(profiles.userId, userId), gte(profiles.savedAt, since)));
+  return rows.length;
 }

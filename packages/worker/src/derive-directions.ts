@@ -23,6 +23,9 @@ export const PROMPT_VERSION = 1;
 /** The user's own distinct ad titles passed to the model — bounded per ADR-001 §3. */
 export const MAX_AD_TITLES = 50;
 
+/** The one place this string is written — callers read it off the result rather than re-hardcoding it. */
+export const DIRECTIONS_MODEL = 'claude-opus-5';
+
 export interface DeriveDirectionsInput {
   cvText: string;
   /** Distinct titles from the user's own ads — truncated to MAX_AD_TITLES if longer. */
@@ -31,6 +34,7 @@ export interface DeriveDirectionsInput {
 
 export interface DeriveDirectionsResult extends ParsedDerivation {
   promptVersion: number;
+  model: string;
   /**
    * True when Claude's safety classifiers declined the request outright
    * (`stop_reason === 'refusal'`). `skills`/`directions` are always empty in
@@ -92,7 +96,7 @@ export async function deriveDirections(input: DeriveDirectionsInput): Promise<De
   // omitted. No `temperature`/`top_p` — both return 400 on this model;
   // steering is prompt-only here.
   const response = await client.messages.create({
-    model: 'claude-opus-5',
+    model: DIRECTIONS_MODEL,
     max_tokens: 16000,
     output_config: {
       effort: 'medium',
@@ -108,7 +112,15 @@ export async function deriveDirections(input: DeriveDirectionsInput): Promise<De
   // content array, and indexing into it unconditionally is the failure mode
   // the API docs warn about explicitly for this model.
   if (response.stop_reason === 'refusal') {
-    return { skills: [], directions: [], dropped: [], promptVersion: PROMPT_VERSION, refused: true, usage };
+    return {
+      skills: [],
+      directions: [],
+      dropped: [],
+      promptVersion: PROMPT_VERSION,
+      model: DIRECTIONS_MODEL,
+      refused: true,
+      usage,
+    };
   }
 
   const textBlock = response.content.find((block) => block.type === 'text');
@@ -125,5 +137,5 @@ export async function deriveDirections(input: DeriveDirectionsInput): Promise<De
   }
 
   const parsed = parseDerivation(raw, input.cvText, adTitles);
-  return { ...parsed, promptVersion: PROMPT_VERSION, refused: false, usage };
+  return { ...parsed, promptVersion: PROMPT_VERSION, model: DIRECTIONS_MODEL, refused: false, usage };
 }

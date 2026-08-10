@@ -13,9 +13,11 @@ export { getAccountOverview, type AccountOverview } from './queries/account';
 export { previousWeekWindow, weekWindow, type Window } from './queries/window';
 export {
   completeDerivation,
+  countDerivationsSince,
   failDerivation,
   getActiveProfile,
   getDerivationProgress,
+  getDistinctAdTitles,
   listDirections,
   listInterestedDirections,
   setDirectionState,
