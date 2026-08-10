@@ -6,7 +6,7 @@
  * the UI can show the ad's literal German next to each verdict — facts feed
  * evaluation, wording feeds the UI (§9).
  */
-import type { TitleFacts, Verdict, Wording } from '@job-digest/core';
+import type { Distance, TitleFacts, Verdict, Wording } from '@job-digest/core';
 
 export type Platform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
 
@@ -177,4 +177,31 @@ export interface UnreadEmail {
   fields: Array<{ name: string; ok: boolean; value: string }>;
   /** True when at least one ad from this email reached the digest. */
   inDigest: boolean;
+}
+
+/**
+ * Role discovery from a CV (docs/adr-001-role-discovery.md §3). Polled the
+ * same way `getRunProgress` polls `runs` — status resolves from 'running' to
+ * 'ok' or 'error', at which point the caller reads `getActiveProfile` /
+ * `listDirections` for the result.
+ */
+export interface DerivationProgress {
+  status: 'running' | 'ok' | 'error';
+  errorKind: string | null;
+  errorMessage: string | null;
+}
+
+/** One direction card — everything it renders, read from `directions` alone (no join back to `profiles.data`). */
+export interface DirectionRow {
+  id: string;
+  profileVersion: number;
+  label: string;
+  rationale: string;
+  /** Skill `text` labels this direction bridges from — the premises (I17). */
+  bridge: string[];
+  searchTerms: string[];
+  distance: Distance;
+  /** Snapshot at derivation time; not re-checked live. */
+  seenTitles: string[];
+  state: 'suggested' | 'interested' | 'dismissed' | 'alert_configured';
 }

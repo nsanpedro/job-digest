@@ -71,6 +71,13 @@
       "when": 1786009671080,
       "tag": "0009_ads_title_facts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786384789152,
+      "tag": "0010_role_discovery_persistence",
+      "breakpoints": true
     }
   ]
 }

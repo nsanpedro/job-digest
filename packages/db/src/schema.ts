@@ -93,6 +93,30 @@ export const applicationStatusEnum = pgEnum('application_status', [
   'withdrawn',
 ]);
 
+/** Role discovery from a CV (docs/adr-001-role-discovery.md §3) — same status/error shape as `runs`. */
+export const derivationStatusEnum = pgEnum('derivation_status', ['running', 'ok', 'error']);
+/**
+ * Mirrors `CvExtractionFailure` (packages/ingest/src/cv-pdf.ts) for the
+ * failures that happen before the model call, plus 'refused' for a Claude
+ * safety-classifier decline and 'internal' for anything else.
+ */
+export const derivationErrorKindEnum = pgEnum('derivation_error_kind', [
+  'not_a_pdf',
+  'too_large',
+  'too_many_pages',
+  'no_text_layer',
+  'corrupt',
+  'refused',
+  'internal',
+]);
+export const directionDistanceEnum = pgEnum('direction_distance', ['adjacent', 'stretch']);
+export const directionStateEnum = pgEnum('direction_state', [
+  'suggested',
+  'interested',
+  'dismissed',
+  'alert_configured',
+]);
+
 // ── Tenancy root ────────────────────────────────────────────────────────────
 
 export const accounts = pgTable(
@@ -399,15 +423,73 @@ export const profiles = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: userId(),
     version: integer('version').notNull(),
-    /** CV facts, skills, targets, address. Shape firms up with screen 3. */
+    /**
+     * CV facts, skills, targets, address. First real writer is role discovery
+     * (docs/adr-001-role-discovery.md §3): a completed derivation stores
+     * `{ skills, directions, dropped, promptVersion, model, derivedAt }`
+     * here — the full snapshot, including skill quotes. The `directions`
+     * table below holds only what the per-direction UI needs to read without
+     * touching CV text again.
+     */
     data: jsonb('data').notNull().$type<Record<string, unknown>>(),
     isActive: boolean('is_active').notNull().default(false),
     savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Polled the same way `runs.status` is (design's "Reading the inbox…"
+     * pattern, reused for "Reading your CV…"). `startDerivation` inserts
+     * 'running'; `completeDerivation`/`failDerivation` resolve it.
+     */
+    status: derivationStatusEnum('status').notNull().default('running'),
+    errorKind: derivationErrorKindEnum('error_kind'),
+    errorDetail: jsonb('error_detail').$type<Record<string, unknown>>(),
   },
   (t) => [
     uniqueIndex('profiles_user_version').on(t.userId, t.version),
     uniqueIndex('profiles_one_active_per_user').on(t.userId).where(sql`${t.isActive}`),
     tenantPolicy('profiles'),
+  ],
+);
+
+/**
+ * One row per surviving direction from a derivation (docs/adr-001-role-discovery.md
+ * §3) — created at `completeDerivation` time, already past I17's gates, so
+ * this table only ever holds directions that were safe to show.
+ *
+ * Denormalized from `profiles.data` on purpose: the direction card renders
+ * from this row alone (label, rationale, bridge, searchTerms, distance), no
+ * join back to the CV-adjacent blob needed for the common read path. `state`
+ * is the one column the user (not the derivation) owns — same split as
+ * `ads` / `ad_user_state` (I10), folded into one table here because a
+ * direction has no system-vs-user identity split the way an ad does; the
+ * row exists because the system proposed it, and `state` is the only field
+ * the user ever changes.
+ */
+export const directions = pgTable(
+  'directions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    /** Which `profiles.version` (derivation) produced this row. */
+    profileVersion: integer('profile_version').notNull(),
+    label: text('label').notNull(),
+    rationale: text('rationale').notNull(),
+    /** Skill `text` labels from the same derivation that bridge to this direction. */
+    bridge: text('bridge').array().notNull(),
+    /** German, as typed into a platform search. */
+    searchTerms: text('search_terms').array().notNull(),
+    distance: directionDistanceEnum('distance').notNull(),
+    /** Snapshot at derivation time of the user's own ad titles the model placed here. */
+    seenTitles: text('seen_titles').array().notNull().default(sql`'{}'`),
+    state: directionStateEnum('state').notNull().default('suggested'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Guards a retried completeDerivation() from double-inserting the same
+    // direction rather than relying on the caller to be careful.
+    uniqueIndex('directions_user_version_label').on(t.userId, t.profileVersion, t.label),
+    index('directions_user_state').on(t.userId, t.state),
+    tenantPolicy('directions'),
   ],
 );
 
