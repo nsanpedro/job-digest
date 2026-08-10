@@ -1,0 +1,161 @@
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-strong-alt);
+}
+
+.distance {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--pass-fg);
+  white-space: nowrap;
+}
+
+.distanceStretch {
+  color: var(--warn-fg);
+}
+
+.rationale {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.bridge {
+  margin-bottom: 10px;
+}
+
+.bridgeLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 5px;
+}
+
+.bridgeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bridgeItem {
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.skillText {
+  font-weight: 600;
+  color: var(--text);
+  margin-right: 6px;
+}
+
+.skillQuote {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.servedBox,
+.unservedBox {
+  border-radius: var(--radius-btn);
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+
+.servedBox {
+  background: var(--pass-bg);
+}
+
+.servedLabel {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--pass-fg);
+}
+
+.unservedBox {
+  background: var(--surface-muted, var(--surface-sunken));
+}
+
+.unservedLabel {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.searchTermsHint {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+}
+
+.titleList,
+.termList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-secondary);
+}
+
+.term {
+  font-family: var(--font-mono);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.actionBtn {
+  padding: 6px 12px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  font-size: 12.5px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.dismissBtn {
+  padding: 6px 12px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.confirmed {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--pass-fg);
+  font-weight: 500;
+}
