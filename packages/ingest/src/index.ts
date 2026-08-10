@@ -18,6 +18,14 @@ export {
   type WorkplaceFacts,
 } from './normalize/index';
 export { extractTitleFacts } from './normalize/title-facts';
+export {
+  extractCvText,
+  MAX_CV_BYTES,
+  MAX_CV_PAGES,
+  MIN_CV_TEXT_LENGTH,
+  type CvExtraction,
+  type CvExtractionFailure,
+} from './cv-pdf';
 export { extractorFor, registerExtractor, registeredExtractors } from './extract/registry';
 export type { ExtractResult, ExtractedAd, Extractor, FieldSpan } from './extract/types';
 

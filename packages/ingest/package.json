@@ -13,7 +13,8 @@
   "dependencies": {
     "@job-digest/core": "*",
     "mailparser": "^3.7.0",
-    "node-html-parser": "^7.0.0"
+    "node-html-parser": "^7.0.0",
+    "unpdf": "^1.8.0"
   },
   "devDependencies": {
     "@types/mailparser": "^3.4.5",
