@@ -17,6 +17,7 @@ export {
   failDerivation,
   getActiveProfile,
   getDerivationProgress,
+  getDirectionCoverage,
   getDistinctAdTitles,
   listDirections,
   listInterestedDirections,

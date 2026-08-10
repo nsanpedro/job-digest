@@ -18,8 +18,27 @@ import styles from './DirectionCard.module.css';
  *   text to copy into a platform search, honestly marked as unproven. A
  *   real deep link to each platform's search page is deferred (ADR-001 §5,
  *   phase 5) — the exact URL formats need verifying live, not assuming.
+ *
+ * The follow-up loop (3 Aug 2026): the system cannot observe whether the
+ * user actually went and created a search alert on LinkedIn/Xing/StepStone —
+ * exactly the same gap I15 already names for application tracking ("the
+ * system cannot know that"). So `alert_configured` is a second self-report,
+ * asked only after "Interested", never inferred. Once set, `coverageCount`
+ * (a literal title-substring count, computed at read time — see
+ * `getDirectionCoverage`) replaces the confirmation line: a number the user
+ * can act on, never a score. Deliberately not a percentage, matching I18 —
+ * the same reason the model's own prompt is forbidden from attaching one.
  */
-export function DirectionCard({ direction, skills }: { direction: DirectionRow; skills: Skill[] }) {
+export function DirectionCard({
+  direction,
+  skills,
+  coverageCount,
+}: {
+  direction: DirectionRow;
+  skills: Skill[];
+  /** Ads matching this direction's search terms, computed at read time — only meaningful once state is 'alert_configured'. */
+  coverageCount: number;
+}) {
   const [state, setState] = useState(direction.state);
   const [pending, startTransition] = useTransition();
 
@@ -29,7 +48,7 @@ export function DirectionCard({ direction, skills }: { direction: DirectionRow; 
 
   const served = direction.seenTitles.length > 0;
 
-  function act(next: 'interested' | 'dismissed') {
+  function act(next: 'interested' | 'dismissed' | 'alert_configured') {
     startTransition(async () => {
       setState(next);
       await setDirectionState(direction.id, next);
@@ -96,7 +115,24 @@ export function DirectionCard({ direction, skills }: { direction: DirectionRow; 
           </button>
         </div>
       )}
-      {state === 'interested' && <p className={styles.confirmed}>Marked interested ✓</p>}
+
+      {state === 'interested' && (
+        <div className={styles.followUp}>
+          <p className={styles.confirmed}>Marked interested ✓</p>
+          <p className={styles.followUpHint}>Went and set up a real search alert for this on the platform?</p>
+          <button type="button" className={styles.actionBtn} disabled={pending} onClick={() => act('alert_configured')}>
+            Yes, I set it up
+          </button>
+        </div>
+      )}
+
+      {state === 'alert_configured' && (
+        <p className={styles.confirmed}>
+          {coverageCount === 0
+            ? "Alert configured — nothing matching has arrived yet. We'll count them here once they do."
+            : `Alert configured — ${coverageCount} ad${coverageCount === 1 ? '' : 's'} matching this so far.`}
+        </p>
+      )}
     </div>
   );
 }

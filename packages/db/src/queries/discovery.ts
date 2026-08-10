@@ -252,3 +252,43 @@ export async function countDerivationsSince(db: Db, userId: string, since: Date)
     .where(and(eq(profiles.userId, userId), gte(profiles.savedAt, since)));
   return rows.length;
 }
+
+/**
+ * Does this ad title count as evidence for a direction the user is tracking?
+ * Literal, case-insensitive substring match of a search term (or the
+ * direction's own label) against the title — the same "cite the literal
+ * text, never fuzzy-guess" discipline `verifyQuote` already applies to
+ * quotes (I5/I17), applied here to counting instead of citing. Deliberately
+ * not a scored/fuzzy match: a direction's coverage is something the UI
+ * counts, never something it scores (I18 — no percentage, ever).
+ */
+function matchesDirection(title: string, direction: { label: string; searchTerms: string[] }): boolean {
+  const t = title.toLowerCase();
+  if (t.includes(direction.label.toLowerCase())) return true;
+  return direction.searchTerms.some((term) => t.includes(term.toLowerCase()));
+}
+
+/**
+ * How many of the user's own ads match a direction being tracked — the
+ * "loop" from ADR-001 §3, computed at read time (I6's shape: nothing here is
+ * ever stored), one query for all directions rather than one per direction.
+ */
+export async function getDirectionCoverage(
+  db: Db,
+  userId: string,
+  directionsToCheck: readonly Pick<DirectionRow, 'id' | 'label' | 'searchTerms'>[],
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (directionsToCheck.length === 0) return counts;
+
+  const rows = await db.select({ title: ads.title }).from(ads).where(eq(ads.userId, userId));
+  const titles = rows.map((r) => r.title);
+
+  for (const d of directionsToCheck) {
+    counts.set(
+      d.id,
+      titles.filter((title) => matchesDirection(title, d)).length,
+    );
+  }
+  return counts;
+}
