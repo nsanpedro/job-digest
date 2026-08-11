@@ -21,6 +21,23 @@ if (!url) throw new Error('DATABASE_URL is not set');
 const client = postgres(url, { max: 5 });
 const pool = drizzle(client);
 
+/**
+ * Close the pool on process exit — found live (3 Aug 2026) as the cause of a
+ * real incident: Supabase's session-mode pooler caps at 15 connections,
+ * shared between local dev and Vercel prod (I13's `SET LOCAL ROLE` needs
+ * session mode, so switching to transaction-mode pooling isn't a free swap).
+ * Without this, every `next dev` restart during a debugging session leaves
+ * this pool's connections open until Supabase reaps them by timeout — pile
+ * up enough restarts in a row and the shared limit fills, breaking prod too.
+ * `once`, not `on`: defensive against this module somehow re-evaluating
+ * (e.g. under HMR) and registering the handler twice.
+ */
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.once(signal, () => {
+    void client.end().finally(() => process.exit(0));
+  });
+}
+
 export type Db = PostgresJsDatabase<Record<string, unknown>>;
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
