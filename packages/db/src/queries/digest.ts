@@ -18,11 +18,13 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
 import { getPlatformCapabilities } from './capabilities';
+import { listInterestedDirections } from './discovery';
 import { getActiveRuleset } from './ruleset';
 import type {
   Digest,
   DigestAd,
   DigestMetrics,
+  DirectionRow,
   DismissedAd,
   ParseSummary,
   Platform,
@@ -31,6 +33,54 @@ import type {
 import { weekWindow, type Window } from './window';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
+
+// ── Direction matching ────────────────────────────────────────────────────────
+
+const STOP_WORDS = new Set(['and', 'the', 'for', 'with', 'from', 'von', 'und', 'für', 'mit', 'der', 'die', 'das', 'bei', 'zur', 'als']);
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[\s/,\-()+]+/)
+    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+}
+
+/**
+ * True when this job title is relevant to at least one of the user's
+ * interested directions. Two tracks for precision + recall:
+ *
+ * Track 1 — phrase match: ALL words in a searchTerm must appear as substrings
+ * in the title. "Engineering Manager" requires both → "Customer Success Manager"
+ * fails. German terms (Entwickler, Architekt) naturally don't match English
+ * titles, which is fine — track 2 covers the English vocabulary.
+ *
+ * Track 2 — long-word match: any individual word of 7+ chars from any
+ * searchTerm appears as a substring in the title. At 7+ chars a word is
+ * domain-specific enough to match alone ("frontend", "engineer", "typescript",
+ * "fullstack") without producing false positives from short generic words
+ * ("lead", "team", "senior"). Bridge skills are intentionally excluded here —
+ * they are full sentences whose tokenized words ("performance", "partnering")
+ * are too generic to match alone.
+ */
+function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
+  if (dirs.length === 0) return true;
+  const t = title.toLowerCase();
+
+  return dirs.some((dir) => {
+    // Track 1: all words of a searchTerm as substrings in title
+    if (dir.searchTerms.some((term) => {
+      const words = tokenize(term);
+      return words.length > 0 && words.every((w) => t.includes(w));
+    })) return true;
+
+    // Track 2: any single 8+ char word from any searchTerm as a substring.
+    // 8+ filters out short generic words ("manager"=7, "senior"=6, "lead"=4)
+    // that produce false positives when matched alone without phrase context.
+    return dir.searchTerms.flatMap(tokenize).some((w) => w.length >= 8 && t.includes(w));
+  });
+}
+
+// ── Ordering ──────────────────────────────────────────────────────────────────
 
 /** Rank for the fallback ordering: cleaner rule outcomes float up. */
 const STATE_RANK = { pass: 0, unknown: 1, warn: 2, block: 3 } as const;
@@ -96,7 +146,9 @@ export async function getDigest(
   const appliedByAd = await getLatestApplicationStatuses(db, userId);
   const capabilities = await getPlatformCapabilities(db);
 
-  const visible: DigestAd[] = [];
+  const interestedDirs = await listInterestedDirections(db, userId);
+
+  const allVisible: DigestAd[] = [];
   const dismissed: DismissedAd[] = [];
   let filteredByRule = 0;
   let dismissedByUser = 0;
@@ -147,19 +199,36 @@ export async function getDigest(
       dismissed.push({ ...base, reason: { kind: 'rule', blockers } });
       continue;
     }
-    visible.push(base);
+    allVisible.push(base);
   }
 
-  visible.sort(compareAds);
+  allVisible.sort(compareAds);
   // User dismissals sit above rule dismissals (design, screen 1).
   dismissed.sort((a, b) => {
     if (a.reason.kind !== b.reason.kind) return a.reason.kind === 'user' ? -1 : 1;
     return compareAds(a, b);
   });
 
+  // Split visible into role-matched vs off-target. Only activates when the
+  // user has expressed at least one direction preference — with no directions
+  // interested, every ad stays in visible and offTarget is empty (I10: filter
+  // only kicks in when the user has given us a signal to filter against).
+  let visible = allVisible;
+  let offTarget: DigestAd[] = [];
+  if (interestedDirs.length > 0) {
+    visible = [];
+    for (const ad of allVisible) {
+      if (matchesAnyDirection(ad.title, interestedDirs)) {
+        visible.push(ad);
+      } else {
+        offTarget.push(ad);
+      }
+    }
+  }
+
   const metrics: DigestMetrics = {
     adsReceived: rows.length,
-    offTarget: null,
+    offTarget: interestedDirs.length > 0 ? offTarget.length : null,
     passing: visible.length,
     filteredByRule,
     dismissedByUser,
@@ -170,6 +239,7 @@ export async function getDigest(
     window,
     metrics,
     visible,
+    offTarget,
     dismissed,
     parse: await getParseSummary(db, userId, window),
     rulesetVersion,

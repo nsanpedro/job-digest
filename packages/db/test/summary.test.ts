@@ -51,6 +51,7 @@ function digest(visible: DigestAd[], dismissed: DigestAd[] = []): Digest {
       alreadySeen: 0,
     },
     visible,
+    offTarget: [],
     dismissed: dismissed.map((a) => ({ ...a, reason: { kind: 'user' as const } })),
     parse: {
       emailsRead: 1,
