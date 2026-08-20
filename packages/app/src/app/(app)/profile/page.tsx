@@ -13,6 +13,8 @@ import { DirectionCard } from '@/components/DirectionCard';
 import { ForwardingConnect } from '@/components/ForwardingConnect';
 import { ModePicker } from '@/components/ModePicker';
 import { RulesEditor } from '@/components/RulesEditor';
+import { SourcesManager } from '@/components/SourcesManager';
+import { getSources } from '@/lib/source-actions';
 import { currentUser, withTenant } from '@/lib/session';
 import styles from './page.module.css';
 
@@ -26,26 +28,29 @@ function isExpiringSoon(d: Date | null): boolean {
 export default async function ProfilePage() {
   const user = await currentUser();
 
-  const [ruleset, account, profile, directions, coverage] = await withTenant(user.id, async (tx) => {
-    let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
-    try {
-      rs = await getActiveRuleset(tx, user.id);
-    } catch (err) {
-      if (!(err instanceof NoActiveRulesetError)) throw err;
-      rs = { version: 0, savedRules: DEFAULT_RULESET, mode: DEFAULT_MODE };
-    }
-    const acct = await getAccountOverview(tx, user.id);
-    // Role discovery from a CV (docs/adr-001-role-discovery.md §3) — no
-    // active profile yet just means nobody has uploaded a CV, not an error.
-    const prof = await getActiveProfile(tx, user.id);
-    const dirs = prof ? await listDirections(tx, user.id, prof.version) : [];
-    // Coverage is only meaningful once a direction is past 'interested', but
-    // computed for all of them in one query rather than branching per-card —
-    // cheap (one query for the user's ad titles, matched in memory) and
-    // simpler than threading a second conditional query through.
-    const cov = await getDirectionCoverage(tx, user.id, dirs);
-    return [rs, acct, prof, dirs, cov] as const;
-  });
+  const [[ruleset, account, profile, directions, coverage], userSources] = await Promise.all([
+    withTenant(user.id, async (tx) => {
+      let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
+      try {
+        rs = await getActiveRuleset(tx, user.id);
+      } catch (err) {
+        if (!(err instanceof NoActiveRulesetError)) throw err;
+        rs = { version: 0, savedRules: DEFAULT_RULESET, mode: DEFAULT_MODE };
+      }
+      const acct = await getAccountOverview(tx, user.id);
+      // Role discovery from a CV (docs/adr-001-role-discovery.md §3) — no
+      // active profile yet just means nobody has uploaded a CV, not an error.
+      const prof = await getActiveProfile(tx, user.id);
+      const dirs = prof ? await listDirections(tx, user.id, prof.version) : [];
+      // Coverage is only meaningful once a direction is past 'interested', but
+      // computed for all of them in one query rather than branching per-card —
+      // cheap (one query for the user's ad titles, matched in memory) and
+      // simpler than threading a second conditional query through.
+      const cov = await getDirectionCoverage(tx, user.id, dirs);
+      return [rs, acct, prof, dirs, cov] as const;
+    }),
+    getSources(),
+  ]);
 
   return (
     <div className="container">
@@ -103,6 +108,11 @@ export default async function ProfilePage() {
               </span>
             </div>
           </div>
+        </div>
+
+        <div className={styles.section}>
+          <p className={styles.sectionLabel}>Companies to watch</p>
+          <SourcesManager initial={userSources} />
         </div>
 
         <div className={styles.section}>
