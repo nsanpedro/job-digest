@@ -20,7 +20,9 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { dedupeKeyFromStrings, extractTitleFacts } from '@job-digest/ingest';
 import { adSightings, ads, runs, sources } from '@job-digest/db';
+import { ashby } from './providers/ashby';
 import { greenhouse } from './providers/greenhouse';
+import { lever } from './providers/lever';
 import type { JobBoardProvider, NormalizedJob } from './providers/types';
 import { mergeFacts } from './merge-facts';
 import { withTenant, type Db } from './tenant';
@@ -28,7 +30,7 @@ import { withTenant, type Db } from './tenant';
 const FETCH_CONCURRENCY = 5;
 
 /** All registered providers, in order of preference for slug detection. */
-const PROVIDERS: JobBoardProvider[] = [greenhouse];
+const PROVIDERS: JobBoardProvider[] = [greenhouse, lever, ashby];
 
 /** Resolve a stored `provider` name to its adapter. */
 function providerFor(name: string): JobBoardProvider | undefined {
