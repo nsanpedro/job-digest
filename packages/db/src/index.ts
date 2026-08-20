@@ -11,13 +11,29 @@ export { summarizeWeek, type WeekSummary } from './queries/summary';
 export { getPlatformCapabilities, type PlatformCapabilities } from './queries/capabilities';
 export { getAccountOverview, type AccountOverview } from './queries/account';
 export { previousWeekWindow, weekWindow, type Window } from './queries/window';
+export {
+  completeDerivation,
+  countDerivationsSince,
+  failDerivation,
+  getActiveProfile,
+  getDerivationProgress,
+  getDirectionCoverage,
+  getDistinctAdTitles,
+  listDirections,
+  listInterestedDirections,
+  setDirectionState,
+  startDerivation,
+  type DerivationResult,
+} from './queries/discovery';
 export type {
   ApplicationCounts,
   ApplicationEvent,
   ApplicationStatus,
+  DerivationProgress,
   Digest,
   DigestAd,
   DigestMetrics,
+  DirectionRow,
   DismissalReason,
   DismissedAd,
   ParseSummary,

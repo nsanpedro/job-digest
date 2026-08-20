@@ -19,3 +19,11 @@ export {
   type ForwardingIngestResult,
   type ForwardingVerdict,
 } from './forwarding';
+export {
+  deriveDirections,
+  DIRECTIONS_MODEL,
+  MAX_AD_TITLES,
+  PROMPT_VERSION as DIRECTIONS_PROMPT_VERSION,
+  type DeriveDirectionsInput,
+  type DeriveDirectionsResult,
+} from './derive-directions';

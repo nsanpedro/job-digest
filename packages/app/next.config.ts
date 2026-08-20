@@ -16,6 +16,13 @@ const nextConfig: NextConfig = {
       // within 30s of a navigation nobody acted on.
       dynamic: 30,
     },
+    // Server Actions default to a 1MB body limit — well under
+    // MAX_CV_BYTES (8MB, packages/ingest/src/cv-pdf.ts). Without this, a
+    // real CV upload fails with an opaque "Body exceeded 1mb limit" before
+    // uploadCv (docs/adr-001-role-discovery.md §3) ever runs.
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
   },
 };
 

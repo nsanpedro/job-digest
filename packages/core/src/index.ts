@@ -1,5 +1,18 @@
 export * from './types';
 export * from './title-facts';
+export { normalizeWhitespace, verifyQuote } from './verify-quote';
+export {
+  DERIVATION_SCHEMA,
+  MAX_DIRECTIONS,
+  MIN_BRIDGE_SKILLS,
+  parseDerivation,
+  type Derivation,
+  type Direction,
+  type Distance,
+  type DroppedItem,
+  type ParsedDerivation,
+  type Skill,
+} from './discovery';
 export { eur, describeCondition, describePredicate, predicateFactName } from './describe';
 export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked } from './evaluate';
 export { DEFAULT_RULESET } from './default-ruleset';

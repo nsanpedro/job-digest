@@ -1,6 +1,15 @@
 import { DEFAULT_MODE, DEFAULT_RULESET, type Mode } from '@job-digest/core';
-import { getAccountOverview, getActiveRuleset, NoActiveRulesetError } from '@job-digest/db';
+import {
+  getAccountOverview,
+  getActiveProfile,
+  getActiveRuleset,
+  getDirectionCoverage,
+  listDirections,
+  NoActiveRulesetError,
+} from '@job-digest/db';
 import { signIn } from '@/auth';
+import { CvIntake } from '@/components/CvIntake';
+import { DirectionCard } from '@/components/DirectionCard';
 import { ForwardingConnect } from '@/components/ForwardingConnect';
 import { ModePicker } from '@/components/ModePicker';
 import { RulesEditor } from '@/components/RulesEditor';
@@ -17,7 +26,7 @@ function isExpiringSoon(d: Date | null): boolean {
 export default async function ProfilePage() {
   const user = await currentUser();
 
-  const [ruleset, account] = await withTenant(user.id, async (tx) => {
+  const [ruleset, account, profile, directions, coverage] = await withTenant(user.id, async (tx) => {
     let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
     try {
       rs = await getActiveRuleset(tx, user.id);
@@ -25,12 +34,34 @@ export default async function ProfilePage() {
       if (!(err instanceof NoActiveRulesetError)) throw err;
       rs = { version: 0, savedRules: DEFAULT_RULESET, mode: DEFAULT_MODE };
     }
-    return [rs, await getAccountOverview(tx, user.id)] as const;
+    const acct = await getAccountOverview(tx, user.id);
+    // Role discovery from a CV (docs/adr-001-role-discovery.md §3) — no
+    // active profile yet just means nobody has uploaded a CV, not an error.
+    const prof = await getActiveProfile(tx, user.id);
+    const dirs = prof ? await listDirections(tx, user.id, prof.version) : [];
+    // Coverage is only meaningful once a direction is past 'interested', but
+    // computed for all of them in one query rather than branching per-card —
+    // cheap (one query for the user's ad titles, matched in memory) and
+    // simpler than threading a second conditional query through.
+    const cov = await getDirectionCoverage(tx, user.id, dirs);
+    return [rs, acct, prof, dirs, cov] as const;
   });
 
   return (
     <div className="container">
         <h1 className={styles.h1}>Profile</h1>
+
+        <div className={styles.section}>
+          <p className={styles.sectionLabel}>Role discovery</p>
+          <CvIntake />
+          {directions.length > 0 && profile && (
+            <div style={{ marginTop: 4 }}>
+              {directions.map((d) => (
+                <DirectionCard key={d.id} direction={d} skills={profile.skills} coverageCount={coverage.get(d.id) ?? 0} />
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className={styles.section}>
           <p className={styles.sectionLabel}>Search mode</p>

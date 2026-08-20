@@ -75,6 +75,27 @@ beforeAll(async () => {
       firstSeenAt: new Date(),
       lastSeenAt: new Date(),
     });
+
+    // Role discovery (docs/adr-001-role-discovery.md §3): a completed
+    // derivation and its one direction, per user — same seeding pattern as
+    // the mailbox/ad pair above.
+    await db.insert(schema.profiles).values({
+      userId,
+      version: 1,
+      data: { skills: [] },
+      isActive: true,
+      status: 'ok',
+    });
+    await db.insert(schema.directions).values({
+      userId,
+      profileVersion: 1,
+      label: `Direction ${who}`,
+      rationale: 'test rationale',
+      bridge: ['skill 1', 'skill 2'],
+      searchTerms: ['search term'],
+      distance: 'adjacent',
+      seenTitles: [],
+    });
   }
 }, 180_000);
 
@@ -132,6 +153,22 @@ describe('row-level security (design §2, §14)', () => {
   it('the table owner (migrations, seeding) is not silently subject to RLS', async () => {
     await asOwner();
     expect(await client`SELECT * FROM ads`).toHaveLength(2);
+  });
+
+  it("user A's scope sees only user A's directions — for both app roles (ADR-001)", async () => {
+    for (const role of ['app_user', 'worker'] as const) {
+      await asTenant(role, userA);
+      const rows = await client`SELECT label FROM directions`;
+      expect(rows.map((r) => r['label'])).toEqual(['Direction a']);
+    }
+    await asOwner();
+  });
+
+  it("user A's scope sees only user A's profile (ADR-001)", async () => {
+    await asTenant('app_user', userA);
+    const rows = await client`SELECT version FROM profiles`;
+    expect(rows).toHaveLength(1);
+    await asOwner();
   });
 });
 
@@ -194,5 +231,25 @@ describe('schema invariant guards', () => {
         VALUES (${userA}, ${email!['id']}, 1, 'ok')`;
     await insertParse();
     await expect(insertParse()).rejects.toThrow(/email_parses_email_version/);
+  });
+
+  it('one active profile per user — the partial unique index holds (ADR-001)', async () => {
+    await asOwner();
+    // userA already has version 1, active, from the seed block above.
+    const insertProfile = (version: number, active: boolean) =>
+      client`INSERT INTO profiles (user_id, version, data, is_active)
+             VALUES (${userA}, ${version}, '{}', ${active})`;
+    await insertProfile(2, false); // a second inactive version is fine
+    await expect(insertProfile(3, true)).rejects.toThrow(/profiles_one_active_per_user/);
+  });
+
+  it('a direction is unique per (user, profile_version, label) — completeDerivation\'s onConflictDoNothing target (ADR-001)', async () => {
+    await asOwner();
+    // userA already has ('Direction a', version 1) from the seed block above.
+    const insertDirection = (label: string) =>
+      client`INSERT INTO directions (user_id, profile_version, label, rationale, bridge, search_terms, distance)
+             VALUES (${userA}, 1, ${label}, 'r', ARRAY['s1','s2'], ARRAY['t'], 'adjacent')`;
+    await insertDirection('A different direction, same version'); // fine — different label
+    await expect(insertDirection('Direction a')).rejects.toThrow(/directions_user_version_label/);
   });
 });
