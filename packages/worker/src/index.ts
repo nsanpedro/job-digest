@@ -19,6 +19,7 @@ export {
   type ForwardingIngestResult,
   type ForwardingVerdict,
 } from './forwarding';
+export { fetchApiSources, parseSourceUrl, type FetchApisResult } from './fetch-apis';
 export {
   deriveDirections,
   DIRECTIONS_MODEL,
