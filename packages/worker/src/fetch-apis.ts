@@ -17,7 +17,7 @@
  * transactions, not API calls, since each provider's fetchJobs() is one HTTP
  * call that returns all jobs before we start writing.
  */
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { dedupeKeyFromStrings, extractTitleFacts } from '@job-digest/ingest';
 import { adSightings, ads, runs, sources } from '@job-digest/db';
 import { greenhouse } from './providers/greenhouse';
@@ -159,12 +159,11 @@ export async function fetchApiSources(
   },
 ): Promise<FetchApisResult[]> {
   const { userId, runId } = params;
-
   const userSources = await withTenant(db, userId, (tx) =>
     tx
       .select({ id: sources.id, provider: sources.provider, externalSlug: sources.externalSlug })
       .from(sources)
-      .where(and(eq(sources.userId, userId), eq(sources.status, 'active'))),
+      .where(and(eq(sources.userId, userId), inArray(sources.status, ['active', 'failing']))),
   );
 
   // Set total upfront so the progress bar is meaningful from the start.

@@ -92,6 +92,60 @@ async function fetchPage(slug: string, page: number): Promise<GreenhouseJob[]> {
   return data.jobs ?? [];
 }
 
+// ── Job mapper ───────────────────────────────────────────────────────────────
+
+function mapJob(job: GreenhouseJob): NormalizedJob {
+  const locationRaw = job.location?.name ?? null;
+  const facts = emptyFacts();
+  const wording: NormalizedJob['wording'] = {};
+
+  if (locationRaw) {
+    const w = normalizeWorkplace(locationRaw);
+    if (w) {
+      facts.home = w.home;
+      const note =
+        w.home === null
+          ? 'the ad says how it works, not how many days — check before counting on it'
+          : w.home >= 5
+            ? 'fully remote'
+            : w.home === 0
+              ? 'no home office'
+              : `${w.home} home-office day${w.home === 1 ? '' : 's'} a week`;
+      wording.Onsite = { value: w.matched, quote: locationRaw, note };
+    }
+  }
+
+  const payRaw = extractPayFromMetadata(job.metadata);
+  if (payRaw) {
+    const p = normalizePay(payRaw);
+    if (p) {
+      facts.pay = p.pay;
+      facts.payMax = p.payMax;
+      facts.payFte = p.payFte;
+      facts.fteNote = p.fteNote;
+      const monthly =
+        p.payMax !== null && p.payMax !== p.pay
+          ? `${eur(p.pay)} – ${eur(p.payMax)}`
+          : eur(p.pay);
+      wording.Pay = p.derivedFromAnnual
+        ? { value: `≈ ${monthly}/mo`, quote: payRaw, note: `${payRaw} annual, ÷ 12 — no 13th salary assumed` }
+        : { value: monthly, quote: payRaw, note: '' };
+    }
+  }
+
+  return {
+    externalId: `greenhouse:${job.id}`,
+    externalUrl: job.absolute_url,
+    title: job.title,
+    company: job.company_name,
+    locationRaw,
+    platform: 'Greenhouse',
+    facts,
+    wording,
+    postedAt: job.first_published ? new Date(job.first_published) : null,
+  };
+}
+
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export const greenhouse: JobBoardProvider = {
@@ -126,69 +180,25 @@ export const greenhouse: JobBoardProvider = {
   },
 
   async fetchJobs(slug: string): Promise<NormalizedJob[]> {
-    // Greenhouse paginates but most companies have <500 open roles. Fetch
-    // page 1; if it comes back full, keep going — rare in practice.
-    const all: GreenhouseJob[] = [];
-    let page = 1;
+    // Greenhouse's public board API ignores per_page for large boards and just
+    // returns all open positions. Detect that by checking whether page 2 has
+    // the same size as page 1 — if so, it's a flat "return everything" API and
+    // we should stop after page 1. Only continue paginating when the second
+    // page is meaningfully smaller (i.e. real offset-based paging is in effect).
+    const page1 = await fetchPage(slug, 1);
+    if (page1.length < PER_PAGE) return page1.map(mapJob);
+
+    const all: GreenhouseJob[] = [...page1];
+    let page = 2;
     while (true) {
       const batch = await fetchPage(slug, page);
+      // If the new page is as large as the first, the API is ignoring paging.
+      if (batch.length >= page1.length) break;
       all.push(...batch);
       if (batch.length < PER_PAGE) break;
       page++;
     }
 
-    return all.map((job): NormalizedJob => {
-      const locationRaw = job.location?.name ?? null;
-      const facts = emptyFacts();
-      const wording: NormalizedJob['wording'] = {};
-
-      // ── Onsite from location string ────────────────────────────────────
-      if (locationRaw) {
-        const w = normalizeWorkplace(locationRaw);
-        if (w) {
-          facts.home = w.home;
-          const note =
-            w.home === null
-              ? 'the ad says how it works, not how many days — check before counting on it'
-              : w.home >= 5
-                ? 'fully remote'
-                : w.home === 0
-                  ? 'no home office'
-                  : `${w.home} home-office day${w.home === 1 ? '' : 's'} a week`;
-          wording.Onsite = { value: w.matched, quote: locationRaw, note };
-        }
-      }
-
-      // ── Pay from metadata (best-effort) ───────────────────────────────
-      const payRaw = extractPayFromMetadata(job.metadata);
-      if (payRaw) {
-        const p = normalizePay(payRaw);
-        if (p) {
-          facts.pay = p.pay;
-          facts.payMax = p.payMax;
-          facts.payFte = p.payFte;
-          facts.fteNote = p.fteNote;
-          const monthly =
-            p.payMax !== null && p.payMax !== p.pay
-              ? `${eur(p.pay)} – ${eur(p.payMax)}`
-              : eur(p.pay);
-          wording.Pay = p.derivedFromAnnual
-            ? { value: `≈ ${monthly}/mo`, quote: payRaw, note: `${payRaw} annual, ÷ 12 — no 13th salary assumed` }
-            : { value: monthly, quote: payRaw, note: '' };
-        }
-      }
-
-      return {
-        externalId: `greenhouse:${job.id}`,
-        externalUrl: job.absolute_url,
-        title: job.title,
-        company: job.company_name,
-        locationRaw,
-        platform: 'Greenhouse',
-        facts,
-        wording,
-        postedAt: job.first_published ? new Date(job.first_published) : null,
-      };
-    });
+    return all.map(mapJob);
   },
 };

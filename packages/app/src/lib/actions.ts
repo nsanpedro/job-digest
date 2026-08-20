@@ -18,6 +18,7 @@ import { DEFAULT_RULESET, type Mode, type Ruleset } from '@job-digest/core';
 import { applicationEvents, adUserState, mailboxes, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import {
+  fetchApiSources,
   generateInboundAddress,
   GmailAuthError,
   ingestEmail,
@@ -146,6 +147,17 @@ export async function startRefresh(): Promise<{ runId: string }> {
       lastSyncedAt: mb.lastSyncedAt,
     }),
   );
+
+  // Kick off API sources in parallel — own run row so it doesn't interfere
+  // with the Gmail progress counter. Failures land on source.lastError, not here.
+  const db = rawPool();
+  const apiRun = await workerWithTenant(db, userId, (tx) =>
+    tx.insert(runs).values({ userId, parserVersion: 0 }).returning({ id: runs.id }),
+  );
+  if (apiRun[0]) {
+    const apiRunId = apiRun[0].id;
+    after(() => fetchApiSources(db, { userId, runId: apiRunId }));
+  }
 
   return { runId };
 }
