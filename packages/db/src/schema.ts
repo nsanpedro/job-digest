@@ -51,7 +51,29 @@ const tenantPolicy = (table: string) =>
     withCheck: tenantScope,
   });
 
-export const platformEnum = pgEnum('platform', ['LinkedIn', 'Xing', 'Indeed', 'StepStone']);
+/**
+ * Extended in migration 0011 with API-sourced providers (Greenhouse, Lever,
+ * Ashby, Personio — ADR-002). The enum spans both acquisition paths on
+ * purpose: an `ad` row is source-agnostic to everything downstream (I19), so
+ * a single column is what the rule engine, dedup, and read-time queries all
+ * already expect.
+ */
+export const platformEnum = pgEnum('platform', [
+  'LinkedIn',
+  'Xing',
+  'Indeed',
+  'StepStone',
+  'Greenhouse',
+  'Lever',
+  'Ashby',
+  'Personio',
+]);
+
+/** ADR-002: the four keyless job-board APIs the user can follow companies on. */
+export const sourceProviderEnum = pgEnum('source_provider', ['Greenhouse', 'Lever', 'Ashby', 'Personio']);
+
+/** ADR-002 §2.9: same shape as mailbox_status — a failing source is visible, not silent. */
+export const sourceStatusEnum = pgEnum('source_status', ['active', 'failing', 'disabled']);
 export const authKindEnum = pgEnum('auth_kind', ['app_password', 'oauth', 'imap', 'forwarding']);
 export const mailboxStatusEnum = pgEnum('mailbox_status', [
   'pending_verification',
@@ -188,6 +210,36 @@ export const mailboxes = pgTable(
   ],
 );
 
+/**
+ * ADR-002: a company the user follows on a keyless job-board API. Same tenant
+ * shape as `mailboxes` (per-user, RLS-scoped); the fetch path in the worker
+ * mirrors `gmail.ts` — one function per source, `Promise.all` with concurrency
+ * cap. `lastFetchedAt` is the cache (§2.5): a "5 min" freshness window makes
+ * a rapid second "Update now" a cheap no-op without Redis or HTTP ETags.
+ */
+export const sources = pgTable(
+  'sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    provider: sourceProviderEnum('provider').notNull(),
+    /** The URL slug the adapter uses — e.g. `stripe` for `boards.greenhouse.io/stripe`. */
+    externalSlug: text('external_slug').notNull(),
+    /** Company name as the API returned it on add — for UI without a re-fetch. */
+    displayName: text('display_name').notNull(),
+    status: sourceStatusEnum('status').notNull().default('active'),
+    lastFetchedAt: timestamp('last_fetched_at', { withTimezone: true }),
+    /** Last failure detail — surfaced in the UI so a stuck source is visible, not silent (I20's spirit). */
+    lastError: jsonb('last_error').$type<{ kind: string; message: string; at: string }>(),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('sources_user_provider_slug').on(t.userId, t.provider, t.externalSlug),
+    index('sources_user_status').on(t.userId, t.status),
+    tenantPolicy('sources'),
+  ],
+);
+
 export const rawEmails = pgTable(
   'raw_emails',
   {
@@ -230,6 +282,14 @@ export const runs = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: userId(),
     mailboxId: uuid('mailbox_id').references(() => mailboxes.id, { onDelete: 'set null' }),
+    /**
+     * ADR-002 §2.8: a run belongs to either a mailbox OR a source (or neither,
+     * for the dev fallback path). "Update now" fans out into N runs — one per
+     * mailbox plus one per source — and the client polls all of them.
+     * `emails_total`/`emails_processed` are read as items_total/processed for
+     * source runs; not renamed to avoid churn across every query and type.
+     */
+    sourceId: uuid('source_id').references(() => sources.id, { onDelete: 'set null' }),
     status: runStatusEnum('status').notNull().default('running'),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
@@ -329,6 +389,13 @@ export const ads = pgTable(
     score: integer('score'),
     incomplete: boolean('incomplete').notNull().default(false),
     incompleteNote: text('incomplete_note'),
+    /**
+     * ADR-002 §2.3: provenance for API-sourced ads (null for email-sourced
+     * ones — those keep provenance via `ad_sightings.raw_email_id`). Rule
+     * evaluation is source-agnostic (I19), so nothing downstream reads this
+     * except the UI, which uses it to label where an ad came from.
+     */
+    sourceId: uuid('source_id').references(() => sources.id, { onDelete: 'set null' }),
     firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
   },
@@ -348,9 +415,13 @@ export const adSightings = pgTable(
     adId: uuid('ad_id')
       .notNull()
       .references(() => ads.id, { onDelete: 'cascade' }),
-    rawEmailId: uuid('raw_email_id')
-      .notNull()
-      .references(() => rawEmails.id, { onDelete: 'cascade' }),
+    /**
+     * ADR-002 §2.3: a sighting comes from either a raw email OR a source
+     * fetch. One of the two is set; the other is null. Email-sourced ads keep
+     * `raw_email_id` populated as before; API-sourced ads populate `source_id`.
+     */
+    rawEmailId: uuid('raw_email_id').references(() => rawEmails.id, { onDelete: 'cascade' }),
+    sourceId: uuid('source_id').references(() => sources.id, { onDelete: 'set null' }),
     /**
      * "Where this came from" in the expanded panel. Despite the column name,
      * this holds the email's subject line, not a user-configured alert name

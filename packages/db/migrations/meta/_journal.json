@@ -78,6 +78,13 @@
       "when": 1786384789152,
       "tag": "0010_role_discovery_persistence",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787238912845,
+      "tag": "0011_public_api_sources",
+      "breakpoints": true
     }
   ]
 }
