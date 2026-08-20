@@ -115,7 +115,12 @@ async function ingestJob(
           wording: job.wording,
           titleFacts: extractTitleFacts(job.title, job.locationRaw),
           sourceId,
-          firstSeenAt: job.postedAt ?? fetchedAt,
+          // Use the fetch timestamp, not the job's original posting date: from
+          // the user's perspective, they "first saw" this job when we ingested
+          // it, not when the company posted it. Using postedAt would make all
+          // historic jobs appear as "repeats from earlier weeks" on the first
+          // fetch, which defeats the purpose of adding a source.
+          firstSeenAt: fetchedAt,
           lastSeenAt: fetchedAt,
         })
         .returning({ id: ads.id });
