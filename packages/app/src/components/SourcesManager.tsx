@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { addSource, removeSource } from '@/lib/source-actions';
+import { addSource, approveSuggestedSource, dismissSuggestedSource, removeSource } from '@/lib/source-actions';
 import styles from './SourcesManager.module.css';
 
 interface Source {
@@ -14,8 +14,22 @@ interface Source {
   lastError: { kind: string; message: string; at: string } | null;
 }
 
-export function SourcesManager({ initial }: { initial: Source[] }) {
+interface SuggestedSource {
+  id: string;
+  provider: string;
+  displayName: string;
+  externalSlug: string;
+}
+
+export function SourcesManager({
+  initial,
+  initialSuggestions,
+}: {
+  initial: Source[];
+  initialSuggestions: SuggestedSource[];
+}) {
   const [sources, setSources] = useState(initial);
+  const [suggestions, setSuggestions] = useState(initialSuggestions);
   const [url, setUrl] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -30,8 +44,6 @@ export function SourcesManager({ initial }: { initial: Source[] }) {
         setAddError(result.error);
         return;
       }
-      // Re-fetch the list by reloading the page data — simpler than passing
-      // the full source object back from the action.
       window.location.reload();
     });
   }
@@ -43,8 +55,64 @@ export function SourcesManager({ initial }: { initial: Source[] }) {
     });
   }
 
+  function handleApprove(id: string) {
+    startTransition(async () => {
+      const s = suggestions.find((s) => s.id === id);
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      if (s) {
+        // Optimistically move to the active list.
+        setSources((prev) => [
+          ...prev,
+          { id: s.id, provider: s.provider, externalSlug: s.externalSlug, displayName: s.displayName, status: 'active', lastFetchedAt: null, lastError: null },
+        ].sort((a, b) => a.displayName.localeCompare(b.displayName)));
+      }
+      await approveSuggestedSource(id);
+    });
+  }
+
+  function handleDismiss(id: string) {
+    startTransition(async () => {
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
+      await dismissSuggestedSource(id);
+    });
+  }
+
   return (
     <div className={styles.wrapper}>
+      {suggestions.length > 0 && (
+        <div className={styles.suggestions}>
+          <p className={styles.suggestionsLabel}>
+            Found {suggestions.length} job board{suggestions.length > 1 ? 's' : ''} from companies in your digest
+          </p>
+          {suggestions.map((s) => (
+            <div key={s.id} className={styles.suggestionRow}>
+              <div className={styles.info}>
+                <span className={styles.name}>{s.displayName}</span>
+                <span className={styles.meta}>{s.provider} · {s.externalSlug}</span>
+              </div>
+              <div className={styles.suggestionActions}>
+                <button
+                  type="button"
+                  className={styles.approveBtn}
+                  disabled={pending}
+                  onClick={() => handleApprove(s.id)}
+                >
+                  Add
+                </button>
+                <button
+                  type="button"
+                  className={styles.dismissBtn}
+                  disabled={pending}
+                  onClick={() => handleDismiss(s.id)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {sources.length > 0 && (
         <div className={styles.list}>
           {sources.map((s) => (

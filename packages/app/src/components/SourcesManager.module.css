@@ -147,3 +147,75 @@
   color: var(--text-faint);
   line-height: 1.5;
 }
+
+/* ── Suggested boards ─────────────────────────────────────────────────────── */
+
+.suggestions {
+  border-bottom: 1px solid var(--border);
+  background: var(--warn-bg, oklch(97% 0.02 80));
+  padding: 2px 0 4px;
+}
+
+.suggestionsLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 10px 18px 6px;
+  margin: 0;
+}
+
+.suggestionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--border-soft-2);
+}
+
+.suggestionActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.approveBtn {
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  padding: 4px 12px;
+  border-radius: var(--radius-input, 5px);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.approveBtn:hover {
+  border-color: var(--text-muted);
+}
+
+.approveBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dismissBtn {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-sans);
+}
+
+.dismissBtn:hover {
+  color: var(--text);
+}
+
+.dismissBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

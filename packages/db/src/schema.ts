@@ -73,7 +73,7 @@ export const platformEnum = pgEnum('platform', [
 export const sourceProviderEnum = pgEnum('source_provider', ['Greenhouse', 'Lever', 'Ashby', 'Personio']);
 
 /** ADR-002 §2.9: same shape as mailbox_status — a failing source is visible, not silent. */
-export const sourceStatusEnum = pgEnum('source_status', ['active', 'failing', 'disabled']);
+export const sourceStatusEnum = pgEnum('source_status', ['active', 'failing', 'disabled', 'suggested']);
 export const authKindEnum = pgEnum('auth_kind', ['app_password', 'oauth', 'imap', 'forwarding']);
 export const mailboxStatusEnum = pgEnum('mailbox_status', [
   'pending_verification',

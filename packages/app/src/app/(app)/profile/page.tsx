@@ -14,7 +14,7 @@ import { ForwardingConnect } from '@/components/ForwardingConnect';
 import { ModePicker } from '@/components/ModePicker';
 import { RulesEditor } from '@/components/RulesEditor';
 import { SourcesManager } from '@/components/SourcesManager';
-import { getSources } from '@/lib/source-actions';
+import { getSources, getSuggestedSources } from '@/lib/source-actions';
 import { currentUser, withTenant } from '@/lib/session';
 import styles from './page.module.css';
 
@@ -28,7 +28,7 @@ function isExpiringSoon(d: Date | null): boolean {
 export default async function ProfilePage() {
   const user = await currentUser();
 
-  const [[ruleset, account, profile, directions, coverage], userSources] = await Promise.all([
+  const [[ruleset, account, profile, directions, coverage], userSources, suggestedSources] = await Promise.all([
     withTenant(user.id, async (tx) => {
       let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
       try {
@@ -50,6 +50,7 @@ export default async function ProfilePage() {
       return [rs, acct, prof, dirs, cov] as const;
     }),
     getSources(),
+    getSuggestedSources(),
   ]);
 
   return (
@@ -112,7 +113,7 @@ export default async function ProfilePage() {
 
         <div className={styles.section}>
           <p className={styles.sectionLabel}>Companies to watch</p>
-          <SourcesManager initial={userSources} />
+          <SourcesManager initial={userSources} initialSuggestions={suggestedSources} />
         </div>
 
         <div className={styles.section}>

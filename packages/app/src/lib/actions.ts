@@ -18,6 +18,7 @@ import { DEFAULT_RULESET, type Mode, type Ruleset } from '@job-digest/core';
 import { applicationEvents, adUserState, mailboxes, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import {
+  discoverSources,
   fetchApiSources,
   generateInboundAddress,
   GmailAuthError,
@@ -178,6 +179,7 @@ async function runIngestion(params: {
   lastSyncedAt: Date | null;
 }): Promise<void> {
   const { userId, mailboxId, runId } = params;
+  const runStartedAt = new Date();
   try {
     if (params.authKind === 'oauth' && params.provider === 'google') {
       const credRows = await workerWithTenant(rawPool(), userId, (tx) =>
@@ -234,6 +236,9 @@ async function runIngestion(params: {
     }
     revalidatePath('/digest');
     revalidatePath('/unread');
+    // Fire-and-forget: probe for ATS boards of companies that appeared this run.
+    // Failures are silent — discovery is best-effort, never blocking.
+    discoverSources(rawPool(), userId, runStartedAt).catch(() => undefined);
   } catch (err) {
     const errorKind = err instanceof GmailAuthError ? 'auth' : 'internal';
     const message = err instanceof Error ? err.message : String(err);
