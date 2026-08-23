@@ -1,6 +1,6 @@
-export { SENDER_ALLOWLIST, classify, domainMatches, type Platform } from './classify';
+export { SENDER_ALLOWLIST, classify, domainMatches, type ApiPlatform, type EmailPlatform, type Platform } from './classify';
 export { declaredCount, type Declaration } from './declare';
-export { dedupeKey, externalId } from './dedupe';
+export { dedupeKey, dedupeKeyFromStrings, externalId } from './dedupe';
 export { findEmbeddedMessage, parseEml, type InboundEmail, type MimeParts } from './eml';
 export { layoutHash } from './layout-hash';
 export { normalizeWhitespace, verifyQuote } from './verify-quote';

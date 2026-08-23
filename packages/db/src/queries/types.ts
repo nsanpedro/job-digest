@@ -114,6 +114,12 @@ export interface Digest {
   window: { start: Date; end: Date };
   metrics: DigestMetrics;
   visible: DigestAd[];
+  /**
+   * Ads that passed rules but don't match any of the user's interested
+   * directions. Empty when no directions are marked interested — the filter
+   * only activates once the user has expressed a preference (I10).
+   */
+  offTarget: DigestAd[];
   dismissed: DismissedAd[];
   parse: ParseSummary;
   rulesetVersion: number;

@@ -7,9 +7,16 @@
  * never requested (I14). The forwarding webhook uses the same list to decide
  * what it accepts (§4.5).
  */
-export type Platform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
+/** Email-based platforms (I14 allowlist). */
+export type EmailPlatform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
 
-export const SENDER_ALLOWLIST: Record<Platform, readonly string[]> = {
+/** Keyless public API providers (ADR-002). */
+export type ApiPlatform = 'Greenhouse' | 'Lever' | 'Ashby' | 'Personio';
+
+/** All platforms — spans both acquisition paths. Maps to the DB `platform` enum. */
+export type Platform = EmailPlatform | ApiPlatform;
+
+export const SENDER_ALLOWLIST: Record<EmailPlatform, readonly string[]> = {
   LinkedIn: ['linkedin.com'],
   Xing: ['xing.com'],
   Indeed: ['indeed.com'],
@@ -32,12 +39,12 @@ export function domainMatches(domain: string, allowed: string): boolean {
  * sender, different content, and `not_an_alert` is a successful outcome
  * recorded at parse time (§6.2).
  */
-export function classify(fromAddr: string): Platform | 'not_allowlisted' {
+export function classify(fromAddr: string): EmailPlatform | 'not_allowlisted' {
   const at = fromAddr.lastIndexOf('@');
   if (at < 0) return 'not_allowlisted';
   const domain = fromAddr.slice(at + 1).trim().replace(/>$/, '');
   for (const [platform, domains] of Object.entries(SENDER_ALLOWLIST) as Array<
-    [Platform, readonly string[]]
+    [EmailPlatform, readonly string[]]
   >) {
     if (domains.some((allowed) => domainMatches(domain, allowed))) return platform;
   }

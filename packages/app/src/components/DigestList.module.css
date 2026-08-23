@@ -10,3 +10,54 @@
   color: var(--text-muted);
   font-size: 14px;
 }
+
+.loadMore {
+  display: block;
+  margin: 16px auto 0;
+  padding: 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.loadMore:hover {
+  background: var(--surface-hover, var(--bg-secondary));
+  color: var(--text);
+}
+
+.offTarget {
+  margin-top: 24px;
+}
+
+.offTargetToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: left;
+}
+
+.offTargetToggle:hover {
+  color: var(--text);
+}
+
+.offTargetList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}

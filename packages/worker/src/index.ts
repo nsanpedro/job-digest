@@ -19,6 +19,8 @@ export {
   type ForwardingIngestResult,
   type ForwardingVerdict,
 } from './forwarding';
+export { fetchApiSources, parseSourceUrl, type FetchApisResult } from './fetch-apis';
+export { personio } from './providers/personio';
 export {
   deriveDirections,
   DIRECTIONS_MODEL,
