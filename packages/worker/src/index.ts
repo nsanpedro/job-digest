@@ -23,6 +23,8 @@ export { fetchApiSources, parseSourceUrl, type FetchApisResult } from './fetch-a
 export { personio } from './providers/personio';
 export { discoverSources } from './discover-sources';
 export { normalizeToSlugs, discoverBoard, type DiscoveredBoard } from './providers/discover-board';
+export { CURATED_COMPANIES, type CuratedCompany, type Market } from './curated-companies';
+export { refreshOnboardingCache } from './refresh-onboarding';
 export {
   deriveDirections,
   DIRECTIONS_MODEL,

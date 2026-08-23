@@ -149,6 +149,11 @@ export const accounts = pgTable(
     /** Billing is metering hooks, not a pricing model yet (design §2). */
     subscriptionStatus: text('subscription_status'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /** NULL = not yet onboarded; set once by completeOnboarding server action. */
+    onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
+    category: text('category'),
+    city: text('city'),
+    remoteOk: boolean('remote_ok').notNull().default(false),
   },
   (t) => [
     // accounts has no user_id column; its id IS the tenant id.
@@ -674,6 +679,34 @@ export const layouts = pgTable(
     primaryKey({ columns: [t.platform, t.layoutHash] }),
     globalReadPolicy('layouts'),
     pgPolicy('layouts_worker_write', { for: 'all', to: [worker], using: sql`true`, withCheck: sql`true` }),
+  ],
+);
+
+// ── Global onboarding preview cache (no user_id) ─────────────────────────────
+
+/**
+ * Snapshot of jobs from curated companies, refreshed periodically by the
+ * worker. Global (no tenant isolation) — every new user reads the same rows
+ * during onboarding. RLS: SELECT to app_user (USING true); INSERT/UPDATE/DELETE
+ * to worker only (enforced by table grant in migration 0013, not by policy).
+ */
+export const onboardingCache = pgTable(
+  'onboarding_cache',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    provider: text('provider').notNull(),
+    slug: text('slug').notNull(),
+    displayName: text('display_name').notNull(),
+    title: text('title').notNull(),
+    locationRaw: text('location_raw'),
+    externalUrl: text('external_url').notNull(),
+    externalId: text('external_id').notNull(),
+    postedAt: timestamp('posted_at', { withTimezone: true }),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('onboarding_cache_provider_slug_id').on(t.provider, t.slug, t.externalId),
+    globalReadPolicy('onboarding_cache'),
   ],
 );
 
