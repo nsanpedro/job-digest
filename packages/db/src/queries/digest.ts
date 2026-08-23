@@ -15,7 +15,7 @@
 import { evaluate, type Verdict } from '@job-digest/core';
 import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
+import { accounts, adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
 import { getPlatformCapabilities } from './capabilities';
 import { listInterestedDirections } from './discovery';
@@ -33,6 +33,59 @@ import type {
 import { weekWindow, type Window } from './window';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
+
+// ── Location matching ─────────────────────────────────────────────────────────
+
+const REMOTE_KEYWORDS = ['remote', 'home office', 'homeoffice', 'anywhere', 'distributed'];
+
+// Country/region aliases for common cities — lets "Spain" match a Barcelona user.
+const CITY_GEO: Record<string, string[]> = {
+  barcelona:    ['spain', 'españa', ', es'],
+  madrid:       ['spain', 'españa', ', es'],
+  berlin:       ['germany', 'deutschland', ', de'],
+  munich:       ['germany', 'deutschland', ', de'],
+  münchen:      ['germany', 'deutschland', ', de'],
+  hamburg:      ['germany', 'deutschland', ', de'],
+  frankfurt:    ['germany', 'deutschland', ', de'],
+  cologne:      ['germany', 'deutschland', ', de'],
+  köln:         ['germany', 'deutschland', ', de'],
+  zurich:       ['switzerland', 'schweiz', ', ch'],
+  zürich:       ['switzerland', 'schweiz', ', ch'],
+  vienna:       ['austria', 'österreich', ', at'],
+  wien:         ['austria', 'österreich', ', at'],
+  'buenos aires': ['argentina', ', ar'],
+};
+
+/**
+ * True when the ad's raw location string is consistent with the user's city
+ * preference. Missing location → passes (we don't filter what we don't know).
+ * Remote jobs pass when the user has opted in to remote.
+ */
+function passesLocationFilter(locationRaw: string | null, city: string, remoteOk: boolean): boolean {
+  if (!locationRaw) return true;
+  const loc = locationRaw.toLowerCase();
+  if (remoteOk && REMOTE_KEYWORDS.some((kw) => loc.includes(kw))) return true;
+  if (loc.includes(city)) return true;
+  return (CITY_GEO[city] ?? []).some((alias) => loc.includes(alias));
+}
+
+// Board sources (Greenhouse, Lever, Ashby, Personio) don't expose salary
+// via their public APIs — that's by design, not a quality signal. Only
+// penalise email-sourced ads (LinkedIn, Xing, etc.) for missing facts.
+const EMAIL_PLATFORMS = new Set(['LinkedIn', 'Xing', 'StepStone', 'Indeed']);
+
+/**
+ * True when the ad has at least one concrete fact we can evaluate, or when
+ * the ad came from a board source that legitimately doesn't expose salary.
+ * Ads from email platforms (LinkedIn, Xing…) with neither pay nor home-days
+ * info are low-signal and go to offTarget.
+ */
+function hasAnySignal(ad: DigestAd): boolean {
+  if (!EMAIL_PLATFORMS.has(ad.source)) return true;
+  const pay    = ad.verdicts.find((v) => v.key === 'Pay');
+  const onsite = ad.verdicts.find((v) => v.key === 'Onsite');
+  return !(pay?.state === 'unknown' && onsite?.state === 'unknown');
+}
 
 // ── Direction matching ────────────────────────────────────────────────────────
 
@@ -113,6 +166,15 @@ export async function getDigest(
   const now = options.now ?? new Date();
   const window = options.window ?? weekWindow(now);
   const { version: rulesetVersion, rules } = await getActiveRuleset(db, userId);
+
+  // User's location preferences — used for location and signal pre-filters.
+  const acct = await db
+    .select({ city: accounts.city, remoteOk: accounts.remoteOk })
+    .from(accounts)
+    .where(eq(accounts.id, userId))
+    .limit(1);
+  const userCity = acct[0]?.city?.toLowerCase() ?? null;
+  const remoteOk = acct[0]?.remoteOk ?? false;
 
   // Ads with at least one sighting inside the window, plus the alert name and
   // arrival of the most recent such sighting.
@@ -209,15 +271,47 @@ export async function getDigest(
     return compareAds(a, b);
   });
 
-  // Split visible into role-matched vs off-target. Only activates when the
-  // user has expressed at least one direction preference — with no directions
-  // interested, every ad stays in visible and offTarget is empty (I10: filter
-  // only kicks in when the user has given us a signal to filter against).
-  let visible = allVisible;
-  let offTarget: DigestAd[] = [];
+  // Three-pass de-clutter: location → signal → direction. Each pass moves
+  // ads that don't meet the bar to offTarget instead of hiding them.
+  // A pass only activates when the user has given us the signal to filter
+  // against (city set, directions set); without any signal, nothing is moved.
+  const offTarget: DigestAd[] = [];
+  let candidates = allVisible;
+
+  // Pass 1 — location: ads not in the user's city (and not remote when remoteOk)
+  // go to offTarget. Ads with no location info stay in candidates.
+  if (userCity !== null) {
+    const next: DigestAd[] = [];
+    for (const ad of candidates) {
+      if (passesLocationFilter(ad.location, userCity, remoteOk)) {
+        next.push(ad);
+      } else {
+        offTarget.push(ad);
+      }
+    }
+    candidates = next;
+  }
+
+  // Pass 2 — signal: ads with neither pay nor home-days fact are low-signal
+  // and go to offTarget to keep the main list actionable.
+  {
+    const next: DigestAd[] = [];
+    for (const ad of candidates) {
+      if (hasAnySignal(ad)) {
+        next.push(ad);
+      } else {
+        offTarget.push(ad);
+      }
+    }
+    candidates = next;
+  }
+
+  // Pass 3 — direction: ads outside the user's role directions (I10).
+  // Only activates when at least one direction is set.
+  let visible = candidates;
   if (interestedDirs.length > 0) {
     visible = [];
-    for (const ad of allVisible) {
+    for (const ad of candidates) {
       if (matchesAnyDirection(ad.title, interestedDirs)) {
         visible.push(ad);
       } else {
@@ -226,9 +320,10 @@ export async function getDigest(
     }
   }
 
+  const anyFilterActive = userCity !== null || interestedDirs.length > 0;
   const metrics: DigestMetrics = {
     adsReceived: rows.length,
-    offTarget: interestedDirs.length > 0 ? offTarget.length : null,
+    offTarget: anyFilterActive ? offTarget.length : null,
     passing: visible.length,
     filteredByRule,
     dismissedByUser,

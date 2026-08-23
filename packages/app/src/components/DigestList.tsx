@@ -44,7 +44,7 @@ function OffTargetSection({ ads, expandedId, onToggle }: { ads: DigestAd[]; expa
       <button className={styles.offTargetToggle} onClick={() => setOpen((v) => !v)} type="button">
         <span>{open ? '▾' : '▸'}</span>
         <span>
-          {ads.length} job{ads.length === 1 ? '' : 's'} outside your role directions
+          {ads.length} job{ads.length === 1 ? '' : 's'} outside your preferences
         </span>
       </button>
       {open && (
