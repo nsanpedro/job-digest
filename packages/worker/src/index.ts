@@ -21,6 +21,8 @@ export {
 } from './forwarding';
 export { fetchApiSources, parseSourceUrl, type FetchApisResult } from './fetch-apis';
 export { personio } from './providers/personio';
+export { discoverSources } from './discover-sources';
+export { normalizeToSlugs, discoverBoard, type DiscoveredBoard } from './providers/discover-board';
 export {
   deriveDirections,
   DIRECTIONS_MODEL,

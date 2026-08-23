@@ -12,7 +12,7 @@
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { runs, sources } from '@job-digest/db';
-import { eq, and } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { fetchApiSources, parseSourceUrl, withTenant as workerWithTenant } from '@job-digest/worker';
 import { currentUserId, rawPool, withTenant } from './session';
 
@@ -46,7 +46,7 @@ export async function addSource(
   // Insert or return existing (same user, same provider+slug = idempotent).
   const existing = await withTenant(userId, (tx) =>
     tx
-      .select({ id: sources.id })
+      .select({ id: sources.id, status: sources.status })
       .from(sources)
       .where(
         and(
@@ -58,7 +58,17 @@ export async function addSource(
       .limit(1),
   );
 
-  if (existing[0]) return { sourceId: existing[0].id };
+  if (existing[0]) {
+    // If it was auto-discovered (suggested) and the user manually adds the same
+    // board, promote it to active — they've given explicit intent.
+    if (existing[0].status === 'suggested') {
+      await withTenant(userId, (tx) =>
+        tx.update(sources).set({ status: 'active' }).where(eq(sources.id, existing[0]!.id)),
+      );
+      revalidatePath('/profile');
+    }
+    return { sourceId: existing[0].id };
+  }
 
   const rows = await withTenant(userId, (tx) =>
     tx
@@ -83,7 +93,7 @@ export async function removeSource(sourceId: string): Promise<void> {
 }
 
 /**
- * List all sources for the current user, ordered by display name.
+ * List active/failing/disabled sources for the current user (not suggested).
  * Used by the Profile page to render the "Companies to watch" section.
  */
 export async function getSources(): Promise<
@@ -110,9 +120,54 @@ export async function getSources(): Promise<
         lastError: sources.lastError,
       })
       .from(sources)
-      .where(eq(sources.userId, userId))
+      .where(and(eq(sources.userId, userId), sql`${sources.status} != 'suggested'`))
       .orderBy(sources.displayName),
   );
+}
+
+/**
+ * Boards discovered automatically that the user hasn't approved yet.
+ * Shown as a separate "Suggested boards" section in SourcesManager.
+ */
+export async function getSuggestedSources(): Promise<
+  Array<{ id: string; provider: string; displayName: string; externalSlug: string }>
+> {
+  const userId = await currentUserId();
+  return withTenant(userId, (tx) =>
+    tx
+      .select({
+        id: sources.id,
+        provider: sources.provider,
+        displayName: sources.displayName,
+        externalSlug: sources.externalSlug,
+      })
+      .from(sources)
+      .where(and(eq(sources.userId, userId), eq(sources.status, 'suggested')))
+      .orderBy(sources.displayName),
+  );
+}
+
+/** Approve a suggested board — it becomes active and will be fetched on next run. */
+export async function approveSuggestedSource(sourceId: string): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, (tx) =>
+    tx
+      .update(sources)
+      .set({ status: 'active' })
+      .where(and(eq(sources.id, sourceId), eq(sources.userId, userId), eq(sources.status, 'suggested'))),
+  );
+  revalidatePath('/profile');
+}
+
+/** Dismiss a suggested board — deletes the row so it won't resurface. */
+export async function dismissSuggestedSource(sourceId: string): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, (tx) =>
+    tx
+      .delete(sources)
+      .where(and(eq(sources.id, sourceId), eq(sources.userId, userId), eq(sources.status, 'suggested'))),
+  );
+  revalidatePath('/profile');
 }
 
 /**
