@@ -10,15 +10,18 @@
  * reloads".
  */
 import { getApplicationCountsCached, getSavedCountCached, getUnreadEmailsCached } from '@/lib/nav-data';
+import { getIsOnboarded } from '@/lib/onboarding-actions';
 import { TopBar } from '@/components/Chrome';
+import { OnboardingModal } from '@/components/OnboardingModal';
 import { currentUser } from '@/lib/session';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
-  const [unread, savedCount, applications] = await Promise.all([
+  const [unread, savedCount, applications, isOnboarded] = await Promise.all([
     getUnreadEmailsCached(user.id),
     getSavedCountCached(user.id),
     getApplicationCountsCached(user.id),
+    getIsOnboarded(),
   ]);
 
   return (
@@ -29,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         applicationCount={applications.open}
         userEmail={user.email}
       />
+      {!isOnboarded && <OnboardingModal />}
       {children}
     </>
   );
