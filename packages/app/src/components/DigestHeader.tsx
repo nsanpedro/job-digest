@@ -43,7 +43,7 @@ export function DigestHeader({ digest, rules }: { digest: Digest; rules: Ruleset
           <div className={styles.value}>{metrics.adsReceived}</div>
           <p className={styles.context}>
             {metrics.explore !== null
-              ? `${metrics.explore} in the explore bucket`
+              ? `${metrics.explore.total} in the explore bucket`
               : `from ${parse.emailsRead} alert email${parse.emailsRead === 1 ? '' : 's'}`}
           </p>
         </div>

@@ -94,6 +94,12 @@
   padding-top: 12px;
 }
 
+.exploreNote {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* ── Load more (inside explore) ───────────────────────────────────────── */
 
 .loadMore {

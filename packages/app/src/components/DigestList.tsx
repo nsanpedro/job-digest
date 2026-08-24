@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Ruleset } from '@job-digest/core';
-import type { Digest, DigestAd } from '@job-digest/db';
+import type { Digest, DigestAd, DigestMetrics } from '@job-digest/db';
 import { AdCard } from './AdCard';
 import { FilteredSection } from './FilteredSection';
 import styles from './DigestList.module.css';
@@ -57,12 +57,26 @@ function TierSection({
   );
 }
 
+function exploreNote(breakdown: DigestMetrics['explore']): string | null {
+  if (!breakdown) return null;
+  const parts: string[] = [];
+  if (breakdown.preFilterMisses > 0) {
+    parts.push(`${breakdown.preFilterMisses} filtered by location or direction`);
+  }
+  if (breakdown.belowThreshold > 0) {
+    parts.push(`${breakdown.belowThreshold} scored below the top 10`);
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 function ExploreSection({
   ads,
+  breakdown,
   expandedId,
   onToggle,
 }: {
   ads: DigestAd[];
+  breakdown: DigestMetrics['explore'];
   expandedId: string | null;
   onToggle: (id: string) => void;
 }) {
@@ -71,6 +85,7 @@ function ExploreSection({
   if (ads.length === 0) return null;
   const shown = ads.slice(0, page * EXPLORE_PAGE_SIZE);
   const hasMore = shown.length < ads.length;
+  const note = exploreNote(breakdown);
 
   return (
     <div className={styles.explore}>
@@ -81,11 +96,12 @@ function ExploreSection({
       >
         <span className={styles.exploreChevron}>{open ? '▾' : '▸'}</span>
         <span>
-          {ads.length} more job{ads.length === 1 ? '' : 's'} — explore
+          {ads.length} ad{ads.length === 1 ? '' : 's'} · explore
         </span>
       </button>
       {open && (
         <div className={styles.exploreList}>
+          {note && <p className={styles.exploreNote}>{note}</p>}
           <AdList ads={shown} expandedId={expandedId} onToggle={onToggle} />
           {hasMore && (
             <button
@@ -140,7 +156,12 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
         expandedId={expandedId}
         onToggle={toggle}
       />
-      <ExploreSection ads={digest.explore} expandedId={expandedId} onToggle={toggle} />
+      <ExploreSection
+        ads={digest.explore}
+        breakdown={digest.metrics.explore}
+        expandedId={expandedId}
+        onToggle={toggle}
+      />
       <FilteredSection
         dismissed={digest.dismissed}
         rules={rules}

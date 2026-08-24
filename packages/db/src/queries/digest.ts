@@ -389,7 +389,9 @@ export async function getDigest(
   const metrics: DigestMetrics = {
     adsReceived: rows.length,
     inDigest: topPicks.length + worthAReading.length + stretch.length,
-    explore: anyFilterActive ? explore.length : null,
+    explore: anyFilterActive
+      ? { total: explore.length, preFilterMisses: explorePool.length, belowThreshold: tiered.explore.length }
+      : null,
     filteredByRule,
     dismissedByUser,
     alreadySeen,

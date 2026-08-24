@@ -97,11 +97,14 @@ export interface DigestMetrics {
    */
   inDigest: number;
   /**
-   * Ads in the explore bucket: pre-filter misses (wrong location / no signal
-   * / off-direction) plus ads that scored below tier thresholds. Null when no
-   * filter was active (no city set, no directions — the pre-passes didn't run).
+   * Ads in the explore bucket. Null when no pre-filter was active (no city set,
+   * no directions — the pre-passes didn't run, so everything was scored).
+   *
+   * `preFilterMisses` — ads that failed location / signal / direction and went
+   * to explore before scoring. `belowThreshold` — ads that were scored but
+   * didn't rank high enough to enter a tier.
    */
-  explore: number | null;
+  explore: { total: number; preFilterMisses: number; belowThreshold: number } | null;
   filteredByRule: number;
   dismissedByUser: number;
   alreadySeen: number;
