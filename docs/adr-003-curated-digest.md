@@ -59,7 +59,7 @@ Five components, each in `[0, 1]`, combined by a fixed weighted sum. The compone
 | Component | Weight | What it measures |
 | --- | --- | --- |
 | **Rule margin** | 0.30 | Not pass/fail — *how far above the floor*. Pay 4000€ against a 2600€ floor scores 1.0; Pay 2700€ scores 0.15. Averaged over the five rules. An `unknown` verdict contributes 0.5 (neutral), not 0 — see §2.6. |
-| **Direction fit** | 0.30 | Currently boolean via `matchesAnyDirection`. Becomes graded: full-phrase match = 1.0, ≥8-char single-word match = 0.6, no match = 0.0. Multiplied by the direction's `distance` (primary=1.0, adjacent=0.7, stretch=0.4 — the column is already on `directions`). |
+| **Direction fit** | 0.30 | Currently boolean via `matchesAnyDirection`. Becomes graded: full-phrase match = 1.0, ≥8-char single-word match = 0.6, no match = 0.0. Multiplied by the direction's `distance` (adjacent=1.0, stretch=0.5 — `Distance = 'adjacent' \| 'stretch'` as defined by ADR-001; the three-tier draft from the design session is not implemented). |
 | **Signal completeness** | 0.15 | Fraction of facts we could read: pay + home + location + contract + german, weighted by which the user's ruleset actually consults. An ad we understood ranks above one we didn't, at equal verdicts. |
 | **Freshness** | 0.15 | Linear decay: day 0 = 1.0, day 7 = 0.4. Kills the drift toward recycled reposts. |
 | **Source quality prior** | 0.10 | 1.0 for Greenhouse/Lever/Ashby/Personio (curated company, structured feed), 0.6 for LinkedIn/Xing/StepStone (alert noise). Small enough to be a tiebreak, not a policy. |
