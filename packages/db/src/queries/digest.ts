@@ -290,9 +290,15 @@ export async function getDigest(
     return compareAds(a, b);
   });
 
-  // ── Pass 2: three pre-filters (location → signal → direction) → explore ────
+  // ── Pass 2: two pre-filters (location → direction) → explore ─────────────
   //
-  // Ads that don't meet the bar go straight to explore without scoring.
+  // Only gates where we have a hard user preference — wrong city or wrong
+  // direction. Signal completeness (Pay/Onsite unknown) is NOT a gate: it is
+  // captured as a score component (signalCompleteness, 15%) so low-signal ads
+  // rank below high-signal ones without being eliminated entirely. Most real
+  // ads don't carry salary or remote policy in the alert email; treating that
+  // as a disqualifier removes the majority of the corpus before scoring runs.
+  //
   // A pass only activates when the user has given us signal to filter against.
 
   const explorePool: DigestAd[] = [];
@@ -302,18 +308,6 @@ export async function getDigest(
     const next: typeof eligible = [];
     for (const entry of candidates) {
       if (passesLocationFilter(entry.ad.location, userCity, remoteOk)) {
-        next.push(entry);
-      } else {
-        explorePool.push(entry.ad);
-      }
-    }
-    candidates = next;
-  }
-
-  {
-    const next: typeof eligible = [];
-    for (const entry of candidates) {
-      if (hasAnySignal(entry.ad)) {
         next.push(entry);
       } else {
         explorePool.push(entry.ad);

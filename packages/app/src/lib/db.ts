@@ -18,7 +18,12 @@ if (!url) throw new Error('DATABASE_URL is not set');
 
 // A small pool is enough for the read path (design §11) — a handful of page
 // loads a week per user, not a request-per-tenant fan-out.
-const client = postgres(url, { max: 5 });
+const client = postgres(url, {
+  max: 5,
+  // Auto-close idle connections after 20s — prevents accumulation of idle
+  // sessions on the pooler (cap: 15) across next dev restarts.
+  idle_timeout: 20,
+});
 const pool = drizzle(client);
 
 /**
