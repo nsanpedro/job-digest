@@ -6,7 +6,7 @@
  * the UI can show the ad's literal German next to each verdict — facts feed
  * evaluation, wording feeds the UI (§9).
  */
-import type { Distance, TitleFacts, Verdict, Wording } from '@job-digest/core';
+import type { Distance, ScoreBreakdown, TitleFacts, Verdict, Wording } from '@job-digest/core';
 
 export type Platform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
 
@@ -49,6 +49,12 @@ export interface DigestAd {
   fit: string | null;
   gap: string | null;
   /**
+   * Five-component score breakdown (ADR-003). Null on hard-blocked or
+   * user-dismissed ads — they are never scored. In the explore bucket the
+   * score reflects why the ad ranked below the Top 10.
+   */
+  scoreBreakdown: ScoreBreakdown | null;
+  /**
    * Latest application status the user recorded for this ad, or null if they
    * never did (I15 — asserted, never detected). A fourth axis alongside
    * saved/seen/dismissed, orthogonal to all of them per I10: applying to an ad
@@ -79,19 +85,23 @@ export interface DismissedAd extends DigestAd {
 }
 
 /**
- * The three header metrics. Each number carries the context line that makes
- * it honest; a count we cannot compute yet is null, not a guess.
+ * Aggregate counts for the digest header. Each number carries the context
+ * line that makes it honest; a count we cannot compute yet is null, not a
+ * guess.
  */
 export interface DigestMetrics {
   adsReceived: number;
   /**
-   * Ads outside the profile's target fields or city. Null until profile
-   * targeting exists (design screen 3) — the prototype's "49 off-target"
-   * cannot be computed without it, and inventing it would misreport how
-   * much the filter is doing.
+   * Ads that made it into one of the three tiers (Top + Read + Stretch).
+   * The rest sit in the explore bucket.
    */
-  offTarget: number | null;
-  passing: number;
+  inDigest: number;
+  /**
+   * Ads in the explore bucket: pre-filter misses (wrong location / no signal
+   * / off-direction) plus ads that scored below tier thresholds. Null when no
+   * filter was active (no city set, no directions — the pre-passes didn't run).
+   */
+  explore: number | null;
   filteredByRule: number;
   dismissedByUser: number;
   alreadySeen: number;
@@ -113,16 +123,24 @@ export interface ParseSummary {
 export interface Digest {
   window: { start: Date; end: Date };
   metrics: DigestMetrics;
-  visible: DigestAd[];
+  /** The two strongest-matched ads for this week (I21, I23). */
+  topPicks: DigestAd[];
+  /** Next six by fitScore after the Top picks (I21). */
+  worthAReading: DigestAd[];
+  /** Up to two ads with a failed preference but high direction fit (ADR-003 §2.3). */
+  stretch: DigestAd[];
   /**
-   * Ads that passed rules but don't match any of the user's interested
-   * directions. Empty when no directions are marked interested — the filter
-   * only activates once the user has expressed a preference (I10).
+   * Everything that didn't make the Top 10: pre-filter misses (wrong location /
+   * no signal / off-direction) plus ads that scored below tier thresholds.
+   * Collapsible — the user can always reach it, but the Top 10 is the default
+   * view (I21, ADR-003 §5).
    */
-  offTarget: DigestAd[];
+  explore: DigestAd[];
+  /** Rule-blocked and user-dismissed ads. */
   dismissed: DismissedAd[];
   parse: ParseSummary;
   rulesetVersion: number;
+  calibrationVersion: number;
 }
 
 /**

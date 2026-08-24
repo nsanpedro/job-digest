@@ -32,7 +32,12 @@ function AdPage({
   );
 }
 
-function OffTargetSection({ ads, expandedId, onToggle }: { ads: DigestAd[]; expandedId: string | null; onToggle: (id: string) => void }) {
+/**
+ * Collapsed explore bucket — all ads that didn't make the Top 10.
+ * Step 4 will add tier labels (Top / Read / Stretch) above this component;
+ * for now it keeps the existing "scroll past the main list" UX intact.
+ */
+function ExploreSection({ ads, expandedId, onToggle }: { ads: DigestAd[]; expandedId: string | null; onToggle: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   if (ads.length === 0) return null;
@@ -44,7 +49,7 @@ function OffTargetSection({ ads, expandedId, onToggle }: { ads: DigestAd[]; expa
       <button className={styles.offTargetToggle} onClick={() => setOpen((v) => !v)} type="button">
         <span>{open ? '▾' : '▸'}</span>
         <span>
-          {ads.length} job{ads.length === 1 ? '' : 's'} outside your preferences
+          {ads.length} more job{ads.length === 1 ? '' : 's'} — explore
         </span>
       </button>
       {open && (
@@ -69,6 +74,10 @@ function OffTargetSection({ ads, expandedId, onToggle }: { ads: DigestAd[]; expa
  * Owns the accordion state (design: "Un solo aviso expandido a la vez —
  * abrir uno cierra el otro"), which is why it has to be one client component
  * spanning every card rather than local state inside each AdCard.
+ *
+ * Step 4 will add tier section headers (Top picks / Worth a read / Stretch).
+ * For now the three tiers are rendered as a flat list so the digest remains
+ * functional while step 3 lands.
  */
 export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -76,12 +85,14 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
 
   const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id));
 
-  if (digest.visible.length === 0 && digest.dismissed.length === 0 && digest.offTarget.length === 0) {
+  const inDigest = [...digest.topPicks, ...digest.worthAReading, ...digest.stretch];
+
+  if (inDigest.length === 0 && digest.dismissed.length === 0 && digest.explore.length === 0) {
     return <p className={styles.empty}>No ads arrived in this window.</p>;
   }
 
-  const shown = digest.visible.slice(0, page * PAGE_SIZE);
-  const hasMore = shown.length < digest.visible.length;
+  const shown = inDigest.slice(0, page * PAGE_SIZE);
+  const hasMore = shown.length < inDigest.length;
 
   return (
     <>
@@ -94,10 +105,10 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
           onClick={() => setPage((p) => p + 1)}
           type="button"
         >
-          Show {Math.min(PAGE_SIZE, digest.visible.length - shown.length)} more
+          Show {Math.min(PAGE_SIZE, inDigest.length - shown.length)} more
         </button>
       )}
-      <OffTargetSection ads={digest.offTarget} expandedId={expandedId} onToggle={toggle} />
+      <ExploreSection ads={digest.explore} expandedId={expandedId} onToggle={toggle} />
       <FilteredSection dismissed={digest.dismissed} rules={rules} rulesetVersion={digest.rulesetVersion} />
     </>
   );

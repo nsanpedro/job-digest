@@ -47,3 +47,4 @@ export type {
   TrackedApplication,
   UnreadEmail,
 } from './queries/types';
+export type { ScoreBreakdown } from '@job-digest/core';

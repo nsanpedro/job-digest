@@ -42,14 +42,14 @@ export function DigestHeader({ digest, rules }: { digest: Digest; rules: Ruleset
           <div className={styles.label}>Ads received</div>
           <div className={styles.value}>{metrics.adsReceived}</div>
           <p className={styles.context}>
-            {metrics.offTarget !== null
-              ? `${metrics.offTarget} off-target (wrong field or city), not listed`
+            {metrics.explore !== null
+              ? `${metrics.explore} in the explore bucket`
               : `from ${parse.emailsRead} alert email${parse.emailsRead === 1 ? '' : 's'}`}
           </p>
         </div>
         <div className={styles.cell}>
-          <div className={styles.label}>Pass your rules</div>
-          <div className={styles.value}>{metrics.passing}</div>
+          <div className={styles.label}>In your digest</div>
+          <div className={styles.value}>{metrics.inDigest}</div>
           <p className={styles.context}>
             {metrics.filteredByRule} filtered out on a hard rule
           </p>

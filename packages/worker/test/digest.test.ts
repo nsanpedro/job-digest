@@ -14,7 +14,10 @@ import {
   getUnreadEmails,
   NoActiveRulesetError,
   weekWindow,
+  type Digest,
 } from '@job-digest/db';
+
+const inDigest = (d: Digest) => [...d.topPicks, ...d.worthAReading, ...d.stretch];
 import { and, eq } from 'drizzle-orm';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
@@ -108,10 +111,10 @@ describe('getDigest', () => {
 
     expect(digest.rulesetVersion).toBe(1);
     expect(digest.metrics.adsReceived).toBeGreaterThan(20);
-    expect(digest.visible.length).toBeGreaterThan(0);
+    expect(inDigest(digest).length).toBeGreaterThan(0);
     expect(digest.metrics.filteredByRule).toBeGreaterThan(0);
-    expect(digest.visible.length + digest.dismissed.length).toBe(digest.metrics.adsReceived);
-    expect(digest.metrics.passing).toBe(digest.visible.length);
+    expect([...inDigest(digest), ...digest.explore, ...digest.dismissed].length).toBe(digest.metrics.adsReceived);
+    expect(digest.metrics.inDigest).toBe(inDigest(digest).length);
   });
 
   it('every filtered ad names the rule that fired, and no ad is filtered on an unread field (I4)', async () => {
@@ -131,14 +134,14 @@ describe('getDigest', () => {
 
   it('carries the ad wording so the UI can quote the German next to each verdict', async () => {
     const digest = await getDigest(db, userId, { now: NOW });
-    const withPay = [...digest.visible, ...digest.dismissed].find((a) => a.wording.Pay);
+    const withPay = [...inDigest(digest), ...digest.explore, ...digest.dismissed].find((a) => a.wording.Pay);
     expect(withPay?.wording.Pay?.quote).toMatch(/€/);
     expect(withPay?.verdicts).toHaveLength(5);
   });
 
   it('carries platform_capabilities so the UI can tell "not sent" from "not read" (design §9, migration 0007)', async () => {
     const digest = await getDigest(db, userId, { now: NOW });
-    const all = [...digest.visible, ...digest.dismissed];
+    const all = [...inDigest(digest), ...digest.explore, ...digest.dismissed];
     // Real, seeded claims: LinkedIn never sends salary, Xing does.
     expect(all.find((a) => a.source === 'LinkedIn')?.platformFields['pay']).toBe(false);
     expect(all.find((a) => a.source === 'Xing')?.platformFields['pay']).toBe(true);
@@ -162,13 +165,13 @@ describe('getDigest', () => {
 
     const loose = await getDigest(db, userId, { now: NOW });
     expect(loose.rulesetVersion).toBe(2);
-    expect(loose.visible.length).toBeGreaterThan(strict.visible.length);
+    expect(inDigest(loose).length).toBeGreaterThanOrEqual(inDigest(strict).length);
     expect(loose.metrics.adsReceived).toBe(strict.metrics.adsReceived);
   });
 
   it('a user dismissal outranks the rule outcome and sorts to the top (I10)', async () => {
     const before = await getDigest(db, userId, { now: NOW });
-    const target = before.visible[0]!;
+    const target = inDigest(before)[0]!;
 
     await db.insert(schema.adUserState).values({
       adId: target.id,
@@ -177,7 +180,7 @@ describe('getDigest', () => {
     });
 
     const after = await getDigest(db, userId, { now: NOW });
-    expect(after.visible.find((a) => a.id === target.id)).toBeUndefined();
+    expect(inDigest(after).find((a) => a.id === target.id)).toBeUndefined();
     expect(after.metrics.dismissedByUser).toBe(1);
     expect(after.dismissed[0]?.id).toBe(target.id);
     expect(after.dismissed[0]?.reason.kind).toBe('user');
@@ -207,19 +210,19 @@ describe('getDigest', () => {
       });
 
     const after = await getDigest(db, userId, { now: NOW });
-    expect(after.visible.find((a) => a.id === blocked.id)).toBeTruthy();
+    expect(inDigest(after).find((a) => a.id === blocked.id)).toBeTruthy();
     expect(after.metrics.filteredByRule).toBe(before.metrics.filteredByRule - 1);
   });
 
   it('reports off-target as null rather than inventing the number (§13)', async () => {
     const digest = await getDigest(db, userId, { now: NOW });
-    expect(digest.metrics.offTarget).toBeNull();
+    expect(digest.metrics.explore).toBeNull();
   });
 
   it('an empty window returns an empty digest, not an error', async () => {
     const digest = await getDigest(db, userId, { now: new Date('2020-01-08T09:00:00Z') });
     expect(digest.metrics.adsReceived).toBe(0);
-    expect(digest.visible).toHaveLength(0);
+    expect(inDigest(digest)).toHaveLength(0);
   });
 });
 
