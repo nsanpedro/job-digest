@@ -218,7 +218,11 @@ const DISTANCE_FACTOR: Record<Distance, number> = {
  * ad neither wins nor loses on a signal the user did not give.
  */
 export function directionFit(title: string, directions: readonly ScoringDirection[]): number {
-  if (directions.length === 0) return 0.5;
+  // No directions configured → direction fit is not a signal at all.
+  // Return 1.0 (full score) rather than 0.5 so unconfigured users aren't
+  // silently penalised — every ad is equally valid direction-wise until the
+  // user tells us otherwise.
+  if (directions.length === 0) return 1.0;
   const t = title.toLowerCase();
   let best = 0;
   for (const dir of directions) {

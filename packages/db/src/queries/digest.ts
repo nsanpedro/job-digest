@@ -82,24 +82,6 @@ function passesLocationFilter(locationRaw: string | null, city: string, remoteOk
   return (CITY_GEO[city] ?? []).some((alias) => loc.includes(alias));
 }
 
-// Board sources (Greenhouse, Lever, Ashby, Personio) don't expose salary
-// via their public APIs — that's by design, not a quality signal. Only
-// penalise email-sourced ads (LinkedIn, Xing, etc.) for missing facts.
-const EMAIL_PLATFORMS = new Set(['LinkedIn', 'Xing', 'StepStone', 'Indeed']);
-
-/**
- * True when the ad has at least one concrete fact we can evaluate, or when
- * the ad came from a board source that legitimately doesn't expose salary.
- * Ads from email platforms (LinkedIn, Xing…) with neither pay nor home-days
- * info are low-signal and go to offTarget.
- */
-function hasAnySignal(ad: DigestAd): boolean {
-  if (!EMAIL_PLATFORMS.has(ad.source)) return true;
-  const pay    = ad.verdicts.find((v) => v.key === 'Pay');
-  const onsite = ad.verdicts.find((v) => v.key === 'Onsite');
-  return !(pay?.state === 'unknown' && onsite?.state === 'unknown');
-}
-
 // ── Direction matching ────────────────────────────────────────────────────────
 
 const STOP_WORDS = new Set(['and', 'the', 'for', 'with', 'from', 'von', 'und', 'für', 'mit', 'der', 'die', 'das', 'bei', 'zur', 'als']);

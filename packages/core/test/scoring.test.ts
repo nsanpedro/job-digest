@@ -153,8 +153,8 @@ describe('ruleMargin', () => {
 // ── directionFit ─────────────────────────────────────────────────────────────
 
 describe('directionFit', () => {
-  it('returns neutral 0.5 when the user has no directions', () => {
-    expect(directionFit('Senior Software Engineer', [])).toBe(0.5);
+  it('returns 1.0 when the user has no directions — no signal, no penalty', () => {
+    expect(directionFit('Senior Software Engineer', [])).toBe(1.0);
   });
 
   it('full-phrase match on an adjacent direction scores 1.0', () => {
@@ -431,12 +431,12 @@ describe('scoreAd', () => {
       calibration: DEFAULT_CALIBRATION,
     });
     // ruleMargin 0.5 * 0.30 = 0.150
-    // directionFit 0.5 * 0.30 = 0.150 (empty directions → neutral)
+    // directionFit 1.0 * 0.30 = 0.300 (no directions → full score, no penalty)
     // signalCompleteness 0 * 0.15 = 0
     // freshness 0.4 * 0.15 = 0.060
     // sourceQuality 0.6 * 0.10 = 0.060
-    // sum = 0.420 → 42
-    expect(result.total).toBe(42);
+    // sum = 0.570 → 57
+    expect(result.total).toBe(57);
   });
 
   it('is deterministic (same input → same output)', () => {
@@ -664,7 +664,12 @@ describe('selectTiers', () => {
       now,
       calibration: noSourceEffect,
     });
-    // 0.5*0.35 + 0.5*0.35 + 0*0.15 + 1*0.15 + 0.6*0 = 0.175+0.175+0+0.15 = 0.5 → 50
-    expect(result.total).toBe(50);
+    // ruleMargin 0.5*0.35 = 0.175
+    // directionFit 1.0*0.35 = 0.350 (no directions → full score)
+    // signalCompleteness 0*0.15 = 0
+    // freshness 1.0*0.15 = 0.150 (receivedAt === now → age 0)
+    // sourceQuality 0.6*0 = 0
+    // sum = 0.675 → 68
+    expect(result.total).toBe(68);
   });
 });
