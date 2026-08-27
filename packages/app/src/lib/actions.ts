@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { DEFAULT_RULESET, type Mode, type Ruleset } from '@job-digest/core';
-import { applicationEvents, adUserState, mailboxes, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
+import { accounts, applicationEvents, adUserState, mailboxes, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   discoverSources,
@@ -482,4 +482,17 @@ export async function connectForwarding(): Promise<{ address: string }> {
 
   revalidatePath('/profile');
   return { address };
+}
+
+export async function updateLocation(city: string, remoteOk: boolean): Promise<void> {
+  const userId = await currentUserId();
+  const trimmed = city.trim();
+  await withTenant(userId, (tx) =>
+    tx
+      .update(accounts)
+      .set({ city: trimmed === '' ? null : trimmed, remoteOk })
+      .where(eq(accounts.id, userId)),
+  );
+  revalidatePath('/profile');
+  revalidatePath('/digest');
 }

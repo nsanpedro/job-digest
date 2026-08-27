@@ -35,6 +35,7 @@ function ad(over: Partial<DigestAd> = {}): DigestAd {
     gap: null,
     applicationStatus: null,
     platformFields: {},
+    scoreBreakdown: null,
     ...over,
   };
 }
@@ -44,14 +45,17 @@ function digest(visible: DigestAd[], dismissed: DigestAd[] = []): Digest {
     window: { start: new Date('2026-07-27'), end: new Date('2026-08-03') },
     metrics: {
       adsReceived: visible.length + dismissed.length,
-      offTarget: null,
-      passing: visible.length,
+      explore: null,
+      inDigest: visible.length,
       filteredByRule: 0,
       dismissedByUser: 0,
       alreadySeen: 0,
     },
-    visible,
-    offTarget: [],
+    topPicks: visible,
+    worthAReading: [],
+    stretch: [],
+    stillOpen: [],
+    explore: [],
     dismissed: dismissed.map((a) => ({ ...a, reason: { kind: 'user' as const } })),
     parse: {
       emailsRead: 1,
@@ -63,6 +67,7 @@ function digest(visible: DigestAd[], dismissed: DigestAd[] = []): Digest {
       lastRunFailed: false,
     },
     rulesetVersion: 1,
+    calibrationVersion: 1,
   };
 }
 

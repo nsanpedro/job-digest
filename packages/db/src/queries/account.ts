@@ -15,6 +15,8 @@ export interface AccountOverview {
   email: string;
   subscriptionStatus: string | null;
   createdAt: Date;
+  city: string | null;
+  remoteOk: boolean;
   mailboxes: Array<{
     id: string;
     provider: string;
@@ -46,6 +48,8 @@ export async function getAccountOverview(db: Db, userId: string): Promise<Accoun
     email: account.email,
     subscriptionStatus: account.subscriptionStatus,
     createdAt: account.createdAt,
+    city: account.city,
+    remoteOk: account.remoteOk,
     mailboxes: boxes,
   };
 }

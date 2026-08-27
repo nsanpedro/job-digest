@@ -15,6 +15,7 @@ import {
   bigint,
   boolean,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -707,6 +708,34 @@ export const onboardingCache = pgTable(
   (t) => [
     uniqueIndex('onboarding_cache_provider_slug_id').on(t.provider, t.slug, t.externalId),
     globalReadPolicy('onboarding_cache'),
+  ],
+);
+
+/**
+ * ADR-003 §2.9 (I25): one row per (user, ad, week) when that ad appeared in
+ * the digest's Top-pick tier. Used by `selectTiers` the following week to
+ * suppress re-promotion: an ad that was already recommended should fall back
+ * to Worth-a-read until it misses a week, preventing the digest from nagging.
+ *
+ * Pruned by the worker after 4 weeks — only the previous week is read for
+ * I25, but four weeks gives a small audit trail without unbounded growth.
+ */
+export const adsTopPickHistory = pgTable(
+  'ads_top_pick_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    adId: uuid('ad_id')
+      .notNull()
+      .references(() => ads.id, { onDelete: 'cascade' }),
+    /** Monday 00:00 UTC of the week this promotion happened (as a date string). */
+    weekStart: date('week_start').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('top_pick_history_user_ad_week').on(t.userId, t.adId, t.weekStart),
+    index('top_pick_history_user_week').on(t.userId, t.weekStart),
+    tenantPolicy('ads_top_pick_history'),
   ],
 );
 

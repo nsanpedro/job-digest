@@ -13,6 +13,11 @@ export { getPlatformCapabilities, type PlatformCapabilities } from './queries/ca
 export { getAccountOverview, type AccountOverview } from './queries/account';
 export { previousWeekWindow, weekWindow, type Window } from './queries/window';
 export {
+  getTopPickHistory,
+  recordTopPicks,
+  pruneTopPickHistory,
+} from './queries/top-pick-history';
+export {
   completeDerivation,
   countDerivationsSince,
   failDerivation,
@@ -42,3 +47,4 @@ export type {
   TrackedApplication,
   UnreadEmail,
 } from './queries/types';
+export type { ScoreBreakdown } from '@job-digest/core';

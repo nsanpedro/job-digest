@@ -15,7 +15,34 @@ export {
 } from './discovery';
 export { eur, describeCondition, describePredicate, predicateFactName } from './describe';
 export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked } from './evaluate';
+export {
+  DEFAULT_CALIBRATION,
+  ROLE_SYNONYMS,
+  directionFit,
+  freshness,
+  isCertain,
+  ruleMargin,
+  scoreAd,
+  selectTiers,
+  signalCompleteness,
+  sourceQuality,
+  type Calibration,
+  type ScoreAdArgs,
+  type ScoreBreakdown,
+  type ScoredAd,
+  type ScoringDirection,
+  type Tiered,
+  type TopPickHistory,
+} from './scoring';
 export { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from './default-ruleset';
+export {
+  DIAGNOSTIC_MIN_CURATED,
+  explainDigest,
+  type BlockedAdSummary,
+  type DiagnosticInput,
+  type Insight,
+  type InsightKind,
+} from './explain-digest';
 export {
   applyMode,
   isMode,

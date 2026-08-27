@@ -9,17 +9,31 @@
  *
  * Assembly happens in JS rather than in one SQL statement. At the real scale
  * — a few hundred ads a week per user — the cost is nothing, and the split
- * between visible, rule-blocked and user-dismissed is I10's distinction,
- * which reads far better as three named branches than as a CASE expression.
+ * between tiers (Top / Read / Stretch / Explore) and dismissed (rule-blocked
+ * / user-dismissed) reads far better than a CASE expression.
+ *
+ * Scoring (ADR-003): `fitScore` is computed here alongside verdicts (I22,
+ * extending I6 from verdicts to ranking). Hard-blocked ads are dismissed
+ * before scoring — score is only defined for eligible ads.
  */
-import { evaluate, type Verdict } from '@job-digest/core';
-import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
+import {
+  DEFAULT_CALIBRATION,
+  ROLE_SYNONYMS,
+  evaluate,
+  scoreAd,
+  selectTiers,
+  type ScoreBreakdown,
+  type ScoredAd,
+  type Verdict,
+} from '@job-digest/core';
+import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { accounts, adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
 import { getPlatformCapabilities } from './capabilities';
 import { listInterestedDirections } from './discovery';
 import { getActiveRuleset } from './ruleset';
+import { getTopPickHistory, recordTopPicks } from './top-pick-history';
 import type {
   Digest,
   DigestAd,
@@ -69,24 +83,6 @@ function passesLocationFilter(locationRaw: string | null, city: string, remoteOk
   return (CITY_GEO[city] ?? []).some((alias) => loc.includes(alias));
 }
 
-// Board sources (Greenhouse, Lever, Ashby, Personio) don't expose salary
-// via their public APIs — that's by design, not a quality signal. Only
-// penalise email-sourced ads (LinkedIn, Xing, etc.) for missing facts.
-const EMAIL_PLATFORMS = new Set(['LinkedIn', 'Xing', 'StepStone', 'Indeed']);
-
-/**
- * True when the ad has at least one concrete fact we can evaluate, or when
- * the ad came from a board source that legitimately doesn't expose salary.
- * Ads from email platforms (LinkedIn, Xing…) with neither pay nor home-days
- * info are low-signal and go to offTarget.
- */
-function hasAnySignal(ad: DigestAd): boolean {
-  if (!EMAIL_PLATFORMS.has(ad.source)) return true;
-  const pay    = ad.verdicts.find((v) => v.key === 'Pay');
-  const onsite = ad.verdicts.find((v) => v.key === 'Onsite');
-  return !(pay?.state === 'unknown' && onsite?.state === 'unknown');
-}
-
 // ── Direction matching ────────────────────────────────────────────────────────
 
 const STOP_WORDS = new Set(['and', 'the', 'for', 'with', 'from', 'von', 'und', 'für', 'mit', 'der', 'die', 'das', 'bei', 'zur', 'als']);
@@ -99,43 +95,50 @@ function tokenize(text: string): string[] {
 }
 
 /**
+ * True when `word` (or any of its ROLE_SYNONYMS from core) appears as a
+ * substring of the title. Mirrors the same helper in `packages/core`'s
+ * `directionFit` — kept duplicated because the two functions differ only
+ * in graded-vs-boolean output.
+ */
+function titleHasWord(title: string, word: string): boolean {
+  const alts = ROLE_SYNONYMS[word] ?? [word];
+  return alts.some((alt) => title.includes(alt));
+}
+
+function directionMatches(title: string, dir: DirectionRow): boolean {
+  if (dir.searchTerms.some((term) => {
+    const words = tokenize(term);
+    return words.length > 0 && words.every((w) => titleHasWord(title, w));
+  })) return true;
+  return dir.searchTerms.flatMap(tokenize).some((w) => w.length >= 8 && titleHasWord(title, w));
+}
+
+/**
  * True when this job title is relevant to at least one of the user's
- * interested directions. Two tracks for precision + recall:
- *
- * Track 1 — phrase match: ALL words in a searchTerm must appear as substrings
- * in the title. "Engineering Manager" requires both → "Customer Success Manager"
- * fails. German terms (Entwickler, Architekt) naturally don't match English
- * titles, which is fine — track 2 covers the English vocabulary.
- *
- * Track 2 — long-word match: any individual word of 7+ chars from any
- * searchTerm appears as a substring in the title. At 7+ chars a word is
- * domain-specific enough to match alone ("frontend", "engineer", "typescript",
- * "fullstack") without producing false positives from short generic words
- * ("lead", "team", "senior"). Bridge skills are intentionally excluded here —
- * they are full sentences whose tokenized words ("performance", "partnering")
- * are too generic to match alone.
+ * interested directions. Used as the gate in Pass 3 — same two-track logic
+ * as `directionFit` in scoring, but boolean: ads that fail this gate go
+ * straight to explore without scoring.
  */
 function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
   if (dirs.length === 0) return true;
   const t = title.toLowerCase();
-
-  return dirs.some((dir) => {
-    // Track 1: all words of a searchTerm as substrings in title
-    if (dir.searchTerms.some((term) => {
-      const words = tokenize(term);
-      return words.length > 0 && words.every((w) => t.includes(w));
-    })) return true;
-
-    // Track 2: any single 8+ char word from any searchTerm as a substring.
-    // 8+ filters out short generic words ("manager"=7, "senior"=6, "lead"=4)
-    // that produce false positives when matched alone without phrase context.
-    return dir.searchTerms.flatMap(tokenize).some((w) => w.length >= 8 && t.includes(w));
-  });
+  return dirs.some((dir) => directionMatches(t, dir));
 }
 
-// ── Ordering ──────────────────────────────────────────────────────────────────
+/**
+ * The IDs of directions that match this title, for the per-direction
+ * diversity cap in selectTiers (I24). Same matching logic as matchesAnyDirection.
+ */
+function getMatchedDirectionIds(title: string, dirs: readonly DirectionRow[]): string[] {
+  const t = title.toLowerCase();
+  return dirs
+    .filter((dir) => directionMatches(t, dir))
+    .map((dir) => dir.id);
+}
 
-/** Rank for the fallback ordering: cleaner rule outcomes float up. */
+// ── Ordering (explore bucket) ─────────────────────────────────────────────────
+
+/** Rank for the explore-bucket fallback sort: cleaner rule outcomes first. */
 const STATE_RANK = { pass: 0, unknown: 1, warn: 2, block: 3 } as const;
 
 function outcomeRank(verdicts: Verdict[]): number {
@@ -143,16 +146,16 @@ function outcomeRank(verdicts: Verdict[]): number {
 }
 
 /**
- * Ordering: score first when it exists, then rule-outcome quality, then
- * recency. The middle term matters because scoring weights are still an open
- * decision (§13.1) and `score` is null today — ordering by how cleanly an ad
- * clears the rules is derived from I6 and needs no new decision, so the list
- * is usefully sorted now and improves rather than changes once scores land.
+ * Fallback sort for the explore bucket (ads outside the Top 10). Score desc
+ * first when present, then rule-outcome quality, then recency. The tiers
+ * themselves are ordered by `selectTiers` — this only affects explore.
  */
 function compareAds(a: DigestAd, b: DigestAd): number {
-  if (a.score !== null && b.score !== null && a.score !== b.score) return b.score - a.score;
-  if (a.score !== null && b.score === null) return -1;
-  if (a.score === null && b.score !== null) return 1;
+  const as = a.scoreBreakdown?.total ?? null;
+  const bs = b.scoreBreakdown?.total ?? null;
+  if (as !== null && bs !== null && as !== bs) return bs - as;
+  if (as !== null && bs === null) return -1;
+  if (as === null && bs !== null) return 1;
   const rank = outcomeRank(a.verdicts) - outcomeRank(b.verdicts);
   if (rank !== 0) return rank;
   return b.receivedAt.getTime() - a.receivedAt.getTime();
@@ -209,8 +212,15 @@ export async function getDigest(
   const capabilities = await getPlatformCapabilities(db);
 
   const interestedDirs = await listInterestedDirections(db, userId);
+  const history = await getTopPickHistory(db, userId, now);
+  const calibration = DEFAULT_CALIBRATION;
 
-  const allVisible: DigestAd[] = [];
+  // ── Pass 1: split into dismissed vs. eligible ──────────────────────────────
+
+  // Eligible ads (not user-dismissed, not hard-blocked) plus their raw facts
+  // — facts are needed for scoring and dropped from DigestAd to keep that
+  // type light.
+  const eligible: Array<{ ad: DigestAd; facts: typeof rows[number]['ad']['facts'] }> = [];
   const dismissed: DismissedAd[] = [];
   let filteredByRule = 0;
   let dismissedByUser = 0;
@@ -243,6 +253,7 @@ export async function getDigest(
       titleFacts: row.ad.titleFacts,
       fit: narrative?.fit ?? null,
       gap: narrative?.gap ?? null,
+      scoreBreakdown: null, // filled in below for eligible ads
       applicationStatus: appliedByAd.get(row.ad.id) ?? null,
       platformFields: capabilities[row.ad.source as Platform] ?? {},
     };
@@ -254,77 +265,122 @@ export async function getDigest(
       continue;
     }
     const blockers = verdicts.filter((v) => v.state === 'block');
-    // An override puts a rule-blocked ad back in the main list; the user
-    // decided, and §7.5 counts that decision against the rule.
+    // An override puts a rule-blocked ad back; §7.5 counts that decision.
     if (blockers.length > 0 && !row.state?.overriddenAt) {
       filteredByRule++;
       dismissed.push({ ...base, reason: { kind: 'rule', blockers } });
       continue;
     }
-    allVisible.push(base);
+    eligible.push({ ad: base, facts: row.ad.facts });
   }
 
-  allVisible.sort(compareAds);
-  // User dismissals sit above rule dismissals (design, screen 1).
+  // User dismissals above rule dismissals (design, screen 1).
   dismissed.sort((a, b) => {
     if (a.reason.kind !== b.reason.kind) return a.reason.kind === 'user' ? -1 : 1;
     return compareAds(a, b);
   });
 
-  // Three-pass de-clutter: location → signal → direction. Each pass moves
-  // ads that don't meet the bar to offTarget instead of hiding them.
-  // A pass only activates when the user has given us the signal to filter
-  // against (city set, directions set); without any signal, nothing is moved.
-  const offTarget: DigestAd[] = [];
-  let candidates = allVisible;
+  // ── Pass 2: two pre-filters (location → direction) → explore ─────────────
+  //
+  // Only gates where we have a hard user preference — wrong city or wrong
+  // direction. Signal completeness (Pay/Onsite unknown) is NOT a gate: it is
+  // captured as a score component (signalCompleteness, 15%) so low-signal ads
+  // rank below high-signal ones without being eliminated entirely. Most real
+  // ads don't carry salary or remote policy in the alert email; treating that
+  // as a disqualifier removes the majority of the corpus before scoring runs.
+  //
+  // A pass only activates when the user has given us signal to filter against.
 
-  // Pass 1 — location: ads not in the user's city (and not remote when remoteOk)
-  // go to offTarget. Ads with no location info stay in candidates.
+  const explorePool: DigestAd[] = [];
+  let candidates = eligible;
+
   if (userCity !== null) {
-    const next: DigestAd[] = [];
-    for (const ad of candidates) {
-      if (passesLocationFilter(ad.location, userCity, remoteOk)) {
-        next.push(ad);
+    const next: typeof eligible = [];
+    for (const entry of candidates) {
+      if (passesLocationFilter(entry.ad.location, userCity, remoteOk)) {
+        next.push(entry);
       } else {
-        offTarget.push(ad);
+        explorePool.push(entry.ad);
       }
     }
     candidates = next;
   }
 
-  // Pass 2 — signal: ads with neither pay nor home-days fact are low-signal
-  // and go to offTarget to keep the main list actionable.
-  {
-    const next: DigestAd[] = [];
-    for (const ad of candidates) {
-      if (hasAnySignal(ad)) {
-        next.push(ad);
-      } else {
-        offTarget.push(ad);
-      }
-    }
-    candidates = next;
-  }
-
-  // Pass 3 — direction: ads outside the user's role directions (I10).
-  // Only activates when at least one direction is set.
-  let visible = candidates;
   if (interestedDirs.length > 0) {
-    visible = [];
-    for (const ad of candidates) {
-      if (matchesAnyDirection(ad.title, interestedDirs)) {
-        visible.push(ad);
+    const next: typeof eligible = [];
+    for (const entry of candidates) {
+      if (matchesAnyDirection(entry.ad.title, interestedDirs)) {
+        next.push(entry);
       } else {
-        offTarget.push(ad);
+        explorePool.push(entry.ad);
       }
     }
+    candidates = next;
   }
+
+
+
+  // ── Pass 3: score + select tiers ──────────────────────────────────────────
+
+  const adById = new Map<string, DigestAd>();
+  const scoredPool: ScoredAd[] = [];
+
+  for (const { ad, facts } of candidates) {
+    const breakdown: ScoreBreakdown = scoreAd({
+      facts,
+      verdicts: ad.verdicts,
+      ruleset: rules,
+      directions: interestedDirs,
+      title: ad.title,
+      source: ad.source,
+      receivedAt: ad.receivedAt,
+      now,
+      calibration,
+    });
+
+    const withScore: DigestAd = { ...ad, score: breakdown.total, scoreBreakdown: breakdown };
+    adById.set(ad.id, withScore);
+
+    const scored: ScoredAd = {
+      id: ad.id,
+      score: breakdown,
+      verdicts: ad.verdicts,
+      company: ad.company,
+      source: ad.source,
+      matchedDirectionIds: getMatchedDirectionIds(ad.title, interestedDirs),
+      hasPreferenceWarn: ad.verdicts.some(
+        (v) => v.severity === 'preference' && v.state === 'warn',
+      ),
+      repeat: ad.repeat,
+    };
+    scoredPool.push(scored);
+  }
+
+  const tiered = selectTiers(scoredPool, history, calibration);
+
+  // Reconstruct DigestAd[] from tier ids; ads not in adById are impossible
+  // (selectTiers only returns ids we put in), so the non-null assertion is safe.
+  const toDigestAds = (tier: readonly ScoredAd[]): DigestAd[] =>
+    tier.map((s) => adById.get(s.id)!);
+
+  const topPicks = toDigestAds(tiered.topPicks);
+  const worthAReading = toDigestAds(tiered.worthAReading);
+  const stretch = toDigestAds(tiered.stretch);
+  const stillOpen = toDigestAds(tiered.stillOpen);
+  // Explore = pre-filter misses + everything selectTiers left over (new ads
+  // below threshold, and repeats that didn't fit under the stillOpen cap).
+  const explore = [...explorePool, ...toDigestAds(tiered.explore)].sort(compareAds);
+
+  // Record top picks for I25 (idempotent via unique index).
+  await recordTopPicks(db, userId, topPicks.map((a) => a.id), now);
 
   const anyFilterActive = userCity !== null || interestedDirs.length > 0;
   const metrics: DigestMetrics = {
     adsReceived: rows.length,
-    offTarget: anyFilterActive ? offTarget.length : null,
-    passing: visible.length,
+    inDigest: topPicks.length + worthAReading.length + stretch.length,
+    explore: anyFilterActive
+      ? { total: explore.length, preFilterMisses: explorePool.length, belowThreshold: tiered.explore.length }
+      : null,
     filteredByRule,
     dismissedByUser,
     alreadySeen,
@@ -333,11 +389,15 @@ export async function getDigest(
   return {
     window,
     metrics,
-    visible,
-    offTarget,
+    topPicks,
+    worthAReading,
+    stretch,
+    stillOpen,
+    explore,
     dismissed,
     parse: await getParseSummary(db, userId, window),
     rulesetVersion,
+    calibrationVersion: calibration.version,
   };
 }
 

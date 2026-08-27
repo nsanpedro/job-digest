@@ -81,6 +81,7 @@ function toDigestAd(row: {
     gap: null,
     applicationStatus,
     platformFields,
+    scoreBreakdown: null,
   };
 }
 

@@ -5,6 +5,7 @@ import type { DigestAd } from '@job-digest/db';
 import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
 import { RuleLane } from './RuleLane';
+import { ScoreBreakdown } from './ScoreBreakdown';
 import { TitleFactChips } from './TitleFactChips';
 import { EDGE_COLOR, STATE_VISUALS, worstOf } from './rule-visuals';
 import styles from './AdCard.module.css';
@@ -239,6 +240,11 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
           <div className={styles.fullProse}>
             {ad.fit && <p className={styles.proseFit}>{ad.fit}</p>}
             {ad.gap && <p className={styles.proseGap}>{ad.gap}</p>}
+          </div>
+        )}
+        {ad.scoreBreakdown && (
+          <div className={styles.scoreBreakdownWrap}>
+            <ScoreBreakdown breakdown={ad.scoreBreakdown} />
           </div>
         )}
       </div>
