@@ -193,6 +193,18 @@ describe('directionFit', () => {
     expect(directionFit('Marketing Analyst', dirs)).toBe(0);
   });
 
+  it('role synonyms — direction "engineer" matches title "developer" or "entwickler"', () => {
+    const dirs = [direction({ searchTerms: ['frontend engineer'], distance: 'adjacent' })];
+    // Full-phrase match via synonym: "frontend" (substring in title) AND
+    // "engineer" (via synonym → "developer" in title).
+    expect(directionFit('Senior Frontend Developer', dirs)).toBe(1);
+    // Same via German synonym.
+    expect(directionFit('Senior Frontend Entwickler', dirs)).toBe(1);
+    // Long-word match: "engineer" isn't present as substring, but "developer"
+    // (synonym, ≥8 chars) is → 0.6.
+    expect(directionFit('Full Stack Developer', dirs)).toBeCloseTo(0.6);
+  });
+
   it('short generic words alone (≤7 chars) do not trigger long-word match', () => {
     // "senior" is 6 chars, "manager" is 7 — both below the 8-char threshold.
     const dirs = [direction({ searchTerms: ['senior manager'], distance: 'adjacent' })];
@@ -430,13 +442,13 @@ describe('scoreAd', () => {
       now,
       calibration: DEFAULT_CALIBRATION,
     });
-    // ruleMargin 0.5 * 0.30 = 0.150
-    // directionFit 1.0 * 0.30 = 0.300 (no directions → full score, no penalty)
-    // signalCompleteness 0 * 0.15 = 0
-    // freshness 0.4 * 0.15 = 0.060
+    // ruleMargin 0.5 * 0.25 = 0.125
+    // directionFit 1.0 * 0.35 = 0.350 (no directions → full score, no penalty)
+    // signalCompleteness 0 * 0.10 = 0
+    // freshness 0.4 * 0.20 = 0.080
     // sourceQuality 0.6 * 0.10 = 0.060
-    // sum = 0.570 → 57
-    expect(result.total).toBe(57);
+    // sum = 0.615 → 62
+    expect(result.total).toBe(62);
   });
 
   it('is deterministic (same input → same output)', () => {
@@ -478,6 +490,7 @@ describe('selectTiers', () => {
     source: p.source ?? 'Greenhouse',
     matchedDirectionIds: p.matchedDirectionIds ?? [],
     hasPreferenceWarn: p.hasPreferenceWarn ?? false,
+    repeat: p.repeat,
   });
 
   const empty: ReadonlySet<string> = new Set();
@@ -517,7 +530,7 @@ describe('selectTiers', () => {
     ];
     const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
     expect(result.topPicks.map((a) => a.id)).toEqual(['b', 'c']);
-    // 'a' still qualifies for read (score 99 >= 55) — I23 only gates Top.
+    // 'a' still qualifies for read (score 99 >= 50) — I23 only gates Top.
     expect(result.worthAReading.map((a) => a.id)).toContain('a');
   });
 
@@ -547,10 +560,10 @@ describe('selectTiers', () => {
 
   it('I24 — worth-a-read per-company cap is 2', () => {
     const pool = Array.from({ length: 5 }, (_, i) =>
-      mk({ id: `n26-${i}`, total: 70, company: 'N26' }),
+      mk({ id: `n26-${i}`, total: 65, company: 'N26' }),
     );
     const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    // Score 70 is under the top threshold (75), so all five compete for Read.
+    // Score 65 is under the top threshold (70), so all five compete for Read.
     // At most 2 per company can be in Read.
     expect(result.worthAReading).toHaveLength(2);
     expect(result.explore).toHaveLength(3);
@@ -558,7 +571,7 @@ describe('selectTiers', () => {
 
   it('I24 — per-platform cap is 5', () => {
     const pool = Array.from({ length: 8 }, (_, i) =>
-      mk({ id: `li-${i}`, total: 70, source: 'LinkedIn', company: `C${i}` }),
+      mk({ id: `li-${i}`, total: 65, source: 'LinkedIn', company: `C${i}` }),
     );
     const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
     expect(result.worthAReading).toHaveLength(5);
@@ -567,7 +580,7 @@ describe('selectTiers', () => {
   });
 
   it('a slot with no qualifying candidate stays empty rather than being padded', () => {
-    // Nothing scores above 75; top picks come back empty and reads absorb.
+    // Nothing scores above 70; top picks come back empty and reads absorb.
     const pool = [
       mk({ id: 'a', total: 65 }),
       mk({ id: 'b', total: 60 }),
@@ -589,7 +602,7 @@ describe('selectTiers', () => {
     ];
     const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
     expect(result.stretch.map((a) => a.id)).toEqual(['strong-with-warn']);
-    // The other two land in Explore (below Read's 55 threshold too).
+    // The other two land in Explore (below Read's 50 threshold too).
     expect(result.explore.map((a) => a.id).sort()).toEqual(['strong-no-warn', 'weak-with-warn']);
   });
 
@@ -639,6 +652,50 @@ describe('selectTiers', () => {
     // With 8 all matching one direction, worth-a-read can only take 6.
     expect(result.worthAReading).toHaveLength(6);
     expect(result.explore).toHaveLength(2);
+  });
+
+  it('a repeat ad never enters Top / Read / Stretch, even at score 100', () => {
+    const pool: ScoredAd[] = [
+      // Repeat at the top of the scoreboard — would be a Top pick if new.
+      mk({ id: 'repeat-hi', total: 95, repeat: true }),
+      // A new ad below the top threshold, at Read.
+      mk({ id: 'new-mid', total: 65 }),
+    ];
+    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
+    expect(result.topPicks.map((a) => a.id)).not.toContain('repeat-hi');
+    expect(result.worthAReading.map((a) => a.id)).not.toContain('repeat-hi');
+    expect(result.stretch.map((a) => a.id)).not.toContain('repeat-hi');
+    expect(result.stillOpen.map((a) => a.id)).toEqual(['repeat-hi']);
+    // The new ad still lands in Read as usual.
+    expect(result.worthAReading.map((a) => a.id)).toContain('new-mid');
+  });
+
+  it('stillOpen is capped and ordered by score desc; excess repeats fall to explore', () => {
+    // 10 repeats above the read threshold — only the top 6 make stillOpen.
+    const pool: ScoredAd[] = Array.from({ length: 10 }, (_, i) =>
+      mk({ id: `r-${i}`, total: 90 - i, repeat: true }),
+    );
+    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
+    expect(result.stillOpen.map((a) => a.id)).toEqual(['r-0', 'r-1', 'r-2', 'r-3', 'r-4', 'r-5']);
+    expect(result.explore.map((a) => a.id)).toEqual(['r-6', 'r-7', 'r-8', 'r-9']);
+    // None of the repeats leaked into a curated tier.
+    expect(result.topPicks).toHaveLength(0);
+    expect(result.worthAReading).toHaveLength(0);
+  });
+
+  it('a repeat scoring below the read threshold goes straight to explore, not stillOpen', () => {
+    const pool: ScoredAd[] = [mk({ id: 'r-low', total: 40, repeat: true })];
+    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
+    expect(result.stillOpen).toHaveLength(0);
+    expect(result.explore.map((a) => a.id)).toEqual(['r-low']);
+  });
+
+  it('an ad with repeat:undefined is treated as new (default), competing for curated tiers', () => {
+    // Backwards-compat: existing fixtures don't set `repeat` — they still work.
+    const pool: ScoredAd[] = [mk({ id: 'legacy', total: 85 })];
+    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
+    expect(result.topPicks.map((a) => a.id)).toEqual(['legacy']);
+    expect(result.stillOpen).toHaveLength(0);
   });
 
   it('an ad using a custom calibration with weight 0 for source still totals correctly', () => {

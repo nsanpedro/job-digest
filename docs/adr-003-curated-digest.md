@@ -227,3 +227,56 @@ This is the same read-time-transparency posture the rule engine already has (ver
 **I24 — diversity is applied after ranking, not before.** Scoring produces the rank; selection culls to respect per-company (≤2), per-platform (≤5), per-direction (≤6) caps. An ad culled by diversity goes to Explore, not to a lower tier — the tiers name a *kind* of match, not a rank.
 
 **I25 — a Top pick is not re-promoted the following week.** Ads shown in Top pick in week N are ineligible for Top pick in week N+1; they may appear in Worth a read with a "still open" note. Prevents the digest from nagging.
+
+---
+
+## 8. Post-launch amendments (Aug 2026)
+
+The v1 pass shipped and the first real week's data changed four things. Recording them here rather than editing §2 preserves the reasoning trail — the original design is legible; the revisions are legible; the reader can see what the data forced.
+
+### 8.1 v2 calibration — rebalanced weights and thresholds
+
+Live data (Nico's own corpus, week 34) showed the v1 math made the curated tiers structurally unreachable for the typical email-alert ad:
+
+- Xing/LinkedIn/StepStone almost never quote Pay or Onsite in the alert email → `signalCompleteness = 0`, `ruleMargin ≈ 0.5` (neutral).
+- With those fixed, the score depended almost entirely on `directionFit`.
+- A long-word direction match (0.6) on an email-platform ad capped total at **54** — below `worthAReading = 55`.
+- A full-phrase match on an email-platform ad capped at **66** — well below `topPick = 75`.
+
+v2 shifts weight away from what we rarely read toward what we can measure, and lowers the thresholds to match the resulting distribution:
+
+| Component | v1 weight | v2 weight |
+| --- | --- | --- |
+| `directionFit` | 0.30 | **0.35** |
+| `ruleMargin` | 0.30 | **0.25** |
+| `freshness` | 0.15 | **0.20** |
+| `sourceQuality` | 0.10 | 0.10 |
+| `signalCompleteness` | 0.15 | **0.10** |
+
+| Tier | v1 threshold | v2 threshold |
+| --- | --- | --- |
+| `topPick` | 75 | **70** |
+| `worthAReading` | 55 | **50** |
+| `stretch` | 65 | **60** |
+
+Same posture as v1: hand-picked for N=1. `calibration.version` bumped to 2; a screenshot from a v1 week stays legible.
+
+### 8.2 Role synonyms — `engineer ↔ developer ↔ entwickler`
+
+`matchesAnyDirection` and `directionFit` both treated the three as distinct words. In a bilingual (English / German) market where the same role gets titled "Full Stack Developer", "Senior Software Engineer", or "Senior Entwickler" interchangeably, a direction search term "Engineer" would fail to match "Developer" — the same role, different word.
+
+Fix: one small `ROLE_SYNONYMS` map (three keys, `packages/core/src/scoring.ts`), applied at match time. All entries are ≥8 chars, so the long-word gate remains meaningful. Kept minimal on purpose — adding "senior" / "lead" would open false positives ("Senior Nurse" ≠ engineering).
+
+### 8.3 I25 extended: repeats never enter Top / Read / Stretch
+
+v1 blocked Top-pick re-promotion only. Live data showed 93% of a typical week's corpus was `firstSeenAt < window.start` — repeats from earlier weeks — and the read tier filled up with ads the user had already seen last week, defeating the "what's new this week" promise of the weekly digest.
+
+I25 now applies to all three curated tiers. Repeats that would have qualified score-wise surface in a new tier, `stillOpen`, capped at 6. Excess repeats fall into explore alongside the low-scoring new ads. `selectTiers` does the split internally — the caller passes the whole pool and gets `Tiered<T> & { stillOpen }` back.
+
+### 8.4 Self-diagnostic in the header
+
+When the curated tiers come up short (< 3 ads total), the digest header now renders 1–2 auto-generated observations explaining *why* — which rule blocked the most ads, whether pre-filters ate the corpus, whether ads scored below the thresholds. Pure derivation over the same data `getDigest` already returned; no extra query.
+
+The claim: on a thin week, the digest is more useful as a diagnosis of the pipeline than as an empty list. `explainDigest` in `packages/core/src/explain-digest.ts` is the pure function; `DigestDiagnostic` renders it. Above the threshold the block collapses to `null` — a healthy digest speaks for itself.
+
+Ad cards also gained an inline score breakdown (five components × their weights = total), rendered in the expanded panel. The user can trace a low match number to a specific component instead of asking why.

@@ -63,8 +63,11 @@ function exploreNote(breakdown: DigestMetrics['explore']): string | null {
   if (breakdown.preFilterMisses > 0) {
     parts.push(`${breakdown.preFilterMisses} filtered by location or direction`);
   }
+  // Includes both new ads that scored below the curated thresholds and
+  // repeats from earlier weeks that didn't fit under the "still open" cap.
+  // The label stays neutral so it holds honest for both.
   if (breakdown.belowThreshold > 0) {
-    parts.push(`${breakdown.belowThreshold} scored below the top 10`);
+    parts.push(`${breakdown.belowThreshold} ranked outside the curated tiers`);
   }
   return parts.length > 0 ? parts.join(' · ') : null;
 }
@@ -153,6 +156,13 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
         label="Stretch"
         note="Failed a preference — good direction fit"
         ads={digest.stretch}
+        expandedId={expandedId}
+        onToggle={toggle}
+      />
+      <TierSection
+        label="Still open from earlier weeks"
+        note="First seen before this week — kept out of curated on purpose"
+        ads={digest.stillOpen}
         expandedId={expandedId}
         onToggle={toggle}
       />

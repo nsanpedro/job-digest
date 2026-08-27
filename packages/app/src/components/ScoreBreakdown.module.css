@@ -1,0 +1,95 @@
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  color: var(--text);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 78px 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.component {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  position: relative;
+  border-bottom: 1px dotted var(--border);
+  cursor: help;
+  outline: none;
+}
+
+/* Tooltip: appears on hover / focus of a component label. Rendered from the
+   data-tooltip attribute so the text lives with the component and stays
+   translatable in place. Pointer-events: none so hovering the tooltip
+   itself doesn't retrigger. */
+.component[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 10;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 10px;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: none;
+}
+
+.component[data-tooltip]:hover::after,
+.component[data-tooltip]:focus::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.calc {
+  color: var(--text-faint);
+  text-align: left;
+}
+
+.points {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 30px;
+}
+
+.totalRow {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 7px;
+}
+
+.totalRow .component {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.totalRow .points {
+  font-weight: 600;
+}

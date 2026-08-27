@@ -18,6 +18,7 @@
  */
 import {
   DEFAULT_CALIBRATION,
+  ROLE_SYNONYMS,
   evaluate,
   scoreAd,
   selectTiers,
@@ -94,6 +95,25 @@ function tokenize(text: string): string[] {
 }
 
 /**
+ * True when `word` (or any of its ROLE_SYNONYMS from core) appears as a
+ * substring of the title. Mirrors the same helper in `packages/core`'s
+ * `directionFit` — kept duplicated because the two functions differ only
+ * in graded-vs-boolean output.
+ */
+function titleHasWord(title: string, word: string): boolean {
+  const alts = ROLE_SYNONYMS[word] ?? [word];
+  return alts.some((alt) => title.includes(alt));
+}
+
+function directionMatches(title: string, dir: DirectionRow): boolean {
+  if (dir.searchTerms.some((term) => {
+    const words = tokenize(term);
+    return words.length > 0 && words.every((w) => titleHasWord(title, w));
+  })) return true;
+  return dir.searchTerms.flatMap(tokenize).some((w) => w.length >= 8 && titleHasWord(title, w));
+}
+
+/**
  * True when this job title is relevant to at least one of the user's
  * interested directions. Used as the gate in Pass 3 — same two-track logic
  * as `directionFit` in scoring, but boolean: ads that fail this gate go
@@ -102,13 +122,7 @@ function tokenize(text: string): string[] {
 function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
   if (dirs.length === 0) return true;
   const t = title.toLowerCase();
-  return dirs.some((dir) => {
-    if (dir.searchTerms.some((term) => {
-      const words = tokenize(term);
-      return words.length > 0 && words.every((w) => t.includes(w));
-    })) return true;
-    return dir.searchTerms.flatMap(tokenize).some((w) => w.length >= 8 && t.includes(w));
-  });
+  return dirs.some((dir) => directionMatches(t, dir));
 }
 
 /**
@@ -118,13 +132,7 @@ function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): bool
 function getMatchedDirectionIds(title: string, dirs: readonly DirectionRow[]): string[] {
   const t = title.toLowerCase();
   return dirs
-    .filter((dir) => {
-      if (dir.searchTerms.some((term) => {
-        const words = tokenize(term);
-        return words.length > 0 && words.every((w) => t.includes(w));
-      })) return true;
-      return dir.searchTerms.flatMap(tokenize).some((w) => w.length >= 8 && t.includes(w));
-    })
+    .filter((dir) => directionMatches(t, dir))
     .map((dir) => dir.id);
 }
 
@@ -310,6 +318,8 @@ export async function getDigest(
     candidates = next;
   }
 
+
+
   // ── Pass 3: score + select tiers ──────────────────────────────────────────
 
   const adById = new Map<string, DigestAd>();
@@ -341,6 +351,7 @@ export async function getDigest(
       hasPreferenceWarn: ad.verdicts.some(
         (v) => v.severity === 'preference' && v.state === 'warn',
       ),
+      repeat: ad.repeat,
     };
     scoredPool.push(scored);
   }
@@ -355,7 +366,9 @@ export async function getDigest(
   const topPicks = toDigestAds(tiered.topPicks);
   const worthAReading = toDigestAds(tiered.worthAReading);
   const stretch = toDigestAds(tiered.stretch);
-  // Explore = pre-filter misses + ads that scored below tier thresholds.
+  const stillOpen = toDigestAds(tiered.stillOpen);
+  // Explore = pre-filter misses + everything selectTiers left over (new ads
+  // below threshold, and repeats that didn't fit under the stillOpen cap).
   const explore = [...explorePool, ...toDigestAds(tiered.explore)].sort(compareAds);
 
   // Record top picks for I25 (idempotent via unique index).
@@ -379,6 +392,7 @@ export async function getDigest(
     topPicks,
     worthAReading,
     stretch,
+    stillOpen,
     explore,
     dismissed,
     parse: await getParseSummary(db, userId, window),

@@ -76,23 +76,36 @@ export interface Calibration {
 }
 
 /**
- * v1 calibration — hand-picked for a single user (Nico), stable across the
- * scoring module's tests. Learning weights over N=1 is astrology; a code
- * change with a bumped `version` is the way to move them.
+ * v2 calibration — rebalanced after real-usage feedback (Aug 2026).
+ *
+ * v1's math made curated tiers structurally unreachable for the typical
+ * email-platform ad. With most facts null (Xing/LinkedIn rarely carry Pay
+ * or Onsite in the alert), signalCompleteness=0 and ruleMargin≈0.5, so the
+ * score depended almost entirely on directionFit. A long-word direction
+ * match capped total at 54 — below worthAReading (55). A full-phrase
+ * match on an email platform capped at 66 — well below topPick (75).
+ *
+ * v2 shifts weight away from what we rarely read (signalCompleteness,
+ * ruleMargin) toward what we can measure reliably (directionFit,
+ * freshness) and lowers the tier thresholds to match the resulting
+ * distribution. Same posture as v1 — hand-picked, not learned.
+ *
+ * Learning weights over N=1 is astrology; a code change with a bumped
+ * `version` is the way to move them.
  */
 export const DEFAULT_CALIBRATION: Calibration = {
-  version: 1,
+  version: 2,
   weights: {
-    ruleMargin: 0.3,
-    directionFit: 0.3,
-    signalCompleteness: 0.15,
-    freshness: 0.15,
+    ruleMargin: 0.25,
+    directionFit: 0.35,
+    signalCompleteness: 0.1,
+    freshness: 0.2,
     sourceQuality: 0.1,
   },
   tierThresholds: {
-    topPick: 75,
-    worthAReading: 55,
-    stretch: 65,
+    topPick: 70,
+    worthAReading: 50,
+    stretch: 60,
   },
   sourcePriors: {
     Greenhouse: 1.0,
@@ -200,6 +213,34 @@ const DISTANCE_FACTOR: Record<Distance, number> = {
 };
 
 /**
+ * Role synonyms — treat these words as interchangeable when matching a
+ * direction's search terms against an ad title. Bilingual by design: the
+ * German market posts ads in both English and German (often mixed in the
+ * same title), and the user's directions may be written in either language.
+ * Without this map, a direction whose search term is "Engineer" would fail
+ * to match a title "Fullstack Developer" — the same role, different word.
+ *
+ * Key = search-term word; values = accepted matches in the ad title.
+ * Kept minimal on purpose: only widely-interchangeable role words. Adding
+ * "senior"/"lead" would open false positives ("Senior Nurse" ≠ engineering).
+ *
+ * All entries are ≥8 chars, so the long-word gate in `directionFit` remains
+ * meaningful — a synonym match is still evidence of role affinity, not
+ * accidental substring overlap.
+ */
+export const ROLE_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
+  engineer: ['engineer', 'developer', 'entwickler'],
+  developer: ['engineer', 'developer', 'entwickler'],
+  entwickler: ['engineer', 'developer', 'entwickler'],
+};
+
+/** True when `word` (or any of its ROLE_SYNONYMS) appears as a substring of `title`. */
+function titleHasWord(title: string, word: string): boolean {
+  const alts = ROLE_SYNONYMS[word] ?? [word];
+  return alts.some((alt) => title.includes(alt));
+}
+
+/**
  * Graded upgrade of `matchesAnyDirection` (`packages/db/src/queries/digest.ts`).
  * That version is boolean — either a direction matches or it doesn't.
  * Ranking needs finer signal: a title that matches a whole search phrase is
@@ -231,14 +272,14 @@ export function directionFit(title: string, directions: readonly ScoringDirectio
     for (const term of dir.searchTerms) {
       const words = tokenize(term);
       if (words.length === 0) continue;
-      if (words.every((w) => t.includes(w))) {
+      if (words.every((w) => titleHasWord(t, w))) {
         strength = Math.max(strength, 1);
       }
     }
     if (strength < 1) {
       const anyLong = dir.searchTerms
         .flatMap(tokenize)
-        .some((w) => w.length >= 8 && t.includes(w));
+        .some((w) => w.length >= 8 && titleHasWord(t, w));
       if (anyLong) strength = Math.max(strength, 0.6);
     }
     best = Math.max(best, strength * factor);
@@ -417,12 +458,27 @@ export interface ScoredAd {
   matchedDirectionIds: readonly string[];
   /** True when a preference-severity rule ended in `warn`. Gates Stretch. */
   hasPreferenceWarn: boolean;
+  /**
+   * True when the ad was first seen in an earlier week. Repeats are kept out
+   * of the curated tiers (Top / Read / Stretch) — the weekly digest answers
+   * "what's new this week", not "what's still around". A repeat that scores
+   * high enough surfaces separately in `stillOpen` instead. Optional so
+   * existing test fixtures and callers pre-dating this field still compile
+   * (default: false — treated as a new ad).
+   */
+  repeat?: boolean;
 }
 
 export interface Tiered<T extends ScoredAd> {
   topPicks: T[];
   worthAReading: T[];
   stretch: T[];
+  /**
+   * Repeat ads that scored above the worth-a-read threshold, ordered by score
+   * desc, capped by `STILL_OPEN_CAP`. Repeats that don't fit here fall into
+   * `explore` alongside the low-scoring new ads.
+   */
+  stillOpen: T[];
   explore: T[];
 }
 
@@ -439,6 +495,13 @@ interface DiversityCaps {
 }
 
 const TIER_CAPS = { topPicks: 2, worthAReading: 6, stretch: 2 } as const;
+
+/**
+ * Maximum ads shown under "Still open from earlier weeks". Kept below the
+ * curated total (10) so a stale corpus of week-old repeats doesn't dominate
+ * the page. Excess repeats fall through to explore.
+ */
+export const STILL_OPEN_CAP = 6;
 
 const DIVERSITY: DiversityCaps = {
   maxPerCompany: 2,
@@ -538,8 +601,16 @@ export function selectTiers<T extends ScoredAd>(
 
   const sorted = [...scored].sort(byScoreDesc);
 
+  // Repeats (first seen in an earlier week) never compete for the curated
+  // tiers — they can only land in `stillOpen` or `explore`. This is I25
+  // extended: the previous rule blocked Top-pick re-promotion; the weekly-
+  // digest promise ("what's new this week") makes the same split honest for
+  // Read and Stretch too.
+  const newSorted = sorted.filter((a) => !a.repeat);
+  const repeatSorted = sorted.filter((a) => a.repeat === true);
+
   // Top-pick candidates: score >= threshold, certain (I23), not repeated (I25).
-  const topEligible = sorted.filter(
+  const topEligible = newSorted.filter(
     (ad) =>
       ad.score.total >= calibration.tierThresholds.topPick &&
       isCertain(ad.verdicts) &&
@@ -551,7 +622,7 @@ export function selectTiers<T extends ScoredAd>(
   }, state);
 
   const takenIds = new Set(topPicked.picks.map((a) => a.id));
-  const remainder = sorted.filter((a) => !takenIds.has(a.id));
+  const remainder = newSorted.filter((a) => !takenIds.has(a.id));
 
   // Worth-a-read: score >= threshold. Uses the full diversity caps.
   const readEligible = remainder.filter(
@@ -572,12 +643,23 @@ export function selectTiers<T extends ScoredAd>(
   const stretchPicked = pickWithCaps(stretchEligible, TIER_CAPS.stretch, DIVERSITY, state);
   stretchPicked.picks.forEach((a) => takenIds.add(a.id));
 
-  const explore = sorted.filter((a) => !takenIds.has(a.id));
+  // Still-open: repeats scoring above worth-a-read, capped. No diversity gate
+  // — this section is small enough that a company/platform cap would leave it
+  // half-empty for no gain.
+  const stillOpen = repeatSorted
+    .filter((a) => a.score.total >= calibration.tierThresholds.worthAReading)
+    .slice(0, STILL_OPEN_CAP);
+  const stillOpenIds = new Set(stillOpen.map((a) => a.id));
+
+  // Explore = every ad that didn't land in a tier or in stillOpen — new ads
+  // below the thresholds, and repeats that didn't fit under the cap.
+  const explore = sorted.filter((a) => !takenIds.has(a.id) && !stillOpenIds.has(a.id));
 
   return {
     topPicks: topPicked.picks,
     worthAReading: readPicked.picks,
     stretch: stretchPicked.picks,
+    stillOpen,
     explore,
   };
 }

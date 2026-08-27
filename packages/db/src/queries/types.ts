@@ -133,6 +133,14 @@ export interface Digest {
   /** Up to two ads with a failed preference but high direction fit (ADR-003 §2.3). */
   stretch: DigestAd[];
   /**
+   * Ads from earlier weeks that are still open — first seen before this week
+   * started, but scored well enough this week that they'd rank in the curated
+   * tiers if they were new. Kept out of Top/Read/Stretch on purpose: the weekly
+   * digest is meant to answer "what's new this week", not re-surface what the
+   * user already saw. Capped so the section stays scannable.
+   */
+  stillOpen: DigestAd[];
+  /**
    * Everything that didn't make the Top 10: pre-filter misses (wrong location /
    * no signal / off-direction) plus ads that scored below tier thresholds.
    * Collapsible — the user can always reach it, but the Top 10 is the default

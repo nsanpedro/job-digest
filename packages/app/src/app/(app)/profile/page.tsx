@@ -11,6 +11,7 @@ import { signIn } from '@/auth';
 import { CvIntake } from '@/components/CvIntake';
 import { DirectionCard } from '@/components/DirectionCard';
 import { ForwardingConnect } from '@/components/ForwardingConnect';
+import { LocationEditor } from '@/components/LocationEditor';
 import { ModePicker } from '@/components/ModePicker';
 import { RulesEditor } from '@/components/RulesEditor';
 import { SourcesManager } from '@/components/SourcesManager';
@@ -89,6 +90,11 @@ export default async function ProfilePage() {
             urgent mode.
           */}
           <RulesEditor initialRules={ruleset.savedRules} version={ruleset.version} />
+        </div>
+
+        <div className={styles.section}>
+          <p className={styles.sectionLabel}>Location</p>
+          <LocationEditor city={account?.city ?? null} remoteOk={account?.remoteOk ?? false} />
         </div>
 
         <div className={styles.section}>

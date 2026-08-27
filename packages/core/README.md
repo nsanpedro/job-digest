@@ -19,6 +19,25 @@ the digest's expanded panel. Presentation (the chip value and the I5-verified
 German quote) joins from the ad's wording at render time — facts feed
 evaluation, wording feeds the UI (design §9).
 
+## Ranking — `scoreAd` and `selectTiers`
+
+The curated digest (ADR-003) is layered on top of `evaluate`. Two pure functions:
+
+- **`scoreAd(facts, verdicts, ruleset, directions, title, source, receivedAt, now, calibration) → ScoreBreakdown`** — five components in `[0, 1]` (`directionFit`, `ruleMargin`, `freshness`, `sourceQuality`, `signalCompleteness`), combined by a fixed weighted sum. The `total` lives in `[0, 100]`, rounded.
+- **`selectTiers(scored, history, calibration) → Tiered<T>`** — greedy pick over the sorted pool, respecting the tier thresholds (I21), the certainty gate (I23), the per-company / per-platform / per-direction diversity caps (I24), and repeat-suppression (I25). Returns `{ topPicks, worthAReading, stretch, stillOpen, explore }`.
+
+Repeats (`ad.repeat === true`, i.e. `firstSeenAt < window.start`) never enter Top / Read / Stretch. They surface in `stillOpen` if they score above the read threshold (capped at 6), otherwise fall to `explore`. This is I25 extended past its original Top-pick scope — see ADR-003 §8.3.
+
+Role synonyms (`engineer ↔ developer ↔ entwickler`) are honored during direction match. See `ROLE_SYNONYMS` in `scoring.ts`.
+
+## `explainDigest` — thin-week diagnostic
+
+When the curated tiers come up short, `explainDigest(input) → Insight[]` returns 1–2 auto-generated observations naming *why* (which rule blocked the most ads, whether the pre-filters ate the corpus, whether ads scored below the thresholds). Pure derivation over the same data `getDigest` already computed. Above the threshold it returns `[]` — a healthy digest speaks for itself.
+
+## Calibration
+
+Weights and tier thresholds live in `DEFAULT_CALIBRATION` (versioned; current: v2). Screenshots from a v1 week stay legible because the digest header records `calibration@v`. ADR-003 §8.1 explains the v1 → v2 rebalance.
+
 ```sh
 npm test -w @job-digest/core
 ```

@@ -54,6 +54,7 @@ function digest(visible: DigestAd[], dismissed: DigestAd[] = []): Digest {
     topPicks: visible,
     worthAReading: [],
     stretch: [],
+    stillOpen: [],
     explore: [],
     dismissed: dismissed.map((a) => ({ ...a, reason: { kind: 'user' as const } })),
     parse: {
