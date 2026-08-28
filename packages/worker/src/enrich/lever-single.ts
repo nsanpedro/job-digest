@@ -1,6 +1,8 @@
 /**
  * Fetch one Lever posting by slug + posting ID (ADR-003 Tier 1).
  * Same salary + commitment parsing as providers/lever.ts.
+ *
+ * Also returns plain-text description for LLM extraction (ADR-003 Tier 1.5).
  */
 import { normalizePay } from '@job-digest/ingest';
 import type { Facts } from '@job-digest/core';
@@ -10,6 +12,10 @@ const BASE = 'https://api.lever.co/v0/postings';
 interface LeverSinglePosting {
   id: string;
   text: string;
+  description: string | null;
+  descriptionPlain: string | null;
+  lists: Array<{ text: string; content: string }> | null;
+  additional: string | null;
   categories: {
     commitment?: string;
   };
@@ -21,7 +27,14 @@ interface LeverSinglePosting {
   };
 }
 
-export async function fetchLeverPosting(slug: string, postingId: string): Promise<Partial<Facts>> {
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export async function fetchLeverPosting(
+  slug: string,
+  postingId: string,
+): Promise<{ facts: Partial<Facts>; descriptionText: string | null }> {
   const url = `${BASE}/${encodeURIComponent(slug)}/${encodeURIComponent(postingId)}?mode=json`;
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
@@ -65,7 +78,22 @@ export async function fetchLeverPosting(slug: string, postingId: string): Promis
     facts.permanent = false;
   }
 
-  // Lever does not expose shift or German level.
+  // Collect all description text for LLM extraction.
+  const parts: string[] = [];
+  if (posting.descriptionPlain) {
+    parts.push(posting.descriptionPlain);
+  } else if (posting.description) {
+    parts.push(stripHtml(posting.description));
+  }
+  if (posting.lists) {
+    for (const list of posting.lists) {
+      parts.push(stripHtml(list.content));
+    }
+  }
+  if (posting.additional) {
+    parts.push(stripHtml(posting.additional));
+  }
+  const descriptionText = parts.length > 0 ? parts.join(' ') : null;
 
-  return facts;
+  return { facts, descriptionText };
 }

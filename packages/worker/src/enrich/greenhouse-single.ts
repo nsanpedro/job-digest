@@ -2,6 +2,9 @@
  * Fetch one Greenhouse job by board slug + job ID (ADR-003 Tier 1).
  * Same metadata-salary heuristic as the batch provider (providers/greenhouse.ts)
  * — kept in sync by sharing the same parse logic via normalizePay.
+ *
+ * Also returns the plain-text job description so the caller can run
+ * LLM extraction for shift/German/onsite/contract (ADR-003 Tier 1.5).
  */
 import { normalizePay } from '@job-digest/ingest';
 import type { Facts } from '@job-digest/core';
@@ -12,6 +15,7 @@ interface GreenhouseSingleJob {
   id: number;
   title: string;
   location: { name: string } | null;
+  content: string | null;
   metadata: Array<{ name: string; value: string | null }> | null;
 }
 
@@ -23,7 +27,10 @@ function extractPayFromMetadata(
   return entry?.value ?? null;
 }
 
-export async function fetchGreenhouseJob(slug: string, jobId: string): Promise<Partial<Facts>> {
+export async function fetchGreenhouseJob(
+  slug: string,
+  jobId: string,
+): Promise<{ facts: Partial<Facts>; descriptionText: string | null }> {
   const url = `${BASE}/${encodeURIComponent(slug)}/jobs/${encodeURIComponent(jobId)}`;
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
@@ -48,8 +55,10 @@ export async function fetchGreenhouseJob(slug: string, jobId: string): Promise<P
     }
   }
 
-  // Greenhouse API does not expose shift, German level, or contract type.
-  // Remaining fields stay absent (Partial<Facts>) — caller treats as "not found".
+  const descriptionText = job.content ? stripHtml(job.content) : null;
+  return { facts, descriptionText };
+}
 
-  return facts;
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
 }

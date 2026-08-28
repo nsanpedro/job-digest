@@ -200,6 +200,99 @@ export function AdCard({
   );
 }
 
+/**
+ * Rule-by-rule breakdown in the expanded panel.
+ *
+ * Verdicts with evidence (a quote from the ad, or a block/warn outcome) render
+ * as individual rows. Everything else collapses into at most three summary rows
+ * by reason — platform never sends it, was checked in the ad but not found,
+ * or simply not available from the email. This keeps the panel informative
+ * without filling it with four identical "not read" rows.
+ */
+function RuleBreakdown({ ad }: { ad: DigestAd }) {
+  const shown: typeof ad.verdicts = [];
+  const notSentKeys: string[] = [];
+  const notFoundInAdKeys: string[] = [];
+  const notCheckedKeys: string[] = [];
+
+  for (const v of ad.verdicts) {
+    const w = ad.wording[v.key];
+    const hasQuote = Boolean(w?.quote && w.quote !== '—');
+    if (hasQuote || v.state === 'block' || v.state === 'warn') {
+      shown.push(v);
+    } else if (ad.platformFields[v.key.toLowerCase()] === false) {
+      notSentKeys.push(v.key);
+    } else {
+      const prov = ad.fieldProvenance?.[v.key];
+      if (prov === 'unknown_after_fetch' || prov === 'fetch_failed') {
+        notFoundInAdKeys.push(v.key);
+      } else {
+        notCheckedKeys.push(v.key);
+      }
+    }
+  }
+
+  return (
+    <div className={styles.ruleTable}>
+      {shown.map((v) => {
+        const sv = STATE_VISUALS[v.state];
+        const w = ad.wording[v.key];
+        return (
+          <div key={v.key} className={styles.ruleRow}>
+            <div className={styles.ruleName}>
+              {v.key}
+              {v.severity === 'hard' && <span className={styles.hardMark}> • hard</span>}
+            </div>
+            <div className={styles.ruleGlyph} style={{ background: sv.bg, color: sv.fg, border: `1px solid ${sv.bd}` }}>
+              {sv.glyph}
+            </div>
+            <div>
+              {w?.quote && w.quote !== '—' ? (
+                <>
+                  <span className={styles.quote}>„{w.quote}"</span>
+                  {w.note && <> — <span className={styles.gloss}>{w.note}</span></>}
+                </>
+              ) : (
+                <span className={styles.gloss}>{w?.note ?? ''}</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {notSentKeys.length > 0 && (
+        <div className={styles.ruleSummaryRow}>
+          <span className={styles.ruleSummaryKeys}>{notSentKeys.join(' · ')}</span>
+          {' — '}
+          <span className={styles.gloss}>{ad.source} doesn&apos;t include this in alerts</span>
+        </div>
+      )}
+
+      {notFoundInAdKeys.length > 0 && (
+        <div className={styles.ruleSummaryRow}>
+          <span className={styles.ruleSummaryKeys}>{notFoundInAdKeys.join(' · ')}</span>
+          {' — '}
+          <span className={styles.gloss}>not stated in the ad</span>
+          {ad.externalUrl && (
+            <>{' · '}<a href={ad.externalUrl} target="_blank" rel="noreferrer" className={styles.ruleSummaryLink}>Open ad&nbsp;↗</a></>
+          )}
+        </div>
+      )}
+
+      {notCheckedKeys.length > 0 && (
+        <div className={styles.ruleSummaryRow}>
+          <span className={styles.ruleSummaryKeys}>{notCheckedKeys.join(' · ')}</span>
+          {' — '}
+          <span className={styles.gloss}>not available from this email</span>
+          {ad.externalUrl && (
+            <>{' · '}<a href={ad.externalUrl} target="_blank" rel="noreferrer" className={styles.ruleSummaryLink}>Open ad&nbsp;↗</a></>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Human-readable single sentence summarising why this ad is in the digest. */
 function matchSummary(ad: DigestAd): string {
   const clauses: string[] = [];
@@ -267,43 +360,7 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
         )}
 
         <p className={styles.panelLabel}>Rule by rule — wording from the ad</p>
-        <div className={styles.ruleTable}>
-          {ad.verdicts.map((v) => {
-            const sv = STATE_VISUALS[v.state];
-            const w = ad.wording[v.key];
-            return (
-              <div key={v.key} className={styles.ruleRow}>
-                <div className={styles.ruleName}>
-                  {v.key}
-                  {v.severity === 'hard' && <span className={styles.hardMark}> • hard</span>}
-                </div>
-                <div className={styles.ruleGlyph} style={{ background: sv.bg, color: sv.fg, border: `1px solid ${sv.bd}` }}>
-                  {sv.glyph}
-                </div>
-                <div>
-                  {w?.quote && w.quote !== '—' ? (
-                    <>
-                      <span className={styles.quote}>„{w.quote}"</span>
-                      {w.note && <> — <span className={styles.gloss}>{w.note}</span></>}
-                    </>
-                  ) : (
-                    <span className={styles.gloss}>
-                      {w?.note ||
-                        (ad.platformFields[v.key.toLowerCase()] === false
-                          ? `${ad.source} alerts don't include this — not a failure of the reader`
-                          : (() => {
-                              const prov = ad.fieldProvenance?.[v.key];
-                              if (prov === 'unknown_after_fetch') return 'not stated in the ad';
-                              if (prov === 'fetch_failed') return 'not read from this email — open the original ad to check';
-                              return 'not read from this email — open the original ad to check';
-                            })())}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <RuleBreakdown ad={ad} />
         {(ad.fit || ad.gap) && (
           <div className={styles.fullProse}>
             {ad.fit && <p className={styles.proseFit}>{ad.fit}</p>}

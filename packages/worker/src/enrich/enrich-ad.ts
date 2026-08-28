@@ -15,6 +15,7 @@ import { withTenant, type Db } from '../tenant';
 import { detectTier1 } from './detect-tier';
 import { fetchGreenhouseJob } from './greenhouse-single';
 import { fetchLeverPosting } from './lever-single';
+import { extractFactsFromText } from './extract-from-text';
 import type { Facts } from '@job-digest/core';
 
 export async function enrichAd(
@@ -27,15 +28,26 @@ export async function enrichAd(
   if (!match) return;
 
   let extractedFacts: Partial<Facts> | null = null;
+  let rawExcerpt: string | null = null;
   let status: 'fetched' | 'fetch_failed' = 'fetch_failed';
 
   try {
+    let descriptionText: string | null = null;
     if (match.platform === 'greenhouse') {
-      extractedFacts = await fetchGreenhouseJob(match.slug, match.jobId);
+      ({ facts: extractedFacts, descriptionText } = await fetchGreenhouseJob(match.slug, match.jobId));
     } else {
-      extractedFacts = await fetchLeverPosting(match.slug, match.postingId);
+      ({ facts: extractedFacts, descriptionText } = await fetchLeverPosting(match.slug, match.postingId));
     }
     status = 'fetched';
+
+    // Tier 1.5: LLM extraction from description text fills fields the structured
+    // API doesn't expose (shift, German, onsite, contract).
+    if (descriptionText) {
+      rawExcerpt = descriptionText.slice(0, 500);
+      const llmFacts = await extractFactsFromText(descriptionText);
+      // LLM facts fill nulls in structured facts only — structured data wins.
+      extractedFacts = { ...llmFacts, ...extractedFacts };
+    }
   } catch (err) {
     console.error(`enrich-ad: fetch failed for ad ${adId} (${externalUrl}):`, err);
   }
@@ -51,6 +63,7 @@ export async function enrichAd(
         tier: 'api',
         status,
         extractedFacts: extractedFacts ?? null,
+        rawExcerpt,
         checkedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -58,6 +71,7 @@ export async function enrichAd(
         set: {
           status,
           extractedFacts: extractedFacts ?? null,
+          rawExcerpt,
           checkedAt: new Date(),
         },
       });
