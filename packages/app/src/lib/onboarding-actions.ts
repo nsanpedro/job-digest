@@ -19,26 +19,10 @@ import { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from '@j
 import { CURATED_COMPANIES, refreshOnboardingCache } from '@job-digest/worker';
 import { signIn } from '@/auth';
 import { and, eq, ilike, isNull, or, sql, desc } from 'drizzle-orm';
+import { inferMarket } from './market';
 import { currentUserId, rawPool, withTenant } from './session';
 
 export type { OnboardingCategory };
-
-// ── Market inference ──────────────────────────────────────────────────────────
-
-const DACH = ['berlin', 'munich', 'münchen', 'hamburg', 'frankfurt', 'cologne', 'köln', 'düsseldorf', 'stuttgart', 'vienna', 'wien', 'zurich', 'zürich', 'bern', 'geneva'];
-const ES = ['barcelona', 'madrid', 'valencia', 'sevilla', 'bilbao', 'zaragoza', 'málaga', 'malaga', 'palma', 'alicante'];
-const AR = ['buenos aires', 'córdoba', 'cordoba', 'rosario', 'mendoza', 'tucumán', 'tucuman'];
-
-type Market = 'DACH' | 'ES' | 'AR' | 'ALL';
-
-function inferMarket(city: string | null): Market {
-  if (!city) return 'ALL';
-  const lower = city.toLowerCase();
-  if (DACH.some((c) => lower.includes(c))) return 'DACH';
-  if (ES.some((c) => lower.includes(c))) return 'ES';
-  if (AR.some((c) => lower.includes(c))) return 'AR';
-  return 'ALL';
-}
 
 // ── Check onboarding state ────────────────────────────────────────────────────
 

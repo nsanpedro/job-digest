@@ -11,9 +11,17 @@
  */
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { runs, sources } from '@job-digest/db';
+import { accounts, runs, sources } from '@job-digest/db';
 import { and, eq, sql } from 'drizzle-orm';
-import { fetchApiSources, parseSourceUrl, withTenant as workerWithTenant } from '@job-digest/worker';
+import {
+  CURATED_COMPANIES,
+  fetchApiSources,
+  parseSourceUrl,
+  withTenant as workerWithTenant,
+  type CuratedCompany,
+  type Market as CuratedMarket,
+} from '@job-digest/worker';
+import { inferMarket, type Market } from './market';
 import { currentUserId, rawPool, withTenant } from './session';
 
 /** Freshness window: skip re-fetch if a source was fetched less than this ago. */
@@ -168,6 +176,141 @@ export async function dismissSuggestedSource(sourceId: string): Promise<void> {
       .where(and(eq(sources.id, sourceId), eq(sources.userId, userId), eq(sources.status, 'suggested'))),
   );
   revalidatePath('/profile');
+}
+
+// ── Curated catalog ─────────────────────────────────────────────────────────
+
+/**
+ * One entry in the curated catalog, decorated with whether the current user
+ * already has it active. Rendered by CuratedCatalog as a toggle grid — the
+ * primary "add companies" flow that replaces the URL-pasting form.
+ */
+export interface CuratedEntry {
+  name: string;
+  provider: 'Greenhouse' | 'Lever' | 'Ashby' | 'Personio';
+  slug: string;
+  markets: CuratedMarket[];
+  city: string | null;
+  tags: string[];
+  curatorNote: string | null;
+  /** True if the user has this slug in their sources (active or failing). */
+  active: boolean;
+}
+
+/**
+ * Return the curated catalog filtered to the requested market, decorated
+ * with the user's active state per entry. `market='ALL'` returns every
+ * entry regardless of geography — the fallback when the user hasn't set a
+ * city and we can't infer.
+ */
+export async function getCuratedCatalog(market: Market): Promise<{
+  market: Market;
+  entries: CuratedEntry[];
+}> {
+  const userId = await currentUserId();
+
+  const [userSources, city] = await withTenant(userId, async (tx) => {
+    const s = await tx
+      .select({ provider: sources.provider, externalSlug: sources.externalSlug })
+      .from(sources)
+      .where(and(eq(sources.userId, userId), sql`${sources.status} != 'suggested'`));
+    const c = await tx
+      .select({ city: accounts.city })
+      .from(accounts)
+      .where(eq(accounts.id, userId))
+      .limit(1);
+    return [s, c[0]?.city ?? null] as const;
+  });
+
+  // If the caller didn't force a market, use the stored city; the client can
+  // still override by passing an explicit market to switch the filter.
+  const resolved: Market = market === 'ALL' ? inferMarket(city) : market;
+
+  const activeSet = new Set(userSources.map((s) => `${s.provider}::${s.externalSlug}`));
+  const filtered: CuratedCompany[] =
+    resolved === 'ALL'
+      ? CURATED_COMPANIES
+      : CURATED_COMPANIES.filter((c) => c.markets.includes(resolved as CuratedMarket));
+
+  const entries: CuratedEntry[] = filtered
+    .map((c) => ({
+      name: c.name,
+      provider: c.provider,
+      slug: c.slug,
+      markets: c.markets,
+      city: c.city ?? null,
+      tags: c.tags ?? [],
+      curatorNote: c.curatorNote ?? null,
+      active: activeSet.has(`${c.provider}::${c.slug}`),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return { market: resolved, entries };
+}
+
+/**
+ * Toggle a curated entry on the user's watchlist. `on=true` inserts (or
+ * promotes a suggested row to active); `on=false` deletes the row. Idempotent
+ * on both sides — safe to call regardless of current state. Trusts the
+ * catalog constant for `(provider, slug, displayName)`; we intentionally do
+ * NOT re-run `validateSlug` here since every catalog entry is pre-verified.
+ */
+export async function toggleCuratedCompany(params: {
+  provider: 'Greenhouse' | 'Lever' | 'Ashby' | 'Personio';
+  slug: string;
+  on: boolean;
+}): Promise<{ ok: true } | { error: string }> {
+  const userId = await currentUserId();
+  const { provider, slug, on } = params;
+
+  const entry = CURATED_COMPANIES.find((c) => c.provider === provider && c.slug === slug);
+  if (!entry) return { error: 'Company not in curated catalog.' };
+
+  if (on) {
+    const existing = await withTenant(userId, (tx) =>
+      tx
+        .select({ id: sources.id, status: sources.status })
+        .from(sources)
+        .where(
+          and(
+            eq(sources.userId, userId),
+            eq(sources.provider, provider),
+            eq(sources.externalSlug, slug),
+          ),
+        )
+        .limit(1),
+    );
+
+    if (existing[0]) {
+      if (existing[0].status === 'suggested') {
+        await withTenant(userId, (tx) =>
+          tx.update(sources).set({ status: 'active' }).where(eq(sources.id, existing[0]!.id)),
+        );
+      }
+    } else {
+      await withTenant(userId, (tx) =>
+        tx
+          .insert(sources)
+          .values({ userId, provider, externalSlug: slug, displayName: entry.name })
+          .onConflictDoNothing(),
+      );
+    }
+  } else {
+    await withTenant(userId, (tx) =>
+      tx
+        .delete(sources)
+        .where(
+          and(
+            eq(sources.userId, userId),
+            eq(sources.provider, provider),
+            eq(sources.externalSlug, slug),
+          ),
+        ),
+    );
+  }
+
+  revalidatePath('/profile');
+  return { ok: true };
 }
 
 /**

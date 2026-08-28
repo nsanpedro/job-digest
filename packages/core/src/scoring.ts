@@ -229,9 +229,17 @@ const DISTANCE_FACTOR: Record<Distance, number> = {
  * accidental substring overlap.
  */
 export const ROLE_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
+  // Engineering family — English ↔ German
   engineer: ['engineer', 'developer', 'entwickler'],
   developer: ['engineer', 'developer', 'entwickler'],
   entwickler: ['engineer', 'developer', 'entwickler'],
+  // Design family — English ↔ German. "gestalter" covers "UX-Gestalter",
+  // "Kommunikationsgestalter", etc. "creative" picks up "Creative Director".
+  designer: ['designer', 'gestalter'],
+  gestalter: ['designer', 'gestalter'],
+  // Product family
+  manager: ['manager', 'managerin'],
+  managerin: ['manager', 'managerin'],
 };
 
 /** True when `word` (or any of its ROLE_SYNONYMS) appears as a substring of `title`. */

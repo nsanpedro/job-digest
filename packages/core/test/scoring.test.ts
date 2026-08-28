@@ -490,7 +490,7 @@ describe('selectTiers', () => {
     source: p.source ?? 'Greenhouse',
     matchedDirectionIds: p.matchedDirectionIds ?? [],
     hasPreferenceWarn: p.hasPreferenceWarn ?? false,
-    repeat: p.repeat,
+    repeat: p.repeat ?? false,
   });
 
   const empty: ReadonlySet<string> = new Set();
