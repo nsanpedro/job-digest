@@ -15,7 +15,8 @@ import { LocationEditor } from '@/components/LocationEditor';
 import { ModePicker } from '@/components/ModePicker';
 import { RulesEditor } from '@/components/RulesEditor';
 import { SourcesManager } from '@/components/SourcesManager';
-import { getSources, getSuggestedSources } from '@/lib/source-actions';
+import { getCuratedCatalog, getSources, getSuggestedSources } from '@/lib/source-actions';
+import type { Market } from '@/lib/market';
 import { currentUser, withTenant } from '@/lib/session';
 import styles from './page.module.css';
 
@@ -26,10 +27,21 @@ function isExpiringSoon(d: Date | null): boolean {
   return d.getTime() - Date.now() < 2 * 24 * 60 * 60 * 1000; // under 2 days left
 }
 
-export default async function ProfilePage() {
-  const user = await currentUser();
+const VALID_MARKETS: Market[] = ['DACH', 'ES', 'AR', 'ALL'];
 
-  const [[ruleset, account, profile, directions, coverage], userSources, suggestedSources] = await Promise.all([
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ catalogMarket?: string }>;
+}) {
+  const user = await currentUser();
+  const { catalogMarket } = await searchParams;
+  const requestedMarket: Market | null =
+    catalogMarket && (VALID_MARKETS as string[]).includes(catalogMarket)
+      ? (catalogMarket as Market)
+      : null;
+
+  const [[ruleset, account, profile, directions, coverage], userSources, suggestedSources, catalog] = await Promise.all([
     withTenant(user.id, async (tx) => {
       let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
       try {
@@ -52,6 +64,7 @@ export default async function ProfilePage() {
     }),
     getSources(),
     getSuggestedSources(),
+    getCuratedCatalog(requestedMarket ?? 'ALL'),
   ]);
 
   return (
@@ -98,6 +111,19 @@ export default async function ProfilePage() {
         </div>
 
         <div className={styles.section}>
+          <p className={styles.sectionLabel}>Companies to watch</p>
+          <SourcesManager
+            initial={userSources}
+            initialSuggestions={suggestedSources}
+            catalog={{
+              market: catalog.market,
+              entries: catalog.entries,
+              cityKnown: account?.city != null,
+            }}
+          />
+        </div>
+
+        <div className={styles.section}>
           <p className={styles.sectionLabel}>Account</p>
           <div className={styles.accountCard}>
             <div className={styles.row}>
@@ -115,11 +141,6 @@ export default async function ProfilePage() {
               </span>
             </div>
           </div>
-        </div>
-
-        <div className={styles.section}>
-          <p className={styles.sectionLabel}>Companies to watch</p>
-          <SourcesManager initial={userSources} initialSuggestions={suggestedSources} />
         </div>
 
         <div className={styles.section}>
