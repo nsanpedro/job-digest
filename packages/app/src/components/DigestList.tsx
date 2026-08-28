@@ -30,6 +30,13 @@ function AdList({
   );
 }
 
+function matchCountLine(n: number): string {
+  if (n === 0) return 'No matches this week.';
+  if (n === 1) return '1 match this week.';
+  if (n <= 3) return `${n} matches this week — all worth your time.`;
+  return `${n} matches this week.`;
+}
+
 /**
  * Owns the single-expand accordion state across all sections — opening one
  * card closes any other.
@@ -57,6 +64,8 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
 
   return (
     <div className={styles.root}>
+      <p className={styles.matchCount}>{matchCountLine(matches.length)}</p>
+
       {matches.length > 0 && (
         <AdList ads={matches} expandedId={expandedId} onToggle={toggle} />
       )}

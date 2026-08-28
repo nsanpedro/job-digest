@@ -11,6 +11,13 @@
   font-size: 14px;
 }
 
+.matchCount {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0;
+}
+
 .adList {
   display: flex;
   flex-direction: column;
