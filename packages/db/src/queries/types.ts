@@ -6,7 +6,7 @@
  * the UI can show the ad's literal German next to each verdict — facts feed
  * evaluation, wording feeds the UI (§9).
  */
-import type { Distance, ScoreBreakdown, TitleFacts, Verdict, Wording } from '@job-digest/core';
+import type { AdFieldProvenance, Distance, ScoreBreakdown, TitleFacts, Verdict, Wording } from '@job-digest/core';
 
 export type Platform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
 
@@ -77,6 +77,12 @@ export interface DigestAd {
    * read"; see migration 0007.
    */
   platformFields: Record<string, boolean>;
+  /**
+   * ADR-003: per-rule source of the fact. Null = enrichment not yet attempted
+   * (email-sourced ad, no provenance written). The UI uses this to distinguish
+   * "not in this email" (null) from "not stated in ad" (unknown_after_fetch).
+   */
+  fieldProvenance: AdFieldProvenance | null;
 }
 
 /**

@@ -120,6 +120,7 @@ export function AdCard({
               verdicts={ad.verdicts}
               wording={ad.wording}
               platformFields={ad.platformFields}
+              fieldProvenance={ad.fieldProvenance}
               source={ad.source}
             />
             {(ad.fit || ad.gap) && (
@@ -290,7 +291,12 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
                       {w?.note ||
                         (ad.platformFields[v.key.toLowerCase()] === false
                           ? `${ad.source} alerts don't include this — not a failure of the reader`
-                          : 'not read from this email — open the original ad to check')}
+                          : (() => {
+                              const prov = ad.fieldProvenance?.[v.key];
+                              if (prov === 'unknown_after_fetch') return 'not stated in the ad';
+                              if (prov === 'fetch_failed') return 'not read from this email — open the original ad to check';
+                              return 'not read from this email — open the original ad to check';
+                            })())}
                     </span>
                   )}
                 </div>

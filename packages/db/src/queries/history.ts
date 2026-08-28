@@ -81,6 +81,7 @@ function toDigestAd(row: {
     gap: null,
     applicationStatus,
     platformFields,
+    fieldProvenance: ad.fieldProvenance ?? null,
     scoreBreakdown: null,
     matchedDirectionLabels: [],
   };

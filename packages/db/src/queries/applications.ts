@@ -208,6 +208,7 @@ function toTrackedApplication(input: {
     gap: null,
     applicationStatus: current.status,
     platformFields,
+    fieldProvenance: ad.fieldProvenance ?? null,
     status: current.status,
     events,
     firstAppliedAt: applied.at,

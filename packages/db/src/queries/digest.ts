@@ -268,6 +268,7 @@ export async function getDigest(
       matchedDirectionLabels: [],
       applicationStatus: appliedByAd.get(row.ad.id) ?? null,
       platformFields: capabilities[row.ad.source as Platform] ?? {},
+      fieldProvenance: row.ad.fieldProvenance ?? null,
     };
 
     // I10: three distinct outcomes, checked in the order the UI presents them.

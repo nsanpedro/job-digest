@@ -1,4 +1,4 @@
-import type { RuleKey, Verdict, Wording } from '@job-digest/core';
+import type { AdFieldProvenance, RuleKey, Verdict, Wording } from '@job-digest/core';
 import { STATE_VISUALS } from './rule-visuals';
 import styles from './RuleLane.module.css';
 
@@ -35,7 +35,9 @@ interface Grouped {
   shown: Verdict[];
   /** The platform is on record as never sending this field (§9, migration 0007). */
   notSent: RuleKey[];
-  /** No evidence either way — the common case today. */
+  /** We fetched the original ad; the field genuinely isn't there (ADR-003). */
+  notFoundInAd: RuleKey[];
+  /** No evidence either way — enrichment not yet attempted. */
   notRead: RuleKey[];
   /** The rule passed vacuously: the user set no constraint, so there is nothing to report. */
   noLimit: RuleKey[];
@@ -45,8 +47,9 @@ function group(
   verdicts: readonly Verdict[],
   wording: Partial<Wording>,
   platformFields: Record<string, boolean>,
+  fieldProvenance?: AdFieldProvenance | null,
 ): Grouped {
-  const out: Grouped = { shown: [], notSent: [], notRead: [], noLimit: [] };
+  const out: Grouped = { shown: [], notSent: [], notFoundInAd: [], notRead: [], noLimit: [] };
   for (const v of verdicts) {
     const hasWording = Boolean(wording[v.key]?.value);
     // A block or a warn is an outcome the user acts on; it renders even when
@@ -55,8 +58,16 @@ function group(
     if (hasWording || v.state === 'block' || v.state === 'warn') {
       out.shown.push(v);
     } else if (v.state === 'unknown') {
-      if (platformFields[v.key.toLowerCase()] === false) out.notSent.push(v.key);
-      else out.notRead.push(v.key);
+      if (platformFields[v.key.toLowerCase()] === false) {
+        out.notSent.push(v.key);
+      } else {
+        const prov = fieldProvenance?.[v.key];
+        if (prov === 'unknown_after_fetch' || prov === 'fetch_failed') {
+          out.notFoundInAd.push(v.key);
+        } else {
+          out.notRead.push(v.key);
+        }
+      }
     } else {
       out.noLimit.push(v.key);
     }
@@ -78,6 +89,7 @@ export function RuleLane({
   verdicts,
   wording,
   platformFields = {},
+  fieldProvenance,
   source,
   compact = false,
 }: {
@@ -85,11 +97,13 @@ export function RuleLane({
   wording: Partial<Wording>;
   /** From DigestAd.platformFields (design §9) — separates "not sent" from "not read". */
   platformFields?: Record<string, boolean>;
+  /** ADR-003: per-rule fact source — distinguishes "not in email" from "not in ad". */
+  fieldProvenance?: AdFieldProvenance | null;
   /** Named in the "not sent" copy, so the claim points at who did not send it. */
   source?: string;
   compact?: boolean;
 }) {
-  const { shown, notSent, notRead, noLimit } = group(verdicts, wording, platformFields);
+  const { shown, notSent, notFoundInAd, notRead, noLimit } = group(verdicts, wording, platformFields, fieldProvenance);
 
   return (
     <div className={styles.lane}>
@@ -117,6 +131,7 @@ export function RuleLane({
         text={source ? `not sent by ${source}` : 'not sent by this platform'}
         compact={compact}
       />
+      <MutedChip keys={notFoundInAd} text="not stated in ad" compact={compact} />
       <MutedChip keys={notRead} text="not in this email" compact={compact} />
       <MutedChip keys={noLimit} text="no limit set" compact={compact} />
     </div>
