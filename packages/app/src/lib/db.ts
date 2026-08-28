@@ -19,10 +19,10 @@ if (!url) throw new Error('DATABASE_URL is not set');
 // A small pool is enough for the read path (design §11) — a handful of page
 // loads a week per user, not a request-per-tenant fan-out.
 const client = postgres(url, {
-  // 2 connections for dev (pooler cap is 15, shared with prod). Combined with
-  // idle_timeout below, dev restarts can't accumulate enough sessions to fill
-  // the cap even after many quick iterations.
-  max: process.env.NODE_ENV === 'production' ? 5 : 2,
+  // 4 connections for prod (Vercel can warm multiple instances; 4 × 3 = 12 max
+  // across 3 instances, leaving 3 headroom in the 15-connection Supabase cap).
+  // 2 for dev (shared cap with prod — dev restarts + idle_timeout keep this safe).
+  max: process.env.NODE_ENV === 'production' ? 4 : 2,
   // Auto-close idle connections so they don't linger across next dev restarts.
   idle_timeout: 20,
 });

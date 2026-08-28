@@ -29,7 +29,10 @@ import type { JobBoardProvider, NormalizedJob } from './providers/types';
 import { mergeFacts } from './merge-facts';
 import { withTenant, type Db } from './tenant';
 
-const FETCH_CONCURRENCY = 5;
+// Keep well below the app pool's max so web requests are never starved.
+// The pool (max 5 in prod) is shared between the worker and the web process;
+// using 2 here leaves 3 connections free for concurrent page loads.
+const FETCH_CONCURRENCY = 2;
 
 /** All registered providers, in order of preference for slug detection. */
 const PROVIDERS: JobBoardProvider[] = [greenhouse, lever, ashby, personio];
@@ -172,17 +175,16 @@ export async function fetchApiSources(
 ): Promise<FetchApisResult[]> {
   const { userId, runId } = params;
 
-  // Read directions once before processing any source — used to gate ingestion
-  // for users who have configured what they're looking for. Users with no
-  // directions get unfiltered results (same as before this change).
-  const interestedDirs: DirectionRow[] = await listInterestedDirections(db, userId);
-
-  const userSources = await withTenant(db, userId, (tx) =>
-    tx
+  // Read sources + directions in one transaction — same connection, same role scope.
+  // Directions gate which jobs we ingest (see below); if empty, everything passes.
+  const [userSources, interestedDirs] = await withTenant(db, userId, async (tx) => {
+    const srcs = await tx
       .select({ id: sources.id, provider: sources.provider, externalSlug: sources.externalSlug })
       .from(sources)
-      .where(and(eq(sources.userId, userId), inArray(sources.status, ['active', 'failing']))),
-  );
+      .where(and(eq(sources.userId, userId), inArray(sources.status, ['active', 'failing'])));
+    const dirs = await listInterestedDirections(tx, userId);
+    return [srcs, dirs] as const;
+  });
 
   // Set total upfront so the progress bar is meaningful from the start.
   await withTenant(db, userId, (tx) =>
