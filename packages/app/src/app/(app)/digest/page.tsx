@@ -63,6 +63,13 @@ export default async function DigestPage() {
       <WeekSummary summary={summarizeWeek(digest)} payFloor={eur(rules.Pay.condition.minMonthly)} />
       <DigestDiagnostic insights={insights} />
       <DigestList digest={digest} rules={rules} />
+      {digest.explore.length > 0 && (
+        <p style={{ marginTop: 8, fontSize: 13, color: 'var(--text-faint)' }}>
+          <a href="/digest/explore" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+            See everything we filtered out ({digest.explore.length} ad{digest.explore.length === 1 ? '' : 's'}) →
+          </a>
+        </p>
+      )}
       <ParseBanner parse={digest.parse} />
     </div>
   );

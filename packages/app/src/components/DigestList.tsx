@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Ruleset } from '@job-digest/core';
-import type { Digest, DigestAd, DigestMetrics } from '@job-digest/db';
+import type { Digest, DigestAd } from '@job-digest/db';
 import { AdCard } from './AdCard';
 import { FilteredSection } from './FilteredSection';
 import styles from './DigestList.module.css';
@@ -26,41 +26,6 @@ function AdList({
           onToggle={() => onToggle(ad.id)}
         />
       ))}
-    </div>
-  );
-}
-
-function RunnersUpSection({
-  ads,
-  expandedId,
-  onToggle,
-}: {
-  ads: DigestAd[];
-  expandedId: string | null;
-  onToggle: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  // Only show scored ads (not location/direction pre-filter misses).
-  const scored = ads.filter((a) => a.scoreBreakdown !== null);
-  if (scored.length === 0) return null;
-
-  return (
-    <div className={styles.runnersUp}>
-      <button
-        className={styles.runnersUpToggle}
-        onClick={() => setOpen((v) => !v)}
-        type="button"
-      >
-        <span className={styles.runnersUpChevron}>{open ? '▾' : '▸'}</span>
-        <span>
-          Show {scored.length} more that {scored.length === 1 ? 'was' : 'were'} close
-        </span>
-      </button>
-      {open && (
-        <div className={styles.runnersUpList}>
-          <AdList ads={scored} expandedId={expandedId} onToggle={onToggle} />
-        </div>
-      )}
     </div>
   );
 }
@@ -95,12 +60,6 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
       {matches.length > 0 && (
         <AdList ads={matches} expandedId={expandedId} onToggle={toggle} />
       )}
-
-      <RunnersUpSection
-        ads={digest.explore}
-        expandedId={expandedId}
-        onToggle={toggle}
-      />
 
       <FilteredSection
         dismissed={digest.dismissed}
