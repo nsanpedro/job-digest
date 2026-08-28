@@ -4,8 +4,9 @@
  * Server actions for the onboarding flow.
  *
  * completeOnboarding is the single write path — it atomically sets
- * onboarded_at, creates the initial ruleset (if none exists), and seeds the
- * curated sources for the user's inferred market.
+ * onboarded_at and creates the initial ruleset (if none exists). Sources
+ * are not seeded here; the user chooses which companies to follow from the
+ * curated catalog in Profile > Companies to watch.
  *
  * connectGmailForOnboarding persists preferences first, then redirects to
  * Google OAuth — if the OAuth flow completes, the user lands on /digest
@@ -14,9 +15,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
-import { accounts, onboardingCache, rulesets, sources } from '@job-digest/db';
+import { accounts, onboardingCache, rulesets } from '@job-digest/db';
 import { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from '@job-digest/core';
-import { CURATED_COMPANIES, refreshOnboardingCache } from '@job-digest/worker';
+import { refreshOnboardingCache } from '@job-digest/worker';
 import { signIn } from '@/auth';
 import { and, eq, ilike, isNull, or, sql, desc } from 'drizzle-orm';
 import { inferMarket } from './market';
@@ -118,27 +119,6 @@ async function persistOnboarding(params: {
       await tx.insert(rulesets).values({ userId, version: 1, rules, isActive: true });
     }
 
-    if (category != null) {
-      const companies =
-        market === 'ALL'
-          ? CURATED_COMPANIES
-          : CURATED_COMPANIES.filter((c) => c.markets.includes(market as 'ES' | 'DACH' | 'AR'));
-
-      if (companies.length > 0) {
-        await tx
-          .insert(sources)
-          .values(
-            companies.map((c) => ({
-              userId,
-              provider: c.provider,
-              externalSlug: c.slug,
-              displayName: c.name,
-              status: 'active' as const,
-            })),
-          )
-          .onConflictDoNothing();
-      }
-    }
   });
 }
 
