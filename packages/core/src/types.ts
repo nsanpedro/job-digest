@@ -39,6 +39,21 @@ export interface Facts {
 export const RULE_KEYS = ['Shift', 'German', 'Onsite', 'Pay', 'Contract'] as const;
 export type RuleKey = (typeof RULE_KEYS)[number];
 
+/**
+ * Per-rule provenance: where the fact that fed this rule came from.
+ * `not_checked` = email had nothing, enrichment not yet attempted (lazy-on-view Tier 2).
+ * `unknown_after_fetch` = we checked the ad; field genuinely absent.
+ */
+export type FieldProvenance =
+  | 'from_email'
+  | 'from_ad'
+  | 'unknown_after_fetch'
+  | 'fetch_failed'
+  | 'not_checked';
+
+/** Stored on `ads.field_provenance`; partial because API-sourced ads skip email keys. */
+export type AdFieldProvenance = Partial<Record<RuleKey, FieldProvenance>>;
+
 export type RuleState = 'pass' | 'warn' | 'block' | 'unknown';
 export type Severity = 'hard' | 'preference';
 

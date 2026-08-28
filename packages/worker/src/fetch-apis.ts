@@ -27,6 +27,7 @@ import { lever } from './providers/lever';
 import { personio } from './providers/personio';
 import type { JobBoardProvider, NormalizedJob } from './providers/types';
 import { mergeFacts } from './merge-facts';
+import { provenanceFromFacts } from '@job-digest/core';
 import { withTenant, type Db } from './tenant';
 
 // Keep well below the app pool's max so web requests are never starved.
@@ -120,6 +121,10 @@ async function ingestJob(
           source: job.platform,
           facts: job.facts,
           wording: job.wording,
+          // API-sourced ads: the API is the original ad — non-null facts are
+          // 'from_ad', null facts are 'unknown_after_fetch' (we already have
+          // the authoritative source and the field wasn't there).
+          fieldProvenance: provenanceFromFacts(job.facts, 'from_ad', true),
           titleFacts: extractTitleFacts(job.title, job.locationRaw),
           sourceId,
           // Use the fetch timestamp, not the job's original posting date: from

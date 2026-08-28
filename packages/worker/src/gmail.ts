@@ -27,6 +27,7 @@ import { mailboxes, runs } from '@job-digest/db';
 import { eq, sql } from 'drizzle-orm';
 import { SENDER_ALLOWLIST } from '@job-digest/ingest';
 import { ingestEmail, type IngestResult } from './ingest-email';
+import { enrichAd } from './enrich/enrich-ad';
 import { withTenant, type Db } from './tenant';
 
 /**
@@ -194,6 +195,14 @@ export async function ingestFromGmail(
       );
       processed++;
       created += result.adsCreated;
+      // Tier 1 enrichment: fetch the original ad from Greenhouse/Lever API
+      // post-transaction so network I/O doesn't hold the DB connection open.
+      // Fire-and-forget per candidate — a failure is logged in enrichAd, not thrown.
+      for (const c of result.enrichmentCandidates) {
+        enrichAd(db, params.userId, c.adId, c.externalUrl).catch((err) =>
+          console.error(`gmail enrich: ad ${c.adId} failed:`, err),
+        );
+      }
     } catch (err) {
       failed++;
       // One malformed/deleted message shouldn't abort the whole run — the

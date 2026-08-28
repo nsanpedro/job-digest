@@ -25,6 +25,7 @@ import {
 import { adSightings, ads, emailParses, rawEmails } from '@job-digest/db';
 import { classifyOutcome, type CauseCode, type Outcome } from './outcome';
 import { mergeFacts } from './merge-facts';
+import { provenanceFromFacts } from '@job-digest/core';
 import type { Tx } from './tenant';
 
 /**
@@ -51,6 +52,11 @@ export interface IngestInput {
   alertName?: string;
 }
 
+export interface EnrichmentCandidate {
+  adId: string;
+  externalUrl: string;
+}
+
 export interface IngestResult {
   rawEmailId: string;
   /** False when this email was already stored — the fetch was a re-run (I1). */
@@ -64,6 +70,8 @@ export interface IngestResult {
   adsCreated: number;
   adsEnriched: number;
   conflicts: number;
+  /** New ads with an external URL that may be enriched post-transaction (ADR-003). */
+  enrichmentCandidates: EnrichmentCandidate[];
 }
 
 export async function ingestEmail(tx: Tx, input: IngestInput): Promise<IngestResult> {
@@ -150,6 +158,7 @@ export async function ingestEmail(tx: Tx, input: IngestInput): Promise<IngestRes
   let adsCreated = 0;
   let adsEnriched = 0;
   let conflicts = 0;
+  const enrichmentCandidates: EnrichmentCandidate[] = [];
   for (const extracted of extraction.ads) {
     const outcome = await upsertAd(tx, {
       userId: input.userId,
@@ -163,6 +172,9 @@ export async function ingestEmail(tx: Tx, input: IngestInput): Promise<IngestRes
     if (outcome.created) adsCreated++;
     if (outcome.enriched) adsEnriched++;
     conflicts += outcome.conflicts;
+    if (outcome.created && outcome.externalUrl) {
+      enrichmentCandidates.push({ adId: outcome.adId, externalUrl: outcome.externalUrl });
+    }
   }
 
   return {
@@ -177,6 +189,7 @@ export async function ingestEmail(tx: Tx, input: IngestInput): Promise<IngestRes
     adsCreated,
     adsEnriched,
     conflicts,
+    enrichmentCandidates,
   };
 }
 
@@ -191,6 +204,7 @@ function emptyResult(rawEmailId: string, storedNow: boolean) {
     adsCreated: 0,
     adsEnriched: 0,
     conflicts: 0,
+    enrichmentCandidates: [] as EnrichmentCandidate[],
   };
 }
 
@@ -236,10 +250,11 @@ async function upsertAd(
     alertName: string;
     incomplete: boolean;
   },
-): Promise<{ created: boolean; enriched: boolean; conflicts: number }> {
+): Promise<{ created: boolean; enriched: boolean; conflicts: number; adId: string; externalUrl: string | null }> {
   const { facts, wording } = normalizeAd(input.extracted);
   const key = computeDedupeKey(input.extracted);
   const extId = computeExternalId(input.extracted.url?.value);
+  const extUrl = input.extracted.url?.value ?? null;
 
   // Match on the content hash, or on the platform id when one exists — the
   // latter catches a platform rewording a title between sends (§6.7).
@@ -261,6 +276,7 @@ async function upsertAd(
   let created = false;
   let enriched = false;
   let conflicts: ReturnType<typeof mergeFacts>['conflicts'] = [];
+  let resolvedExternalUrl: string | null = null;
 
   if (prior) {
     const merged = mergeFacts(
@@ -284,19 +300,24 @@ async function upsertAd(
   } else {
     const title = input.extracted.title?.value ?? '(title not read)';
     const locationRaw = input.extracted.location?.value ?? null;
+    resolvedExternalUrl = extUrl;
     const rows = await tx
       .insert(ads)
       .values({
         userId: input.userId,
         dedupeKey: key,
         externalId: extId,
-        externalUrl: input.extracted.url?.value ?? null,
+        externalUrl: extUrl,
         title,
         company: input.extracted.company?.value ?? null,
         locationRaw,
         source: input.platform,
         facts,
         wording,
+        // Initial provenance: mark non-null email facts as 'from_email'.
+        // Null facts get no entry — enrichment will fill them as 'from_ad'
+        // or 'unknown_after_fetch' post-transaction (ADR-003).
+        fieldProvenance: provenanceFromFacts(facts, 'from_email'),
         // Computed once here, from the same title/location that are
         // themselves fixed at first sighting (they are never overwritten on
         // the merge branch above) — so this never goes stale independently
@@ -322,5 +343,5 @@ async function upsertAd(
     conflicts: conflicts.length > 0 ? { fields: conflicts } : null,
   });
 
-  return { created, enriched, conflicts: conflicts.length };
+  return { created, enriched, conflicts: conflicts.length, adId, externalUrl: resolvedExternalUrl };
 }

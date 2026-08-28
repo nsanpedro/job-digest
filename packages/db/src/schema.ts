@@ -9,7 +9,7 @@
  * them), including the I13 column-level rule: `app_user` cannot SELECT
  * credential ciphertext at all.
  */
-import type { Facts, Ruleset, TitleFacts, Wording } from '@job-digest/core';
+import type { AdFieldProvenance, Facts, Ruleset, TitleFacts, Wording } from '@job-digest/core';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -83,6 +83,13 @@ export const mailboxStatusEnum = pgEnum('mailbox_status', [
   'disabled',
 ]);
 export const runStatusEnum = pgEnum('run_status', ['running', 'ok', 'error']);
+/** ADR-003: outcome of an enrichment fetch against the original job posting. */
+export const enrichmentStatusEnum = pgEnum('enrichment_status', [
+  'fetched',
+  'fetch_failed',
+  'login_required',
+  'tier_skip',
+]);
 export const runErrorKindEnum = pgEnum('run_error_kind', ['auth', 'network', 'internal']);
 export const parseOutcomeEnum = pgEnum('parse_outcome', [
   'ok',
@@ -392,6 +399,13 @@ export const ads = pgTable(
     enriched: jsonb('enriched').$type<Record<string, unknown>>(),
     /** Per-field provenance: method (deterministic|llm), extractor version. */
     extraction: jsonb('extraction').$type<Record<string, unknown>>(),
+    /**
+     * ADR-003: per-rule source of the fact that fed scoring.
+     * Null = not yet determined (email-sourced ad, enrichment not attempted).
+     * Written at ingest for API-sourced ads; written post-enrichment for
+     * email-sourced ads. The UI reads this to render honest chips.
+     */
+    fieldProvenance: jsonb('field_provenance').$type<AdFieldProvenance>(),
     score: integer('score'),
     incomplete: boolean('incomplete').notNull().default(false),
     incompleteNote: text('incomplete_note'),
@@ -464,6 +478,36 @@ export const adNarratives = pgTable(
     // A cache keyed by version, not TTL (§6.8).
     uniqueIndex('ad_narratives_cache_key').on(t.adId, t.profileVersion, t.promptVersion),
     tenantPolicy('ad_narratives'),
+  ],
+);
+
+/**
+ * ADR-003: one enrichment attempt per ad. Stores the fetch result and the
+ * partial facts extracted from the original job posting (not the alert email).
+ * One row per (user, ad) — a re-attempt upserts in place.
+ */
+export const adEnrichments = pgTable(
+  'ad_enrichments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    adId: uuid('ad_id')
+      .notNull()
+      .references(() => ads.id, { onDelete: 'cascade' }),
+    /** The URL fetched (the ad's externalUrl at enrichment time). */
+    sourceUrl: text('source_url').notNull(),
+    /** 'api' = Tier 1 (Greenhouse/Lever API); 'html' = Tier 2 (generic fetch). */
+    tier: text('tier').notNull().$type<'api' | 'html'>(),
+    status: enrichmentStatusEnum('status').notNull(),
+    /** Partial facts extracted from the original ad; null on fetch failure. */
+    extractedFacts: jsonb('extracted_facts').$type<Partial<Facts>>(),
+    /** Raw HTML excerpt saved for Tier 2 re-extraction without a re-fetch. */
+    rawExcerpt: text('raw_excerpt'),
+    checkedAt: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('ad_enrichments_user_ad').on(t.userId, t.adId),
+    tenantPolicy('ad_enrichments'),
   ],
 );
 

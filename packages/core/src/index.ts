@@ -1,4 +1,5 @@
 export * from './types';
+export { provenanceFromFacts, mergeEnrichedFacts } from './provenance';
 export * from './title-facts';
 export { normalizeWhitespace, verifyQuote } from './verify-quote';
 export {
