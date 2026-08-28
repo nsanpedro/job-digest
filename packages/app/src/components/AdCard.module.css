@@ -216,6 +216,37 @@
   padding: 16px 18px;
 }
 
+/* ── Match summary (human-readable sentence) ─────────────────────────────── */
+
+.matchSummary {
+  margin-bottom: 20px;
+}
+
+.matchSummaryText {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.mathToggle {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.mathToggle:hover {
+  color: var(--text-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 .panelLabel {
   font-family: var(--font-mono);
   font-size: 10px;

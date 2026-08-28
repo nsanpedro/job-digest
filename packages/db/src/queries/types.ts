@@ -55,6 +55,14 @@ export interface DigestAd {
    */
   scoreBreakdown: ScoreBreakdown | null;
   /**
+   * Labels of the user's directions this ad matched (subset of `interestedDirs`
+   * that passed `directionMatches`). Empty for ads that were never scored (hard-
+   * blocked, dismissed) or that didn't match any direction. Used by the expanded
+   * panel to say "Matches your 'Fullstack Engineer' direction" rather than a
+   * generic phrase.
+   */
+  matchedDirectionLabels: readonly string[];
+  /**
    * Latest application status the user recorded for this ad, or null if they
    * never did (I15 — asserted, never detected). A fourth axis alongside
    * saved/seen/dismissed, orthogonal to all of them per I10: applying to an ad

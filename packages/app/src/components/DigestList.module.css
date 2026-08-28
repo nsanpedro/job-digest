@@ -4,13 +4,6 @@
   gap: 32px;
 }
 
-/* Legacy class kept for any external references */
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 .empty {
   padding: 48px 0;
   text-align: center;
@@ -18,34 +11,11 @@
   font-size: 14px;
 }
 
-/* ── Tier section ─────────────────────────────────────────────────────── */
-
-.tier {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.tierHeader {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-}
-
-.tierLabel {
-  font-size: 11px;
-  font-family: var(--font-mono, monospace);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.matchCount {
+  font-size: 15px;
+  font-weight: 500;
   color: var(--text);
-}
-
-.tierNote {
-  font-size: 12px;
-  color: var(--text-muted);
+  margin: 0;
 }
 
 .adList {
@@ -54,13 +24,13 @@
   gap: 12px;
 }
 
-/* ── Explore bucket ───────────────────────────────────────────────────── */
+/* ── Runners-up (scored-but-below-threshold, collapsed) ──────────────────── */
 
-.explore {
+.runnersUp {
   margin-top: 8px;
 }
 
-.exploreToggle {
+.runnersUpToggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -72,55 +42,40 @@
   background: none;
   color: var(--text-muted);
   font-size: 13px;
-  font-family: var(--font-mono, monospace);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
   cursor: pointer;
   text-align: left;
 }
 
-.exploreToggle:hover {
+.runnersUpToggle:hover {
   color: var(--text);
 }
 
-.exploreChevron {
+.runnersUpChevron {
   font-size: 11px;
 }
 
-.exploreList {
+.runnersUpList {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding-top: 12px;
 }
 
-.exploreNote {
-  margin: 0 0 4px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-/* ── Load more (inside explore) ───────────────────────────────────────── */
-
-.loadMore {
-  display: block;
-  margin: 16px auto 0;
-  padding: 8px 20px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.loadMore:hover {
-  background: var(--surface-hover, var(--bg-secondary));
-  color: var(--text);
-}
-
 /* ── Legacy aliases (kept so older CSS references don't 404) ──────────── */
 
+.list { display: flex; flex-direction: column; gap: 12px; }
+.tier { display: flex; flex-direction: column; gap: 12px; }
+.tierHeader { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.tierLabel { font-size: 11px; font-family: var(--font-mono, monospace); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
+.tierNote { font-size: 12px; color: var(--text-muted); }
+.explore { margin-top: 8px; }
+.exploreToggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 0; border: none; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: none; color: var(--text-muted); font-size: 13px; font-family: var(--font-mono, monospace); letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer; text-align: left; }
+.exploreChevron { font-size: 11px; }
+.exploreList { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+.exploreNote { margin: 0 0 4px; font-size: 12px; color: var(--text-muted); }
+.loadMore { display: block; margin: 16px auto 0; padding: 8px 20px; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--text-muted); font-size: 13px; cursor: pointer; }
+.loadMore:hover { background: var(--surface-hover, var(--bg-secondary)); color: var(--text); }
 .offTarget { margin-top: 8px; }
 .offTargetToggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 0; border: none; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: none; color: var(--text-muted); font-size: 13px; cursor: pointer; }
 .offTargetList { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }

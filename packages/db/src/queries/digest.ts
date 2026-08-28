@@ -118,8 +118,11 @@ function directionMatches(title: string, dir: DirectionRow): boolean {
  * interested directions. Used as the gate in Pass 3 — same two-track logic
  * as `directionFit` in scoring, but boolean: ads that fail this gate go
  * straight to explore without scoring.
+ *
+ * Exported so the worker can apply the same gate at ingest time (before
+ * writing to the DB) when the user has directions configured.
  */
-function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
+export function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
   if (dirs.length === 0) return true;
   const t = title.toLowerCase();
   return dirs.some((dir) => directionMatches(t, dir));
@@ -134,6 +137,14 @@ function getMatchedDirectionIds(title: string, dirs: readonly DirectionRow[]): s
   return dirs
     .filter((dir) => directionMatches(t, dir))
     .map((dir) => dir.id);
+}
+
+/** The human-readable labels of directions that match this title. */
+function getMatchedDirectionLabels(title: string, dirs: readonly DirectionRow[]): string[] {
+  const t = title.toLowerCase();
+  return dirs
+    .filter((dir) => directionMatches(t, dir))
+    .map((dir) => dir.label);
 }
 
 // ── Ordering (explore bucket) ─────────────────────────────────────────────────
@@ -254,6 +265,7 @@ export async function getDigest(
       fit: narrative?.fit ?? null,
       gap: narrative?.gap ?? null,
       scoreBreakdown: null, // filled in below for eligible ads
+      matchedDirectionLabels: [],
       applicationStatus: appliedByAd.get(row.ad.id) ?? null,
       platformFields: capabilities[row.ad.source as Platform] ?? {},
     };
@@ -338,7 +350,12 @@ export async function getDigest(
       calibration,
     });
 
-    const withScore: DigestAd = { ...ad, score: breakdown.total, scoreBreakdown: breakdown };
+    const withScore: DigestAd = {
+      ...ad,
+      score: breakdown.total,
+      scoreBreakdown: breakdown,
+      matchedDirectionLabels: getMatchedDirectionLabels(ad.title, interestedDirs),
+    };
     adById.set(ad.id, withScore);
 
     const scored: ScoredAd = {

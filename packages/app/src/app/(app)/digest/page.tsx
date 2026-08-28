@@ -1,6 +1,5 @@
-import { eur, explainDigest, type Ruleset } from '@job-digest/core';
+import { eur, type Ruleset } from '@job-digest/core';
 import { getActiveRuleset, getDigest, NoActiveRulesetError, summarizeWeek, type Digest } from '@job-digest/db';
-import { DigestDiagnostic } from '@/components/DigestDiagnostic';
 import { DigestHeader } from '@/components/DigestHeader';
 import { DigestList } from '@/components/DigestList';
 import { ParseBanner } from '@/components/ParseBanner';
@@ -42,16 +41,6 @@ export default async function DigestPage() {
     throw err;
   }
 
-  const insights = explainDigest({
-    inDigest: digest.metrics.inDigest,
-    adsReceived: digest.metrics.adsReceived,
-    belowThreshold: digest.metrics.explore?.belowThreshold ?? 0,
-    preFilterMisses: digest.metrics.explore?.preFilterMisses ?? 0,
-    ruleBlocked: digest.dismissed
-      .filter((d) => d.reason.kind === 'rule')
-      .map((d) => ({ blockers: d.reason.kind === 'rule' ? d.reason.blockers : [] })),
-  });
-
   return (
     <div className="container">
       <DigestHeader digest={digest} rules={rules} />
@@ -61,8 +50,14 @@ export default async function DigestPage() {
         function of what the page already knows (I6's shape).
       */}
       <WeekSummary summary={summarizeWeek(digest)} payFloor={eur(rules.Pay.condition.minMonthly)} />
-      <DigestDiagnostic insights={insights} />
       <DigestList digest={digest} rules={rules} />
+      {digest.explore.length > 0 && (
+        <p style={{ marginTop: 8, fontSize: 13, color: 'var(--text-faint)' }}>
+          <a href="/digest/explore" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
+            See everything we filtered out ({digest.explore.length} ad{digest.explore.length === 1 ? '' : 's'}) →
+          </a>
+        </p>
+      )}
       <ParseBanner parse={digest.parse} />
     </div>
   );
