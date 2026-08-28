@@ -1,6 +1,6 @@
 export * from './schema';
 export type { OnboardingJob } from './queries/onboarding';
-export { getDigest, getParseSummary, getUnreadEmails } from './queries/digest';
+export { getDigest, getParseSummary, getUnreadEmails, matchesAnyDirection } from './queries/digest';
 export { getActiveRuleset, NoActiveRulesetError } from './queries/ruleset';
 export { getDismissedAds, getSavedAds, getSavedCount } from './queries/history';
 export {

@@ -118,8 +118,11 @@ function directionMatches(title: string, dir: DirectionRow): boolean {
  * interested directions. Used as the gate in Pass 3 — same two-track logic
  * as `directionFit` in scoring, but boolean: ads that fail this gate go
  * straight to explore without scoring.
+ *
+ * Exported so the worker can apply the same gate at ingest time (before
+ * writing to the DB) when the user has directions configured.
  */
-function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
+export function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
   if (dirs.length === 0) return true;
   const t = title.toLowerCase();
   return dirs.some((dir) => directionMatches(t, dir));

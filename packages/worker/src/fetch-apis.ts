@@ -19,7 +19,8 @@
  */
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { dedupeKeyFromStrings, extractTitleFacts } from '@job-digest/ingest';
-import { adSightings, ads, runs, sources } from '@job-digest/db';
+import { adSightings, ads, runs, sources, listInterestedDirections, matchesAnyDirection } from '@job-digest/db';
+import type { DirectionRow } from '@job-digest/db';
 import { ashby } from './providers/ashby';
 import { greenhouse } from './providers/greenhouse';
 import { lever } from './providers/lever';
@@ -148,8 +149,11 @@ async function ingestJob(
 
 export interface FetchApisResult {
   sourceId: string;
+  /** Jobs that passed the direction gate and were written (or updated) in the DB. */
   fetched: number;
   created: number;
+  /** Jobs skipped because no direction matched — 0 when user has no directions. */
+  skipped: number;
   error: string | null;
 }
 
@@ -167,6 +171,12 @@ export async function fetchApiSources(
   },
 ): Promise<FetchApisResult[]> {
   const { userId, runId } = params;
+
+  // Read directions once before processing any source — used to gate ingestion
+  // for users who have configured what they're looking for. Users with no
+  // directions get unfiltered results (same as before this change).
+  const interestedDirs: DirectionRow[] = await listInterestedDirections(db, userId);
+
   const userSources = await withTenant(db, userId, (tx) =>
     tx
       .select({ id: sources.id, provider: sources.provider, externalSlug: sources.externalSlug })
@@ -182,13 +192,24 @@ export async function fetchApiSources(
   const results: FetchApisResult[] = [];
 
   await mapWithConcurrency(userSources, FETCH_CONCURRENCY, async (source) => {
-    const result: FetchApisResult = { sourceId: source.id, fetched: 0, created: 0, error: null };
+    const result: FetchApisResult = { sourceId: source.id, fetched: 0, created: 0, skipped: 0, error: null };
 
     try {
       const provider = providerFor(source.provider);
       if (!provider) throw new Error(`No adapter registered for provider "${source.provider}"`);
 
-      const jobs = await provider.fetchJobs(source.externalSlug);
+      const allJobs = await provider.fetchJobs(source.externalSlug);
+
+      // Direction gate: when the user has configured directions, only ingest
+      // jobs whose title matches at least one. Users without directions get
+      // the full set (same behavior as before — no filter until we know what
+      // they want). This keeps irrelevant ads (e.g. "Finance Assistant" on a
+      // designer's board) from ever reaching the DB or the explore section.
+      const jobs = interestedDirs.length > 0
+        ? allJobs.filter((job) => matchesAnyDirection(job.title, interestedDirs))
+        : allJobs;
+      result.skipped = allJobs.length - jobs.length;
+
       const fetchedAt = new Date();
 
       await mapWithConcurrency(jobs, FETCH_CONCURRENCY, async (job) => {
