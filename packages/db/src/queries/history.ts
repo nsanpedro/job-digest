@@ -82,6 +82,7 @@ function toDigestAd(row: {
     applicationStatus,
     platformFields,
     scoreBreakdown: null,
+    matchedDirectionLabels: [],
   };
 }
 

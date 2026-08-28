@@ -1,6 +1,6 @@
 'use client';
 
-import { useOptimistic, useTransition } from 'react';
+import { useState, useOptimistic, useTransition } from 'react';
 import type { DigestAd } from '@job-digest/db';
 import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
@@ -199,10 +199,72 @@ export function AdCard({
   );
 }
 
+/** Human-readable single sentence summarising why this ad is in the digest. */
+function matchSummary(ad: DigestAd): string {
+  const clauses: string[] = [];
+  const bd = ad.scoreBreakdown;
+
+  // Direction clause — uses matched labels when available.
+  if (bd && bd.directionFit > 0) {
+    const labels = ad.matchedDirectionLabels;
+    if (labels.length === 1) {
+      clauses.push("Matches your '" + labels[0] + "' direction");
+    } else if (labels.length >= 2) {
+      clauses.push("Matches your '" + labels[0] + "' and '" + labels[1] + "' directions");
+    } else {
+      clauses.push('Matches your role directions');
+    }
+  }
+
+  // Pay clause from verdicts.
+  const payVerdict = ad.verdicts.find((v) => v.key === 'Pay');
+  if (payVerdict?.state === 'pass') {
+    clauses.push('Salary above your floor');
+  } else if (payVerdict?.state === 'unknown') {
+    clauses.push('Salary not stated in the email');
+  }
+
+  // Freshness from receivedAt (more precise than the score component).
+  const ageDays = Math.floor((Date.now() - new Date(ad.receivedAt).getTime()) / 86_400_000);
+  if (ageDays === 0) clauses.push('Arrived today');
+  else if (ageDays === 1) clauses.push('Arrived yesterday');
+  else clauses.push(`Arrived ${ageDays} days ago`);
+
+  // Source.
+  clauses.push(`Via ${ad.source}`);
+
+  // Low-signal warning.
+  if (bd && bd.signalCompleteness < 0.3) {
+    clauses.push('Limited info from this email — check the original ad for salary and remote details');
+  }
+
+  return clauses.join('. ') + '.';
+}
+
 function ExpandedPanel({ ad }: { ad: DigestAd }) {
+  const [showMath, setShowMath] = useState(false);
+
   return (
     <div className={styles.panel}>
       <div>
+        {ad.scoreBreakdown && (
+          <div className={styles.matchSummary}>
+            <p className={styles.matchSummaryText}>{matchSummary(ad)}</p>
+            <button
+              type="button"
+              className={styles.mathToggle}
+              onClick={() => setShowMath((v) => !v)}
+            >
+              {showMath ? 'Hide scoring math' : 'Show scoring math'}
+            </button>
+            {showMath && (
+              <div className={styles.scoreBreakdownWrap}>
+                <ScoreBreakdown breakdown={ad.scoreBreakdown} />
+              </div>
+            )}
+          </div>
+        )}
+
         <p className={styles.panelLabel}>Rule by rule — wording from the ad</p>
         <div className={styles.ruleTable}>
           {ad.verdicts.map((v) => {
@@ -220,7 +282,7 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
                 <div>
                   {w?.quote && w.quote !== '—' ? (
                     <>
-                      <span className={styles.quote}>„{w.quote}“</span>
+                      <span className={styles.quote}>„{w.quote}"</span>
                       {w.note && <> — <span className={styles.gloss}>{w.note}</span></>}
                     </>
                   ) : (
@@ -242,11 +304,6 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
             {ad.gap && <p className={styles.proseGap}>{ad.gap}</p>}
           </div>
         )}
-        {ad.scoreBreakdown && (
-          <div className={styles.scoreBreakdownWrap}>
-            <ScoreBreakdown breakdown={ad.scoreBreakdown} />
-          </div>
-        )}
       </div>
       <div className={styles.panelRight}>
         <p className={styles.panelLabel}>Where this came from</p>
@@ -264,7 +321,7 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
             discipline: say what was read, not what would be nice to say),
             so this reads as the email's subject instead.
           */}
-          {ad.alert && <>{ad.source} email „{ad.alert}“<br /></>}
+          {ad.alert && <>{ad.source} email „{ad.alert}"<br /></>}
           received {formatTimestamp(ad.receivedAt)}
         </p>
         {ad.incomplete && ad.incompleteNote && (
