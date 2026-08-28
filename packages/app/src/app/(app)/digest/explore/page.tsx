@@ -1,5 +1,5 @@
 import { getActiveRuleset, getDigest, NoActiveRulesetError } from '@job-digest/db';
-import { AdCard } from '@/components/AdCard';
+import { ExploreList } from '@/components/ExploreList';
 import { currentUser, withTenant } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -62,11 +62,7 @@ export default async function ExplorePage() {
             )}
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {explore.map((ad) => (
-              <AdCard key={ad.id} ad={ad} expanded={false} onToggle={() => {}} />
-            ))}
-          </div>
+          <ExploreList ads={explore} />
         </>
       )}
     </div>
