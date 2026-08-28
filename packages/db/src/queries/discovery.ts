@@ -103,7 +103,7 @@ export async function completeDerivation(
           searchTerms: d.searchTerms,
           distance: d.distance,
           seenTitles: d.seenTitles,
-          state: 'suggested' as const,
+          state: 'interested' as const,
         })),
       )
       .onConflictDoNothing({ target: [directions.userId, directions.profileVersion, directions.label] });
@@ -204,12 +204,17 @@ export async function setDirectionState(
     .where(and(eq(directions.userId, userId), eq(directions.id, directionId)));
 }
 
-/** Every direction the user marked interested, across all their derivations — for a digest coverage line (Phase 4). */
+/**
+ * Every direction active for this user's digest — 'suggested', 'interested',
+ * and 'alert_configured'. Directions start at 'interested' after derivation
+ * (auto-confirmed); 'suggested' is kept for backward compatibility with
+ * directions derived before that change. Only 'dismissed' is excluded.
+ */
 export async function listInterestedDirections(db: Db, userId: string): Promise<DirectionRow[]> {
   const rows = await db
     .select()
     .from(directions)
-    .where(and(eq(directions.userId, userId), inArray(directions.state, ['interested', 'alert_configured'])));
+    .where(and(eq(directions.userId, userId), inArray(directions.state, ['suggested', 'interested', 'alert_configured'])));
   return rows.map((r) => ({
     id: r.id,
     profileVersion: r.profileVersion,
