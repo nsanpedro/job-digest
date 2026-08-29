@@ -35,6 +35,14 @@ export {
   type Tiered,
   type TopPickHistory,
 } from './scoring';
+export {
+  CURATION_THRESHOLDS,
+  DESCRIPTION_MATCH_CHARS,
+  directionFitStrength,
+  inferMode,
+  type CurationDirection,
+  type CurationMode,
+} from './curation';
 export { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from './default-ruleset';
 export {
   DIAGNOSTIC_MIN_CURATED,
