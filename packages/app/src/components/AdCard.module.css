@@ -2,12 +2,15 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  border-left-width: 3px;
-  border-left-style: solid;
+  transition: border-color 120ms;
+}
+
+.card:hover {
+  border-color: var(--border-hover);
 }
 
 .body {
-  padding: 16px 18px 14px;
+  padding: 18px 22px 16px;
 }
 
 .titleRow {
@@ -104,7 +107,7 @@
 }
 
 .score {
-  width: 78px;
+  width: 88px;
   flex-shrink: 0;
   text-align: right;
 }
@@ -119,9 +122,10 @@
 
 .scoreValue {
   font-family: var(--font-mono);
-  font-size: 15px;
-  color: oklch(0.42 0.01 260);
+  font-size: 17px;
+  color: var(--text-strong);
   margin-top: 2px;
+  letter-spacing: -0.02em;
 }
 
 .scoreBar {
@@ -134,30 +138,31 @@
 
 .scoreFill {
   height: 100%;
-  background: oklch(0.62 0.01 260);
+  background: linear-gradient(90deg, oklch(0.7 0.005 260), oklch(0.4 0.005 260));
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px 8px 18px;
+  gap: 4px;
+  padding: 8px 16px 8px 22px;
   border-top: 1px solid var(--border-soft-2);
 }
 
 .actionBtn {
   font-size: 12.5px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: var(--radius-chip);
-  border: 1px solid var(--border);
-  background: #fff;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   font-family: var(--font-sans);
 }
 
 .actionBtn:hover {
-  border-color: oklch(0.72 0.01 260);
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 .actionBtnActive {
@@ -193,17 +198,18 @@
 
 .dismissBtn {
   font-size: 12.5px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: var(--radius-chip);
-  border: 1px solid var(--border);
-  background: #fff;
-  color: oklch(0.46 0.11 25);
+  border: 1px solid transparent;
+  background: transparent;
+  color: oklch(0.5 0.13 25);
   cursor: pointer;
   font-family: var(--font-sans);
 }
 
 .dismissBtn:hover {
   background: oklch(0.97 0.02 25);
+  color: oklch(0.42 0.14 25);
 }
 
 /* Expanded panel */

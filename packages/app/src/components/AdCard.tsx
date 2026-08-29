@@ -7,7 +7,7 @@ import { formatShortDate, formatTimestamp } from '@/lib/format';
 import { RuleLane } from './RuleLane';
 import { ScoreBreakdown } from './ScoreBreakdown';
 import { TitleFactChips } from './TitleFactChips';
-import { EDGE_COLOR, STATE_VISUALS, worstOf } from './rule-visuals';
+import { STATE_VISUALS } from './rule-visuals';
 import styles from './AdCard.module.css';
 
 /** Short forms for the action bar; the applications view spells them out. */
@@ -55,8 +55,6 @@ export function AdCard({
     { saved: ad.saved, seen: ad.seen, applicationStatus: ad.applicationStatus, justActed: false },
     (state, patch) => ({ ...state, ...patch }),
   );
-  const edge = EDGE_COLOR[worstOf(ad.verdicts.map((v) => v.state))];
-
   // The server call reads the target value from optimistic state, not the
   // `ad` prop — a rapid second click lands before the prop refreshes, and
   // reading from the (stale) prop there would send the same value twice,
@@ -90,7 +88,7 @@ export function AdCard({
     });
 
   return (
-    <div className={styles.card} style={{ borderLeftColor: edge, opacity: optimistic.justActed ? 0.6 : 1 }}>
+    <div className={styles.card} style={{ opacity: optimistic.justActed ? 0.6 : 1 }}>
       <div className={styles.body}>
         <div className={styles.titleRow}>
           <button type="button" className={styles.titleBtn} onClick={onToggle}>
@@ -102,10 +100,10 @@ export function AdCard({
 
         <div className={styles.metaRow}>
           {ad.company && <span className={styles.metaCompany}>{ad.company}</span>}
-          {ad.company && ad.location && <span className={styles.metaSep}>|</span>}
+          {ad.company && ad.location && <span className={styles.metaSep}>/</span>}
           {ad.location && <span>{ad.location}</span>}
-          {(ad.company || ad.location) && <span className={styles.metaSep}>|</span>}
-          <span className={styles.metaSource}>via {ad.source}</span>
+          {(ad.company || ad.location) && <span className={styles.metaSep}>/</span>}
+          <span className={styles.metaSource}>{ad.source}</span>
         </div>
 
         <div className={styles.main}>
