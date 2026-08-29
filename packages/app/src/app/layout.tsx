@@ -1,16 +1,14 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Mono, IBM_Plex_Sans } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
-// next/font self-hosts at build time — the design doc's own recommendation
-// for production ("self-hostearlas"), for free, with no separate step.
-const sans = IBM_Plex_Sans({
+const sans = Geist({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
   variable: '--font-sans-loaded',
   display: 'swap',
 });
-const mono = IBM_Plex_Mono({
+const mono = Geist_Mono({
   subsets: ['latin'],
   weight: ['400', '500'],
   variable: '--font-mono-loaded',

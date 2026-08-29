@@ -4,17 +4,22 @@
   align-items: center;
   gap: 16px;
   background: var(--surface-muted);
-  padding: 11px 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.row:last-child {
+  border-bottom: none;
 }
 
 .main {
-  opacity: 0.72;
   min-width: 0;
 }
 
 .title {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -22,37 +27,39 @@
 
 .meta {
   font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
+  color: var(--text-muted);
+  margin-top: 1px;
 }
 
 .reason {
-  max-width: 380px;
+  max-width: 400px;
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   font-size: 12.5px;
   line-height: 1.4;
 }
 
 .reasonGlyph {
-  font-size: 15px;
+  font-size: 13px;
   flex-shrink: 0;
+  line-height: 1;
+  margin-top: 1px;
 }
 
 .score {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .btn {
   font-size: 12.5px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: var(--radius-chip);
-  border: 1px solid var(--border);
-  background: #fff;
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -60,5 +67,6 @@
 }
 
 .btn:hover {
-  border-color: oklch(0.72 0.01 260);
+  background: var(--surface-hover);
+  color: var(--text);
 }

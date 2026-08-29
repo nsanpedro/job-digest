@@ -35,22 +35,23 @@ export function TopBar({
   userEmail: string;
 }) {
   const active = useActiveTab();
-  const initial = userEmail.trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <div className="container">
-      <div className={styles.bar}>
+    <header className={styles.header}>
+      <div className={styles.inner}>
         <div className={styles.brand}>
           <span className={styles.logo}>J</span>
-          <span className={styles.brandLabel}>Job alert digest · Hamburg</span>
+          <span className={styles.brandName}>Job digest</span>
+          <span className={styles.brandCity}>hamburg</span>
         </div>
+
         <nav className={styles.tabs}>
           <Link href="/digest" className={`${styles.tab} ${active === 'digest' ? styles.tabActive : ''}`}>
-            Weekly digest
+            Digest
           </Link>
           <Link href="/saved" className={`${styles.tab} ${active === 'saved' ? styles.tabActive : ''}`}>
             Saved
-            {savedCount > 0 && <span className={`${styles.badge} ${styles.badgeNeutral}`}>{savedCount}</span>}
+            {savedCount > 0 && <span className={styles.badgeNeutral}>{savedCount}</span>}
           </Link>
           <Link
             href="/applications"
@@ -58,7 +59,7 @@ export function TopBar({
           >
             Applications
             {applicationCount > 0 && (
-              <span className={`${styles.badge} ${styles.badgeNeutral}`}>{applicationCount}</span>
+              <span className={styles.badgeNeutral}>{applicationCount}</span>
             )}
           </Link>
           <Link
@@ -68,27 +69,25 @@ export function TopBar({
             Dismissed
           </Link>
           <Link href="/unread" className={`${styles.tab} ${active === 'unread' ? styles.tabActive : ''}`}>
-            Emails we couldn't read
-            {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
+            Unread
+            {unreadCount > 0 && <span className={styles.badgeAmber}>{unreadCount}</span>}
           </Link>
         </nav>
+
+        <div className={styles.spacer} />
+
         <div className={styles.right}>
-          <div className={styles.userMenu}>
-            <Link
-              href="/profile"
-              className={`${styles.avatar} ${active === 'profile' ? styles.avatarActive : ''}`}
-              title={userEmail}
-            >
-              {initial}
-            </Link>
-            <form action={signOutAction}>
-              <button type="submit" className={styles.signOut}>
-                Sign out
-              </button>
-            </form>
-          </div>
+          <Link href="/profile" className={styles.mailboxChip} title="Profile & settings">
+            <span className={styles.mailboxDot} />
+            {userEmail}
+          </Link>
+          <form action={signOutAction}>
+            <button type="submit" className={styles.signOut}>
+              Sign out
+            </button>
+          </form>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

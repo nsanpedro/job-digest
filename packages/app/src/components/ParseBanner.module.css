@@ -3,38 +3,43 @@
   border: 1px solid var(--amber-bd);
   background: var(--amber-bg);
   border-radius: var(--radius-card);
-  padding: 14px 18px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
 .text {
   flex: 1;
-  min-width: 240px;
-  font-size: 13px;
-  line-height: 1.5;
+  min-width: 260px;
+  font-size: 13.5px;
+  line-height: 1.55;
 }
 
 .headline {
   font-weight: 600;
-  color: var(--text);
+  color: oklch(0.32 0.06 70);
 }
 
 .detail {
-  color: var(--amber-fg);
+  color: oklch(0.42 0.05 70);
 }
 
 .btn {
-  font-size: 12.5px;
-  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
   border-radius: var(--radius-btn);
-  border: 1px solid var(--amber-bd);
+  border: 1px solid oklch(0.75 0.07 70);
   background: #fff;
-  color: var(--text);
+  color: oklch(0.4 0.09 70);
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
   font-family: var(--font-sans);
+}
+
+.btn:hover {
+  background: oklch(0.96 0.03 85);
 }
