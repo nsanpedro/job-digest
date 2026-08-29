@@ -598,6 +598,14 @@ export const directions = pgTable(
     bridge: text('bridge').array().notNull(),
     /** German, as typed into a platform search. */
     searchTerms: text('search_terms').array().notNull(),
+    /**
+     * Per-direction negative keywords for the API pre-ingest gate. Any
+     * case-insensitive substring hit in an ad title short-circuits the match
+     * for this direction to strength 0 — used to keep "Sales Engineer" out of
+     * a non-sales engineer's digest, "Interior Designer" out of a UX
+     * designer's, etc. Empty by default; the user adds terms in Profile.
+     */
+    excludeTerms: text('exclude_terms').array().notNull().default(sql`'{}'`),
     distance: directionDistanceEnum('distance').notNull(),
     /** Snapshot at derivation time of the user's own ad titles the model placed here. */
     seenTitles: text('seen_titles').array().notNull().default(sql`'{}'`),

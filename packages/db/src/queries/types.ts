@@ -249,6 +249,8 @@ export interface DirectionRow {
   /** Skill `text` labels this direction bridges from — the premises (I17). */
   bridge: string[];
   searchTerms: string[];
+  /** Negative keywords: any substring hit in an ad title short-circuits this direction to strength 0. */
+  excludeTerms: string[];
   distance: Distance;
   /** Snapshot at derivation time; not re-checked live. */
   seenTitles: string[];
