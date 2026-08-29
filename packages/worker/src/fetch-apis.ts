@@ -19,7 +19,7 @@
  */
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { dedupeKeyFromStrings, extractTitleFacts } from '@job-digest/ingest';
-import { adSightings, ads, runs, sources, listInterestedDirections, matchesAnyDirection } from '@job-digest/db';
+import { adSightings, ads, runs, sources, listInterestedDirections } from '@job-digest/db';
 import type { DirectionRow } from '@job-digest/db';
 import { ashby } from './providers/ashby';
 import { greenhouse } from './providers/greenhouse';
@@ -27,7 +27,13 @@ import { lever } from './providers/lever';
 import { personio } from './providers/personio';
 import type { JobBoardProvider, NormalizedJob } from './providers/types';
 import { mergeFacts } from './merge-facts';
-import { provenanceFromFacts } from '@job-digest/core';
+import {
+  CURATION_THRESHOLDS,
+  directionFitStrength,
+  inferMode,
+  provenanceFromFacts,
+  type CurationDirection,
+} from '@job-digest/core';
 import { withTenant, type Db } from './tenant';
 
 // Keep well below the app pool's max so web requests are never starved.
@@ -160,9 +166,18 @@ export interface FetchApisResult {
   /** Jobs that passed the direction gate and were written (or updated) in the DB. */
   fetched: number;
   created: number;
-  /** Jobs skipped because no direction matched — 0 when user has no directions. */
+  /** Jobs skipped because they didn't clear the gate — 0 when user has no directions. */
   skipped: number;
   error: string | null;
+}
+
+/** Project a DirectionRow to the fields the curation gate reads. */
+function toCurationDirection(dir: DirectionRow): CurationDirection {
+  return {
+    distance: dir.distance,
+    searchTerms: dir.searchTerms,
+    excludeTerms: dir.excludeTerms,
+  };
 }
 
 /**
@@ -207,13 +222,30 @@ export async function fetchApiSources(
 
       const allJobs = await provider.fetchJobs(source.externalSlug);
 
-      // Direction gate: when the user has configured directions, only ingest
-      // jobs whose title matches at least one. Users without directions get
-      // the full set (same behavior as before — no filter until we know what
-      // they want). This keeps irrelevant ads (e.g. "Finance Assistant" on a
-      // designer's board) from ever reaching the DB or the explore section.
+      // Direction gate — Phase 1 of the curated-algo optimization. Was a
+      // boolean substring match on title; now a graduated [0, 1] strength
+      // (title + description + excludeTerms + distance factor) checked
+      // against a mode-dependent threshold.
+      //
+      // Mode is inferred from the user's own direction set: 1–3 directions
+      // → 'focused' (threshold 0.6), 4+ or 0 → 'discovery' (0.3). A user
+      // who knows what they want gets a strict gate; one still exploring
+      // gets breadth in explore. Users with no directions bypass the gate
+      // entirely (as before) — nothing to gate against.
+      //
+      // Descriptions aren't populated by the providers yet — this call
+      // passes `null` and the gate degrades to title-only until the
+      // provider adapters add `description` to NormalizedJob. Even so, the
+      // new tiers + exclude terms already fix the "Sales Manager" /
+      // "Interior Designer" false positives the boolean gate lets through.
       const jobs = interestedDirs.length > 0
-        ? allJobs.filter((job) => matchesAnyDirection(job.title, interestedDirs))
+        ? (() => {
+            const curationDirs = interestedDirs.map(toCurationDirection);
+            const threshold = CURATION_THRESHOLDS[inferMode(curationDirs)];
+            return allJobs.filter(
+              (job) => directionFitStrength(job.title, null, curationDirs) >= threshold,
+            );
+          })()
         : allJobs;
       result.skipped = allJobs.length - jobs.length;
 
