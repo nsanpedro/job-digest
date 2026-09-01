@@ -162,8 +162,32 @@ function containsWord(haystack: string, word: string): boolean {
   return alts.some((alt) => haystack.includes(alt));
 }
 
+/** Regex metacharacters we escape before injecting a user-supplied term. */
+const REGEX_META = /[.*+?^${}()|[\]\\]/g;
+
+/**
+ * True when any exclude term appears in `text` as a whole word (or, for a
+ * multi-word term, as a contiguous phrase of whole words).
+ *
+ * Word-boundary match, not substring: an exclude "lead" no longer clobbers
+ * "Leadership", and "sales" no longer clobbers "wholesale". Regex uses \b
+ * with the /u flag so `\b` treats Spanish and German word characters (ñ,
+ * ä, ö, ü) as letters — an exclude "diseñador" matches "diseñador ux" but
+ * not "diseñadora".
+ *
+ * This gate zeroes the whole ad (excludes are ad-level, see
+ * directionFitStrength), so a false-positive exclude silently drops a
+ * real match — that is the failure mode a substring match invites and
+ * this rewrite closes.
+ */
 function hasExcludeHit(text: string, excludeTerms: readonly string[]): boolean {
-  return excludeTerms.some((term) => term.length > 0 && text.includes(term.toLowerCase()));
+  for (const raw of excludeTerms) {
+    const term = raw.trim().toLowerCase();
+    if (!term) continue;
+    const escaped = term.replace(REGEX_META, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`, 'iu').test(text)) return true;
+  }
+  return false;
 }
 
 /**

@@ -124,6 +124,51 @@ describe('directionFitStrength — exclude terms (ad-level)', () => {
     const dirs = [adjacent(['Product Manager'], [])];
     expect(directionFitStrength('Sales Product Manager', null, dirs)).toBe(1.0);
   });
+
+  it('exclude uses word boundaries — "lead" does not clobber "Leadership"', () => {
+    // The substring bug: an exclude "lead" used to match "Leadership",
+    // silently zeroing legitimate leadership-adjacent ads. Word-boundary
+    // regex closes it.
+    const dirs = [adjacent(['Engineering Leadership'], ['lead'])];
+    // 'lead' is present as a whole word in "Team Lead" → excluded.
+    expect(directionFitStrength('Team Lead', null, dirs)).toBe(0);
+    // 'lead' as a substring of "Leadership" is NOT a hit.
+    expect(directionFitStrength('Head of Engineering Leadership', null, dirs)).toBe(1.0);
+  });
+
+  it('exclude "sales" does not clobber "wholesale"', () => {
+    const dirs = [adjacent(['Product Manager'], ['sales'])];
+    // A description mentioning "wholesale" is not a sales exclude hit.
+    expect(
+      directionFitStrength(
+        'Senior Product Manager',
+        'You will own our wholesale distribution channel.',
+        dirs,
+      ),
+    ).toBe(1.0);
+    // Real "sales" as a word is still excluded.
+    expect(directionFitStrength('Senior Sales Manager', null, dirs)).toBe(0);
+  });
+
+  it('multi-word exclude requires the whole phrase', () => {
+    const dirs = [adjacent(['Backend Engineer'], ['customer success'])];
+    // Both words but not adjacent as a phrase → NOT excluded.
+    expect(
+      directionFitStrength(
+        'Backend Engineer',
+        'Reporting to the customer team; success metrics owned by product.',
+        dirs,
+      ),
+    ).toBe(1.0);
+    // Adjacent phrase in description → excluded.
+    expect(
+      directionFitStrength(
+        'Backend Engineer',
+        'Embedded in the customer success org.',
+        dirs,
+      ),
+    ).toBe(0);
+  });
 });
 
 describe('directionFitStrength — distance factor', () => {
