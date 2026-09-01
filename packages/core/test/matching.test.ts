@@ -127,6 +127,51 @@ describe('computeMatch — determinism + provenance', () => {
   });
 });
 
+describe('computeMatch — Spanish ↔ English cross-language matching', () => {
+  it('CV in Spanish ("diseñador ux") matches an English ad title ("UX Designer")', () => {
+    const r = computeMatch('Senior UX Designer', null, ['diseñador ux']);
+    expect(r.tier).toBe(1.0);
+    expect(r.matchedTerm).toBe('diseñador ux');
+  });
+
+  it('CV in English ("ux designer") matches a Spanish ad title ("Diseñadora UX")', () => {
+    const r = computeMatch('Diseñadora UX Senior', null, ['ux designer']);
+    expect(r.tier).toBe(1.0);
+  });
+
+  it('unaccented Spanish ("disenador") matches accented Spanish ad title', () => {
+    // A common real-world case: recruiters and ATS strip tildes.
+    const r = computeMatch('Diseñador de Producto', null, ['disenador de producto']);
+    expect(r.tier).toBe(1.0);
+  });
+
+  it('engineer synonym family bridges EN/DE/ES', () => {
+    // Spanish CV → English ad.
+    expect(computeMatch('Backend Engineer', null, ['ingeniero backend']).tier).toBe(1.0);
+    // Spanish CV → German ad.
+    expect(computeMatch('Backend Entwickler', null, ['ingeniero backend']).tier).toBe(1.0);
+    // English CV → Spanish ad.
+    expect(computeMatch('Desarrollador Backend', null, ['backend engineer']).tier).toBe(1.0);
+  });
+
+  it('Spanish role suffixes are also blocked from the long-word tier', () => {
+    // "director" already blocked; here we exercise the Spanish additions.
+    // "Diseñador de UX" as searchTerm → "diseñador" (9) is a role suffix,
+    // so a title with only "diseñador" (no other CV word) still needs the
+    // full phrase to match. A "Diseñador Comercial" ad must not match a
+    // "Diseñador de Producto UX" direction on "diseñador" alone.
+    const r = computeMatch('Diseñador Comercial', null, ['diseñador de producto ux']);
+    expect(r.tier).toBe(0);
+  });
+
+  it('a Spanish direction "creativo publicitario" matches on the domain long-word', () => {
+    // "creativo" (8) is not a role suffix → long-word tier accepts.
+    const r = computeMatch('Head of Creativo Digital', null, ['creativo publicitario']);
+    expect(r.tier).toBe(0.6);
+    expect(r.viaLongWord).toBe('creativo');
+  });
+});
+
 describe('tokenize + containsWord (helpers)', () => {
   it('tokenize splits on punctuation, drops stop words and short tokens', () => {
     expect(tokenize('Senior Product Manager, mit UX')).toEqual(['senior', 'product', 'manager']);

@@ -58,25 +58,24 @@ const STOP_WORDS: ReadonlySet<string> = new Set([
  * their own.
  *
  * Only forms ≥8 chars are listed (below that, the long-word tier ignores
- * the word anyway — "manager" is 7 chars, so absent; "managerin" is 9,
- * present). English + German today; extend when a real false-positive
- * names a form.
+ * the word anyway — "manager" and "gerente" are 7 chars, so absent).
+ * English + German + Spanish today, driven by the markets the product
+ * already targets (DACH via curated companies + email alerts, AR/ES via
+ * curated companies and CVs in Spanish). Extend when a real
+ * false-positive names a form.
  */
 export const NON_DISCRIMINATIVE_ROLE_WORDS: ReadonlySet<string> = new Set([
+  // English
   'director',
+  'directors',
   'engineer',
   'engineers',
   'engineering',
-  'entwickler',
-  'entwicklerin',
   'developer',
   'developers',
   'development',
   'designer',
   'designers',
-  'gestalter',
-  'gestalterin',
-  'managerin',
   'onboarding',
   'coordinator',
   'coordinators',
@@ -96,31 +95,92 @@ export const NON_DISCRIMINATIVE_ROLE_WORDS: ReadonlySet<string> = new Set([
   'professionals',
   'representative',
   'representatives',
+  // German
+  'entwickler',
+  'entwicklerin',
+  'gestalter',
+  'gestalterin',
+  'managerin',
+  // Spanish — feminine and masculine forms; the ad market posts both.
+  // Accented and unaccented variants: containsWord matches by substring,
+  // so we need to list both (a CV/ad may drop the tilde in either
+  // direction). "gerente" (7 chars) is deliberately absent — below the
+  // long-word floor already.
+  'ingeniero',
+  'ingeniera',
+  'ingenieria',
+  'ingeniería',
+  'desarrollador',
+  'desarrolladora',
+  'desarrollo',
+  'diseñador',
+  'diseñadora',
+  'disenador',
+  'disenadora',
+  'gerencia',
+  'coordinador',
+  'coordinadora',
+  'especialista',
+  'arquitecto',
+  'arquitecta',
+  'arquitectura',
+  'ejecutivo',
+  'ejecutiva',
+  'consultor',
+  'consultora',
+  'representante',
+  'representantes',
 ]);
 
 /**
  * Role synonyms — words treated as interchangeable when matching a search
- * term against a title. Bilingual by design (German ads mix English and
- * German role words in the same title), key-and-value form so lookup is
- * one-hop.
+ * term against a title. Cross-language by design: DACH ads mix English and
+ * German role words in the same title; AR/ES ads mix English and Spanish
+ * the same way. A CV in Spanish with searchTerm "diseñador ux" should
+ * match an ad titled "UX Designer" and vice-versa — without these
+ * synonyms the cross-language pair falls through every tier.
+ *
+ * Key-and-value form so lookup is one-hop and every family is closed:
+ * every synonym in a family lists every other member. Adding a language
+ * means adding one new set of keys and appending the new forms to every
+ * existing family key.
  *
  * Kept minimal on purpose: only widely-interchangeable role words. Adding
  * "senior"/"lead" would open false positives ("Senior Nurse" ≠
- * engineering). All entries stay ≥8 chars so the long-word gate remains
- * meaningful.
+ * engineering). All entries stay ≥8 chars — a synonym match is still
+ * evidence of role affinity, not accidental substring overlap. `containsWord`
+ * does a substring check, so unaccented Spanish forms ("disenador",
+ * "ingenieria") ride along with the accented ones without a separate lookup.
  */
 export const ROLE_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
-  // Engineering family — English ↔ German
-  engineer: ['engineer', 'developer', 'entwickler'],
-  developer: ['engineer', 'developer', 'entwickler'],
-  entwickler: ['engineer', 'developer', 'entwickler'],
-  // Design family — English ↔ German. "gestalter" covers "UX-Gestalter",
-  // "Kommunikationsgestalter", etc.
-  designer: ['designer', 'gestalter'],
-  gestalter: ['designer', 'gestalter'],
-  // Product family
-  manager: ['manager', 'managerin'],
-  managerin: ['manager', 'managerin'],
+  // Engineering family — English ↔ German ↔ Spanish
+  engineer: ['engineer', 'developer', 'entwickler', 'ingeniero', 'ingeniera', 'desarrollador', 'desarrolladora'],
+  developer: ['engineer', 'developer', 'entwickler', 'ingeniero', 'ingeniera', 'desarrollador', 'desarrolladora'],
+  entwickler: ['engineer', 'developer', 'entwickler', 'ingeniero', 'ingeniera', 'desarrollador', 'desarrolladora'],
+  ingeniero: ['engineer', 'developer', 'entwickler', 'ingeniero', 'ingeniera', 'desarrollador', 'desarrolladora'],
+  ingeniera: ['engineer', 'developer', 'entwickler', 'ingeniero', 'ingeniera', 'desarrollador', 'desarrolladora'],
+  desarrollador: ['engineer', 'developer', 'entwickler', 'ingeniero', 'ingeniera', 'desarrollador', 'desarrolladora'],
+  desarrolladora: ['engineer', 'developer', 'entwickler', 'ingeniero', 'ingeniera', 'desarrollador', 'desarrolladora'],
+  // Design family — English ↔ German ↔ Spanish. "gestalter" covers
+  // "UX-Gestalter"; "diseñador"/"disenador" covers accented + unaccented
+  // Spanish. English "designer" is a common loan in Spanish ads so the
+  // cross-mapping is asymmetric-safe (a substring check catches both).
+  designer: ['designer', 'gestalter', 'diseñador', 'diseñadora', 'disenador', 'disenadora'],
+  gestalter: ['designer', 'gestalter', 'diseñador', 'diseñadora', 'disenador', 'disenadora'],
+  diseñador: ['designer', 'gestalter', 'diseñador', 'diseñadora', 'disenador', 'disenadora'],
+  diseñadora: ['designer', 'gestalter', 'diseñador', 'diseñadora', 'disenador', 'disenadora'],
+  disenador: ['designer', 'gestalter', 'diseñador', 'diseñadora', 'disenador', 'disenadora'],
+  disenadora: ['designer', 'gestalter', 'diseñador', 'diseñadora', 'disenador', 'disenadora'],
+  // Product / management family. "gerente" is 7 chars — below tokenizer's
+  // long-word floor but still valid as a full-phrase synonym.
+  manager: ['manager', 'managerin', 'gerente'],
+  managerin: ['manager', 'managerin', 'gerente'],
+  gerente: ['manager', 'managerin', 'gerente'],
+  // Analyst family — English ↔ Spanish. "analyst"/"analista" are both 7-8
+  // chars, so this only helps at the full-phrase tier ("business analyst"
+  // vs "analista de negocio") — the long-word tier does not use it.
+  analyst: ['analyst', 'analista'],
+  analista: ['analyst', 'analista'],
 };
 
 // ── Public types ─────────────────────────────────────────────────────────────
