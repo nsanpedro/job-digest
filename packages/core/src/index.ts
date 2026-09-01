@@ -20,6 +20,7 @@ export {
   DEFAULT_CALIBRATION,
   ROLE_SYNONYMS,
   directionFit,
+  effectiveWeights,
   freshness,
   isCertain,
   ruleMargin,

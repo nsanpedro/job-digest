@@ -209,13 +209,18 @@ function contractMargin(f: Facts, c: Ruleset['Contract']['condition']): number {
  * ranking runs at digest read time on ads that have already cleared the
  * ingest gate, and we don't have descriptions in that path.
  *
- * When the user has no interested directions we return 1.0 — neutral, so
- * an ad neither wins nor loses on a signal the user did not give. (There
- * is a design question about whether a user with zero directions should
- * even see top-picks at all; deferred, see the roadmap.)
+ * When the user has no interested directions we return 0 — nothing to
+ * measure. The old contract returned 1.0 ("no signal, no penalty") but
+ * that quietly added `1.0 × weight.directionFit` (35 pts) to every ad,
+ * so a fresh LinkedIn alert with empty facts cleared the topPick
+ * threshold on freshness alone — a phantom recommendation from a signal
+ * the user never gave. `scoreAd` compensates by redistributing the
+ * directionFit weight across the other components via `effectiveWeights`
+ * — the unconfigured user is not silently penalised, but neither is she
+ * shown top-picks that stand on nothing.
  */
 export function directionFit(title: string, directions: readonly ScoringDirection[]): number {
-  if (directions.length === 0) return 1.0;
+  if (directions.length === 0) return 0;
   let best = 0;
   for (const dir of directions) {
     const { tier } = computeMatch(title, null, dir.searchTerms);
@@ -226,6 +231,43 @@ export function directionFit(title: string, directions: readonly ScoringDirectio
     }
   }
   return best;
+}
+
+/**
+ * The weights `scoreAd` actually uses for a given ad, after accounting for
+ * signals the user has not given.
+ *
+ * When `hasDirections` is false, `weights.directionFit` is set to 0 and
+ * its share is redistributed proportionally across the other four
+ * components — so the sum stays 1.0 and an ad without a direction signal
+ * is scored on what we DO know (rules, completeness, freshness, source),
+ * scaled up to the same [0, 100] range. A component whose base weight is
+ * 0 receives no boost.
+ *
+ * Formula: each non-directionFit weight w becomes `w × (1 + df/other)`
+ * where `df = base.directionFit` and `other = 1 - df`. Sum is preserved:
+ * `Σ w × (1 + df/other) = other × (1 + df/other) = other + df = 1`.
+ *
+ * If the base already has `directionFit = 0` or `other = 0` (degenerate
+ * calibrations), returns the base unchanged rather than dividing by
+ * zero or fabricating weights.
+ */
+export function effectiveWeights(
+  base: Calibration['weights'],
+  hasDirections: boolean,
+): Calibration['weights'] {
+  if (hasDirections) return base;
+  const df = base.directionFit;
+  const other = 1 - df;
+  if (df <= 0 || other <= 0) return base;
+  const scale = 1 / other;
+  return {
+    ruleMargin: base.ruleMargin * scale,
+    directionFit: 0,
+    signalCompleteness: base.signalCompleteness * scale,
+    freshness: base.freshness * scale,
+    sourceQuality: base.sourceQuality * scale,
+  };
 }
 
 // ── Signal completeness ──────────────────────────────────────────────────────
@@ -362,7 +404,11 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   const fr = freshness(receivedAt, now, calibration.freshnessDecayDays, calibration.freshnessFloor);
   const sq = sourceQuality(source, calibration);
 
-  const w = calibration.weights;
+  // Weights honor "signals the user has not given": with zero directions
+  // the directionFit weight is redistributed across the other four
+  // (see `effectiveWeights`), so an unconfigured user isn't given
+  // phantom top-picks from freshness alone.
+  const w = effectiveWeights(calibration.weights, directions.length > 0);
   const total = Math.round(
     100 * (w.ruleMargin * rm + w.directionFit * df + w.signalCompleteness * sc + w.freshness * fr + w.sourceQuality * sq),
   );

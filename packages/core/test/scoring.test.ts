@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CALIBRATION,
   directionFit,
+  effectiveWeights,
   freshness,
   isCertain,
   ruleMargin,
@@ -153,8 +154,13 @@ describe('ruleMargin', () => {
 // ── directionFit ─────────────────────────────────────────────────────────────
 
 describe('directionFit', () => {
-  it('returns 1.0 when the user has no directions — no signal, no penalty', () => {
-    expect(directionFit('Senior Software Engineer', [])).toBe(1.0);
+  it('returns 0 when the user has no directions — nothing to measure', () => {
+    // scoreAd compensates by redistributing the directionFit weight across
+    // the other four components via `effectiveWeights`, so the ad is not
+    // silently penalised — but returning 1.0 here (the old contract) added
+    // phantom points that let a stale LinkedIn alert reach topPick on
+    // freshness alone. Fixed at the source.
+    expect(directionFit('Senior Software Engineer', [])).toBe(0);
   });
 
   it('full-phrase match on an adjacent direction scores 1.0', () => {
@@ -233,6 +239,51 @@ describe('directionFit', () => {
     expect(directionFit('Senior Product Manager', dirs)).toBe(1);
     // But a title missing one of them and lacking a long-word gets nothing:
     expect(directionFit('Senior Analyst', dirs)).toBe(0);
+  });
+});
+
+// ── effectiveWeights ────────────────────────────────────────────────────────
+
+describe('effectiveWeights', () => {
+  const base = DEFAULT_CALIBRATION.weights;
+
+  it('returns the base weights unchanged when there ARE directions', () => {
+    expect(effectiveWeights(base, true)).toEqual(base);
+  });
+
+  it('zeroes directionFit and redistributes its share when there are NO directions', () => {
+    const w = effectiveWeights(base, false);
+    expect(w.directionFit).toBe(0);
+    // Each other component is scaled by 1 / (1 - directionFit).
+    const scale = 1 / (1 - base.directionFit);
+    expect(w.ruleMargin).toBeCloseTo(base.ruleMargin * scale);
+    expect(w.signalCompleteness).toBeCloseTo(base.signalCompleteness * scale);
+    expect(w.freshness).toBeCloseTo(base.freshness * scale);
+    expect(w.sourceQuality).toBeCloseTo(base.sourceQuality * scale);
+  });
+
+  it('the redistributed weights still sum to 1.0 (score stays in [0, 100])', () => {
+    const w = effectiveWeights(base, false);
+    const sum = w.ruleMargin + w.directionFit + w.signalCompleteness + w.freshness + w.sourceQuality;
+    expect(sum).toBeCloseTo(1.0);
+  });
+
+  it('a component with base weight 0 receives no boost', () => {
+    // Custom calibration with sourceQuality=0.
+    const custom = {
+      ...base,
+      ruleMargin: 0.35, directionFit: 0.35, signalCompleteness: 0.15, freshness: 0.15, sourceQuality: 0,
+    };
+    const w = effectiveWeights(custom, false);
+    expect(w.sourceQuality).toBe(0);
+    // The 0.35 directionFit share went to rm/sc/fr proportionally.
+    const sum = w.ruleMargin + w.directionFit + w.signalCompleteness + w.freshness + w.sourceQuality;
+    expect(sum).toBeCloseTo(1.0);
+  });
+
+  it('a calibration with directionFit=0 base is returned unchanged (no divide-by-zero)', () => {
+    const degenerate = { ...base, directionFit: 0, ruleMargin: 0.6 };
+    expect(effectiveWeights(degenerate, false)).toEqual(degenerate);
   });
 });
 
@@ -448,7 +499,7 @@ describe('scoreAd', () => {
     expect(result.sourceQuality).toBe(1);
   });
 
-  it('an empty-facts LinkedIn ad with no directions and 7-day age scores at the floor combination', () => {
+  it('an empty-facts LinkedIn ad with no directions and 7-day age does NOT reach topPick', () => {
     const rs = defaultRuleset();
     const receivedAt = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const result = scoreAd({
@@ -462,13 +513,17 @@ describe('scoreAd', () => {
       now,
       calibration: DEFAULT_CALIBRATION,
     });
-    // ruleMargin 0.5 * 0.25 = 0.125
-    // directionFit 1.0 * 0.35 = 0.350 (no directions → full score, no penalty)
-    // signalCompleteness 0 * 0.10 = 0
-    // freshness 0.4 * 0.20 = 0.080
-    // sourceQuality 0.6 * 0.10 = 0.060
-    // sum = 0.615 → 62
-    expect(result.total).toBe(62);
+    // No directions → directionFit weight (0.35) redistributed across the
+    // other four. Effective weights: rm 0.385, sc 0.154, fr 0.308, sq 0.154.
+    // Values: rm 0.5, sc 0, fr 0.4, sq 0.6.
+    // total = 0.385*0.5 + 0.154*0 + 0.308*0.4 + 0.154*0.6 ≈ 0.408 → 41.
+    //
+    // Was 62 under the old contract (directionFit=1.0 as a free 35 pts) —
+    // a phantom near-topPick for a stale, empty ad from a user who never
+    // gave a signal. 41 is the honest number: well below both topPick (70)
+    // and worthAReading (50), so this ad correctly lands in explore.
+    expect(result.total).toBe(41);
+    expect(result.directionFit).toBe(0);
   });
 
   it('is deterministic (same input → same output)', () => {
@@ -741,12 +796,13 @@ describe('selectTiers', () => {
       now,
       calibration: noSourceEffect,
     });
-    // ruleMargin 0.5*0.35 = 0.175
-    // directionFit 1.0*0.35 = 0.350 (no directions → full score)
-    // signalCompleteness 0*0.15 = 0
-    // freshness 1.0*0.15 = 0.150 (receivedAt === now → age 0)
-    // sourceQuality 0.6*0 = 0
-    // sum = 0.675 → 68
-    expect(result.total).toBe(68);
+    // No directions → the 0.35 directionFit weight is redistributed
+    // proportionally across the three components with a non-zero base
+    // (sourceQuality here is 0 so it receives no boost). Effective
+    // weights: rm 0.35/0.65 = 0.538, sc 0.15/0.65 = 0.231, fr 0.15/0.65 =
+    // 0.231, sq 0. Values: rm 0.5, sc 0, fr 1.0, sq 0.6.
+    // total = 0.538*0.5 + 0.231*0 + 0.231*1.0 + 0 ≈ 0.500 → 50.
+    // Was 68 under the old phantom-1.0 contract.
+    expect(result.total).toBe(50);
   });
 });

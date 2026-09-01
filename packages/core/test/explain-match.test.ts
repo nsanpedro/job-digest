@@ -8,6 +8,7 @@ import {
   describeMatch,
   explainMatch,
   type ExplainableDirection,
+  type MatchExplanation,
 } from '../src/explain-match';
 import type { Distance } from '../src/discovery';
 
@@ -18,11 +19,17 @@ const dir = (
   distance: Distance = 'adjacent',
 ): ExplainableDirection => ({ label, distance, searchTerms, excludeTerms });
 
+/** Extract the sole entry of a single-direction explain call — asserts exactly one exists. */
+function only(exps: readonly MatchExplanation[]): MatchExplanation {
+  expect(exps).toHaveLength(1);
+  return exps[0]!;
+}
+
 describe('explainMatch — outcomes', () => {
   it('matched via full phrase in title', () => {
-    const [exp] = explainMatch('Senior Creative Director', null, [
-      dir('Creative Director', ['creative director']),
-    ]);
+    const exp = only(
+      explainMatch('Senior Creative Director', null, [dir('Creative Director', ['creative director'])]),
+    );
     expect(exp).toMatchObject({
       kind: 'matched',
       label: 'Creative Director',
@@ -36,13 +43,14 @@ describe('explainMatch — outcomes', () => {
   });
 
   it('matched via long-word in description reports the winning domain word', () => {
-    const [exp] = explainMatch(
-      'Growth Lead',
-      'Owning our distributed data platform end-to-end.',
-      [dir('Distributed Systems', ['distributed systems engineer'])],
+    const exp = only(
+      explainMatch(
+        'Growth Lead',
+        'Owning our distributed data platform end-to-end.',
+        [dir('Distributed Systems', ['distributed systems engineer'])],
+      ),
     );
-    expect(exp.kind).toBe('matched');
-    if (exp.kind !== 'matched') throw new Error('narrowing');
+    if (exp.kind !== 'matched') throw new Error(`expected matched, got ${exp.kind}`);
     expect(exp.via).toBe('long-word');
     expect(exp.longWord).toBe('distributed');
     expect(exp.surface).toBe('description');
@@ -50,9 +58,11 @@ describe('explainMatch — outcomes', () => {
   });
 
   it('excluded reports which term and where', () => {
-    const [exp] = explainMatch('Senior Sales Manager', null, [
-      dir('Product Manager', ['product manager'], ['sales']),
-    ]);
+    const exp = only(
+      explainMatch('Senior Sales Manager', null, [
+        dir('Product Manager', ['product manager'], ['sales']),
+      ]),
+    );
     expect(exp).toEqual({
       kind: 'excluded',
       label: 'Product Manager',
@@ -65,16 +75,20 @@ describe('explainMatch — outcomes', () => {
   it('excluded takes precedence over an otherwise-matching direction', () => {
     // "product manager" would match at tier 1.0; the exclude "sales" in
     // the title short-circuits and the outcome is 'excluded', not 'matched'.
-    const [exp] = explainMatch('Sales Product Manager', null, [
-      dir('Product Manager', ['product manager'], ['sales']),
-    ]);
+    const exp = only(
+      explainMatch('Sales Product Manager', null, [
+        dir('Product Manager', ['product manager'], ['sales']),
+      ]),
+    );
     expect(exp.kind).toBe('excluded');
   });
 
   it('no-signal when the direction neither matches nor excludes', () => {
-    const [exp] = explainMatch('Marketing Coordinator', null, [
-      dir('Backend Engineer', ['backend engineer'], ['sales']),
-    ]);
+    const exp = only(
+      explainMatch('Marketing Coordinator', null, [
+        dir('Backend Engineer', ['backend engineer'], ['sales']),
+      ]),
+    );
     expect(exp).toEqual({
       kind: 'no-signal',
       label: 'Backend Engineer',
@@ -97,16 +111,18 @@ describe('explainMatch — outcomes', () => {
       'Backend Engineer',
       'Marketing',
     ]);
-    expect(exps[0].kind).toBe('no-signal');
-    expect(exps[1].kind).toBe('matched');
-    expect(exps[2].kind).toBe('no-signal');
+    expect(exps[0]!.kind).toBe('no-signal');
+    expect(exps[1]!.kind).toBe('matched');
+    expect(exps[2]!.kind).toBe('no-signal');
   });
 
   it('word-boundary excludes — "lead" does not clobber "Leadership"', () => {
     // Same rule as directionFitStrength: exclude uses \b, not substring.
-    const [exp] = explainMatch('Head of Engineering Leadership', null, [
-      dir('Engineering Leadership', ['engineering leadership'], ['lead']),
-    ]);
+    const exp = only(
+      explainMatch('Head of Engineering Leadership', null, [
+        dir('Engineering Leadership', ['engineering leadership'], ['lead']),
+      ]),
+    );
     expect(exp.kind).toBe('matched');
   });
 });
@@ -170,11 +186,11 @@ describe('explainMatch — ad-level exclude view (derived by caller)', () => {
       dir('Solutions Engineer', ['solutions engineer']),
     ]);
     const excluded = exps.find((e) => e.kind === 'excluded');
-    expect(excluded).toBeDefined();
-    expect(excluded!.kind === 'excluded' && excluded.term).toBe('sales');
+    if (!excluded || excluded.kind !== 'excluded') throw new Error('expected excluded outcome');
+    expect(excluded.term).toBe('sales');
     // The second direction still reports its own outcome ('matched') — a
     // consumer that wants to render "would have matched but the ad is
     // excluded" has both halves.
-    expect(exps[1].kind).toBe('matched');
+    expect(exps[1]!.kind).toBe('matched');
   });
 });
