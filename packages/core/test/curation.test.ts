@@ -68,15 +68,24 @@ describe('directionFitStrength — tiers', () => {
     expect(directionFitStrength('Growth Lead', 'You will act as our Product Manager for the growth pod.', dirs)).toBe(0.8);
   });
 
-  it('returns 0.6 on long-word (≥8) title match when full phrase misses', () => {
-    // "Product" is 7 chars — not long-word. Add a direction whose token is ≥8.
-    const d = [adjacent(['engineering leadership'])];
-    expect(directionFitStrength('Head of Engineering', null, d)).toBe(0.6);
+  it('returns 0.6 on long-word (≥8, non-role-suffix) title match when full phrase misses', () => {
+    // "Product" is 7 chars — not long-word. Pick a searchTerm whose long
+    // word is domain-specific (not in NON_DISCRIMINATIVE_ROLE_WORDS): a
+    // long word that IS a role suffix (engineer/director/onboarding/...)
+    // needs the full phrase to count — that's the "Sales Director" fix.
+    const d = [adjacent(['distributed systems'])];
+    expect(directionFitStrength('Distributed Backend Role', null, d)).toBe(0.6);
   });
 
   it('returns 0.4 on long-word description match when title and full phrase miss', () => {
-    const d = [adjacent(['engineering leadership'])];
-    expect(directionFitStrength('Head of Growth', 'You will report to the VP of engineering and own the roadmap.', d)).toBe(0.4);
+    const d = [adjacent(['distributed systems'])];
+    expect(
+      directionFitStrength(
+        'Head of Growth',
+        'You will own the roadmap for our distributed platform.',
+        d,
+      ),
+    ).toBe(0.4);
   });
 
   it('returns 0 when nothing matches', () => {
@@ -88,28 +97,32 @@ describe('directionFitStrength — tiers', () => {
   });
 });
 
-describe('directionFitStrength — exclude terms', () => {
-  it('exclude hit in title zeros this direction even on full-phrase match', () => {
-    const dirs = [adjacent(['Engineer'], ['sales'])];
-    expect(directionFitStrength('Sales Engineer', null, dirs)).toBe(0);
+describe('directionFitStrength — exclude terms (ad-level)', () => {
+  it('exclude hit in title zeros the ad even on full-phrase match', () => {
+    const dirs = [adjacent(['Product Manager'], ['sales'])];
+    expect(directionFitStrength('Sales Product Manager', null, dirs)).toBe(0);
   });
 
-  it('exclude hit in description zeros this direction', () => {
+  it('exclude hit in description zeros the ad', () => {
     const dirs = [adjacent(['Product Manager'], ['insurance'])];
     expect(directionFitStrength('Senior Product Manager', 'Own our insurance products end-to-end.', dirs)).toBe(0);
   });
 
-  it('exclude on one direction does not affect another matching direction', () => {
+  it('exclude on one direction zeros the ad even when another direction matches', () => {
+    // Semantics: excludes are ad-level. A user who sets "no sales" on any
+    // direction means "not sales" for the whole ad — matching a permissive
+    // second direction (Solutions Consultant) does not undo it. See the
+    // docstring of directionFitStrength for the rationale.
     const dirs = [
-      adjacent(['Engineer'], ['sales']),      // rejects
-      adjacent(['Solutions Engineer']),        // matches full-phrase
+      adjacent(['Product Manager'], ['sales']),
+      adjacent(['Solutions Consultant']),
     ];
-    expect(directionFitStrength('Sales Solutions Engineer', null, dirs)).toBe(1.0);
+    expect(directionFitStrength('Sales Solutions Consultant', null, dirs)).toBe(0);
   });
 
   it('empty excludeTerms behaves like no filter', () => {
-    const dirs = [adjacent(['Engineer'], [])];
-    expect(directionFitStrength('Sales Engineer', null, dirs)).toBe(1.0);
+    const dirs = [adjacent(['Product Manager'], [])];
+    expect(directionFitStrength('Sales Product Manager', null, dirs)).toBe(1.0);
   });
 });
 
@@ -119,8 +132,8 @@ describe('directionFitStrength — distance factor', () => {
   });
 
   it('stretch × long-word title = 0.3 (accepted in discovery, rejected in focused)', () => {
-    const d = [stretch(['engineering leadership'])];
-    const strength = directionFitStrength('Head of Engineering', null, d);
+    const d = [stretch(['distributed systems'])];
+    const strength = directionFitStrength('Distributed Backend Role', null, d);
     expect(strength).toBeCloseTo(0.3, 5);
     expect(strength).toBeGreaterThanOrEqual(CURATION_THRESHOLDS.discovery);
     expect(strength).toBeLessThan(CURATION_THRESHOLDS.focused);
@@ -152,7 +165,46 @@ describe('directionFitStrength — role synonyms + description window', () => {
   });
 
   it('CURATION_THRESHOLDS constants are the ones the wire expects', () => {
-    expect(CURATION_THRESHOLDS.focused).toBe(0.6);
+    // focused = 0.7 sits above the long-word tier (0.6) so a focused user
+    // only lets a title in on a full-phrase match. See CURATION_THRESHOLDS
+    // docstring for the reasoning behind 0.7 vs 0.6.
+    expect(CURATION_THRESHOLDS.focused).toBe(0.7);
     expect(CURATION_THRESHOLDS.discovery).toBe(0.3);
+  });
+});
+
+// ── Regression: real-world false positives that used to leak through ────────
+
+describe('directionFitStrength — role-suffix false positives (the bug this fixes)', () => {
+  it('a designer CV proposing "Creative Director" does NOT match "Sales Director"', () => {
+    // The exact case reported: CV → adjacent design directions look fine,
+    // but the digest then surfaces "Sales Director" / "Marketing Director"
+    // because "director" alone (8 chars) used to pass the long-word tier.
+    const dirs = [
+      adjacent(['Creative Director', 'Design Director', 'Head of Design']),
+    ];
+    expect(directionFitStrength('Sales Director', null, dirs)).toBe(0);
+    expect(directionFitStrength('Marketing Director', null, dirs)).toBe(0);
+    expect(directionFitStrength('Regional Director of Operations', null, dirs)).toBe(0);
+    // Sanity: the legitimate full-phrase match still lands.
+    expect(directionFitStrength('Senior Creative Director', null, dirs)).toBe(1.0);
+  });
+
+  it('an "Enterprise Onboarding Designer" direction does NOT match "SMB Onboarding Lead"', () => {
+    // Same class: "onboarding" (10 chars) used to be a long-word match on
+    // its own. "SMB Onboarding Lead" has nothing to do with design.
+    const dirs = [adjacent(['Enterprise Onboarding Designer'])];
+    expect(directionFitStrength('SMB Onboarding Lead', null, dirs)).toBe(0);
+    // Sanity: a real designer role still matches on the full phrase.
+    expect(directionFitStrength('Enterprise Onboarding Designer', null, dirs)).toBe(1.0);
+  });
+
+  it('a domain-specific long-word (non-role-suffix) still matches at the 0.6 tier', () => {
+    // The blocklist should NOT swallow domain evidence. "kubernetes" (10),
+    // "distributed" (11), "healthcare" (10), "typescript" (10) are all
+    // discriminative on their own.
+    const dirs = [adjacent(['distributed systems engineer'])];
+    // "engineer" is blocked, "distributed" is not → 0.6.
+    expect(directionFitStrength('Distributed Data Platform Lead', null, dirs)).toBe(0.6);
   });
 });

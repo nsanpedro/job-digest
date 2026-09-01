@@ -95,6 +95,51 @@ function tokenize(text: string): string[] {
 }
 
 /**
+ * Role-suffix words that cannot be evidence of a match on their own — the
+ * boolean-gate mirror of `NON_DISCRIMINATIVE_ROLE_WORDS` in
+ * `packages/core/src/curation.ts`. See that file for the reasoning and the
+ * "Sales Director" example. Kept duplicated for the same reason the
+ * curation and scoring copies are — ingest gate, digest read gate, and
+ * ranking answer three different questions; a false-positive class we add
+ * to one list should not silently loosen the others.
+ */
+const NON_DISCRIMINATIVE_ROLE_WORDS: ReadonlySet<string> = new Set([
+  'director',
+  'engineer',
+  'engineers',
+  'engineering',
+  'entwickler',
+  'entwicklerin',
+  'developer',
+  'developers',
+  'development',
+  'designer',
+  'designers',
+  'gestalter',
+  'gestalterin',
+  'managerin',
+  'onboarding',
+  'coordinator',
+  'coordinators',
+  'specialist',
+  'specialists',
+  'associate',
+  'associates',
+  'consultant',
+  'consultants',
+  'architect',
+  'architects',
+  'generalist',
+  'strategist',
+  'executive',
+  'executives',
+  'professional',
+  'professionals',
+  'representative',
+  'representatives',
+]);
+
+/**
  * True when `word` (or any of its ROLE_SYNONYMS from core) appears as a
  * substring of the title. Mirrors the same helper in `packages/core`'s
  * `directionFit` — kept duplicated because the two functions differ only
@@ -110,7 +155,14 @@ function directionMatches(title: string, dir: DirectionRow): boolean {
     const words = tokenize(term);
     return words.length > 0 && words.every((w) => titleHasWord(title, w));
   })) return true;
-  return dir.searchTerms.flatMap(tokenize).some((w) => w.length >= 8 && titleHasWord(title, w));
+  return dir.searchTerms
+    .flatMap(tokenize)
+    .some(
+      (w) =>
+        w.length >= 8 &&
+        !NON_DISCRIMINATIVE_ROLE_WORDS.has(w) &&
+        titleHasWord(title, w),
+    );
 }
 
 /**

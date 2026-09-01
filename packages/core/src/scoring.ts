@@ -242,6 +242,53 @@ export const ROLE_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
   managerin: ['manager', 'managerin'],
 };
 
+/**
+ * Role-suffix words that cannot be evidence of a match on their own.
+ * See `NON_DISCRIMINATIVE_ROLE_WORDS` in `curation.ts` for the reasoning —
+ * duplicated here for the same reason ROLE_SYNONYMS is: the ingest gate
+ * and the digest score answer different questions, and a false-positive
+ * class we add to one list should not silently loosen the other. Keeping
+ * the two lists side-by-side forces the diff into the changing file.
+ *
+ * If you add an entry here, add it there too — but as an explicit decision,
+ * not as a code-sharing side effect.
+ */
+const NON_DISCRIMINATIVE_ROLE_WORDS: ReadonlySet<string> = new Set([
+  'director',
+  'engineer',
+  'engineers',
+  'engineering',
+  'entwickler',
+  'entwicklerin',
+  'developer',
+  'developers',
+  'development',
+  'designer',
+  'designers',
+  'gestalter',
+  'gestalterin',
+  'managerin',
+  'onboarding',
+  'coordinator',
+  'coordinators',
+  'specialist',
+  'specialists',
+  'associate',
+  'associates',
+  'consultant',
+  'consultants',
+  'architect',
+  'architects',
+  'generalist',
+  'strategist',
+  'executive',
+  'executives',
+  'professional',
+  'professionals',
+  'representative',
+  'representatives',
+]);
+
 /** True when `word` (or any of its ROLE_SYNONYMS) appears as a substring of `title`. */
 function titleHasWord(title: string, word: string): boolean {
   const alts = ROLE_SYNONYMS[word] ?? [word];
@@ -258,12 +305,14 @@ function titleHasWord(title: string, word: string): boolean {
  *   1.0 — full-phrase: every tokenized word of any searchTerm appears in the
  *         title as a substring.
  *   0.6 — long-word: at least one ≥8-char word from any searchTerm appears
- *         in the title (matches the same 8-char threshold the boolean version
- *         uses to avoid false positives from "senior"/"lead"/"manager").
+ *         in the title AND that word is NOT a non-discriminative role suffix
+ *         (director, engineer, designer, onboarding, ...). Role suffixes need
+ *         the full phrase to count — otherwise "Sales Director" matches a
+ *         design user's "Creative Director" direction on "director" alone.
  *   0.0 — no signal.
  *
  * Direction fit for the ad is the max over `matchStrength × DISTANCE_FACTOR`.
- * When the user has no interested directions we return 0.5 — neutral, so an
+ * When the user has no interested directions we return 1.0 — neutral, so an
  * ad neither wins nor loses on a signal the user did not give.
  */
 export function directionFit(title: string, directions: readonly ScoringDirection[]): number {
@@ -287,7 +336,12 @@ export function directionFit(title: string, directions: readonly ScoringDirectio
     if (strength < 1) {
       const anyLong = dir.searchTerms
         .flatMap(tokenize)
-        .some((w) => w.length >= 8 && titleHasWord(t, w));
+        .some(
+          (w) =>
+            w.length >= 8 &&
+            !NON_DISCRIMINATIVE_ROLE_WORDS.has(w) &&
+            titleHasWord(t, w),
+        );
       if (anyLong) strength = Math.max(strength, 0.6);
     }
     best = Math.max(best, strength * factor);

@@ -228,16 +228,20 @@ export async function fetchApiSources(
       // against a mode-dependent threshold.
       //
       // Mode is inferred from the user's own direction set: 1–3 directions
-      // → 'focused' (threshold 0.6), 4+ or 0 → 'discovery' (0.3). A user
+      // → 'focused' (threshold 0.7), 4+ or 0 → 'discovery' (0.3). A user
       // who knows what they want gets a strict gate; one still exploring
       // gets breadth in explore. Users with no directions bypass the gate
       // entirely (as before) — nothing to gate against.
       //
+      // The long-word tier (0.6) filters out role-suffix words
+      // (NON_DISCRIMINATIVE_ROLE_WORDS in curation.ts) — a searchTerm
+      // "Creative Director" cannot pull "Sales Director" in on "director"
+      // alone. Excludes are ad-level: an exclude term in ANY direction
+      // zeros the whole ad, matching the user's mental model.
+      //
       // Descriptions aren't populated by the providers yet — this call
       // passes `null` and the gate degrades to title-only until the
-      // provider adapters add `description` to NormalizedJob. Even so, the
-      // new tiers + exclude terms already fix the "Sales Manager" /
-      // "Interior Designer" false positives the boolean gate lets through.
+      // provider adapters add `description` to NormalizedJob.
       const jobs = interestedDirs.length > 0
         ? (() => {
             const curationDirs = interestedDirs.map(toCurationDirection);

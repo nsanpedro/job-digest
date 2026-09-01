@@ -168,24 +168,28 @@ describe('directionFit', () => {
   });
 
   it('long-word match without full phrase scores 0.6 × distance factor', () => {
-    // "manager" is 7 chars — below the 8-char threshold, so title needs a
-    // longer word. Use "engineer" (8 chars) which matches alone.
-    const dirs = [direction({ searchTerms: ['software engineer'], distance: 'adjacent' })];
-    // "Sr Full-Stack Engineer" tokenizes to ['full', 'stack', 'engineer'];
-    // 'software' is not a substring, but 'engineer' (8 chars) matches.
-    expect(directionFit('Senior Full-Stack Engineer', dirs)).toBeCloseTo(0.6);
+    // "manager" is 7 chars — below the 8-char threshold. Use a
+    // domain-specific long word ("kubernetes", 10) — role suffixes like
+    // "engineer" are blocked from the long-word tier (see
+    // NON_DISCRIMINATIVE_ROLE_WORDS): a "Sales Engineer" must not count as
+    // evidence for a "software engineer" direction. Domain words still do.
+    const dirs = [direction({ searchTerms: ['kubernetes engineer'], distance: 'adjacent' })];
+    // 'engineer' is blocked; 'kubernetes' (10 chars) is a real domain
+    // long-word match — 0.6 × 1.0 = 0.6.
+    expect(directionFit('Senior Kubernetes Platform Lead', dirs)).toBeCloseTo(0.6);
   });
 
   it('picks the best across multiple directions after applying distance factor', () => {
     const dirs = [
-      // adjacent direction: phrase fails (no 'devops' in title), but 'engineer'
-      // is ≥8 chars and matches → long-word = 0.6 × 1.0 = 0.6
-      direction({ searchTerms: ['engineer devops'], distance: 'adjacent' }),
+      // adjacent direction: phrase fails, and 'engineer' (role suffix) is
+      // blocked from long-word — but 'kubernetes' (10, domain) is fine →
+      // long-word = 0.6 × 1.0 = 0.6.
+      direction({ searchTerms: ['kubernetes engineer'], distance: 'adjacent' }),
       // stretch direction: full-phrase match → 1.0 * 0.5 = 0.5
       direction({ searchTerms: ['product manager'], distance: 'stretch' }),
     ];
     expect(directionFit('Senior Product Manager', dirs)).toBeCloseTo(0.5);
-    expect(directionFit('Senior TypeScript Engineer', dirs)).toBeCloseTo(0.6);
+    expect(directionFit('Senior Kubernetes Platform Lead', dirs)).toBeCloseTo(0.6);
   });
 
   it('title with no signal returns 0', () => {
@@ -193,16 +197,32 @@ describe('directionFit', () => {
     expect(directionFit('Marketing Analyst', dirs)).toBe(0);
   });
 
-  it('role synonyms — direction "engineer" matches title "developer" or "entwickler"', () => {
+  it('role synonyms — direction "engineer" matches title "developer" or "entwickler" on full phrase', () => {
     const dirs = [direction({ searchTerms: ['frontend engineer'], distance: 'adjacent' })];
     // Full-phrase match via synonym: "frontend" (substring in title) AND
     // "engineer" (via synonym → "developer" in title).
     expect(directionFit('Senior Frontend Developer', dirs)).toBe(1);
     // Same via German synonym.
     expect(directionFit('Senior Frontend Entwickler', dirs)).toBe(1);
-    // Long-word match: "engineer" isn't present as substring, but "developer"
-    // (synonym, ≥8 chars) is → 0.6.
-    expect(directionFit('Full Stack Developer', dirs)).toBeCloseTo(0.6);
+    // Long-word backup is NOT available for role suffixes: "engineer" (via
+    // synonym "developer", both ≥8) is a role suffix, so a title with
+    // "developer" alone gets nothing. Otherwise every "Salesforce Developer"
+    // or "Sales Developer Rep" would score on a Frontend-Eng direction.
+    expect(directionFit('Full Stack Developer', dirs)).toBe(0);
+  });
+
+  it('role-suffix long words alone do not trigger long-word match (Sales Director regression)', () => {
+    // Same regression as directionFitStrength — but on the scoring side.
+    // A designer whose CV yields "Creative Director" search terms must not
+    // give "Sales Director" a positive score.
+    const dirs = [direction({
+      searchTerms: ['creative director', 'design director'],
+      distance: 'adjacent',
+    })];
+    expect(directionFit('Sales Director', dirs)).toBe(0);
+    expect(directionFit('Marketing Director', dirs)).toBe(0);
+    // Full-phrase still lands.
+    expect(directionFit('Senior Creative Director', dirs)).toBe(1);
   });
 
   it('short generic words alone (≤7 chars) do not trigger long-word match', () => {

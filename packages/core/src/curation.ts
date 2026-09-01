@@ -24,9 +24,21 @@ import type { Distance } from './discovery';
 
 export type CurationMode = 'focused' | 'discovery';
 
-/** Minimum `directionFitStrength` an ad needs to pass the gate, per mode. */
+/**
+ * Minimum `directionFitStrength` an ad needs to pass the gate, per mode.
+ *
+ * `focused` = 0.7 sits above the long-word tier (0.6 × 1.0 = 0.6): a focused
+ * user only sees ads whose title carries the full phrase of one of their
+ * searchTerms (1.0), or a stretch full-phrase (0.5 — still misses; a focused
+ * user opted out of stretch matches by definition). This is deliberately
+ * strict: after removing role-suffix words from the long-word tier (see
+ * `NON_DISCRIMINATIVE_ROLE_WORDS` below), the long-word tier itself is
+ * healthy, but leaving `focused` at 0.6 puts every domain long-word hit
+ * exactly at the boundary — one wording drift and the ad is out. 0.7 gives
+ * the tier the margin the design of the tier system asks for.
+ */
 export const CURATION_THRESHOLDS: Record<CurationMode, number> = {
-  focused: 0.6,
+  focused: 0.7,
   discovery: 0.3,
 };
 
@@ -48,6 +60,66 @@ export interface CurationDirection {
 const STOP_WORDS = new Set([
   'and', 'the', 'for', 'with', 'from',
   'von', 'und', 'für', 'mit', 'der', 'die', 'das', 'bei', 'zur', 'als',
+]);
+
+/**
+ * Role-suffix words that CANNOT be evidence of a match on their own.
+ *
+ * The bug this fixes ("Sales Director" landing in a design user's digest):
+ * these words are structural — they name the *shape* of a role (director,
+ * engineer, designer), never its domain. In a real ad title they always pair
+ * with a domain qualifier: "**Sales** Director", "**Creative** Director",
+ * "**Machine Learning** Engineer". Treating them as long-word evidence in the
+ * fallback tier lets a CV that proposes "Creative Director" as a search
+ * term pull every "Sales/Marketing/Regional/Operations Director" into the
+ * digest — the exact false-positive class the pre-ingest gate is meant to
+ * remove.
+ *
+ * The rule is: a searchTerm that contains one of these words needs the
+ * *whole phrase* to match. The long-word fallback is reserved for domain
+ * words ("typescript", "distributed", "compliance", "healthcare",
+ * "kubernetes") — words that are themselves discriminative.
+ *
+ * Kept minimal on purpose and only includes forms ≥8 chars (below that,
+ * the long-word tier does not consider the word anyway). "manager" (7) is
+ * absent for that reason; "managerin" (9) is included because German
+ * gendered forms cross the threshold. English + German role words; add a
+ * new entry only when a specific false-positive case names it.
+ */
+export const NON_DISCRIMINATIVE_ROLE_WORDS: ReadonlySet<string> = new Set([
+  'director',
+  'engineer',
+  'engineers',
+  'engineering',
+  'entwickler',
+  'entwicklerin',
+  'developer',
+  'developers',
+  'development',
+  'designer',
+  'designers',
+  'gestalter',
+  'gestalterin',
+  'managerin',
+  'onboarding',
+  'coordinator',
+  'coordinators',
+  'specialist',
+  'specialists',
+  'associate',
+  'associates',
+  'consultant',
+  'consultants',
+  'architect',
+  'architects',
+  'generalist',
+  'strategist',
+  'executive',
+  'executives',
+  'professional',
+  'professionals',
+  'representative',
+  'representatives',
 ]);
 
 /**
@@ -100,15 +172,32 @@ function hasExcludeHit(text: string, excludeTerms: readonly string[]): boolean {
  *
  * Tiers (highest wins for each direction):
  *
- *   Exclude term in title or description ...........  → this direction contributes 0
+ *   Exclude term in title or description (ANY dir) .  → whole ad returns 0
  *   Full phrase in title ...........................  1.0
  *   Full phrase in first 400 chars of description ..  0.8
- *   Long word (≥8) in title ........................  0.6
- *   Long word (≥8) in first 400 chars of desc ......  0.4
+ *   Long word (≥8, non-role-suffix) in title .......  0.6
+ *   Long word (≥8, non-role-suffix) in first 400 ...  0.4
  *   No match .......................................  0
  *
  * The winning tier is then multiplied by the direction's DISTANCE_FACTOR.
  * The function returns `max` across directions.
+ *
+ * Two behaviors that are easy to miss:
+ *
+ * 1. `excludeTerms` are ad-level, not direction-level. The excludes from
+ *    every direction are unioned and applied once against title + desc; a
+ *    hit zeros the whole call. Reason: users think "I don't want to see
+ *    sales roles", not "I don't want to see sales roles matched by
+ *    direction X but I'm fine seeing them matched by direction Y". The old
+ *    per-direction behavior surfaced the "Sales Solutions Engineer" case
+ *    (matches a permissive "Solutions Engineer" direction even though a
+ *    stricter "Engineer" direction excludes "sales") — which is exactly
+ *    the false-positive class the exclude UI is meant to remove.
+ *
+ * 2. The long-word tier filters out `NON_DISCRIMINATIVE_ROLE_WORDS`
+ *    (director/engineer/designer/onboarding/...). Those need the full
+ *    phrase to count. See that constant's docstring for the "Sales
+ *    Director" example.
  *
  * Empty directions returns 1.0 — the caller decides not to gate; this is
  * belt-and-braces so passing this function through unconditionally doesn't
@@ -124,15 +213,15 @@ export function directionFitStrength(
   const t = title.toLowerCase();
   const d = (description ?? '').slice(0, DESCRIPTION_MATCH_CHARS).toLowerCase();
 
+  // Ad-level exclude: union of every direction's excludeTerms, applied once.
+  const allExcludes = directions.flatMap((dir) => dir.excludeTerms);
+  if (hasExcludeHit(t, allExcludes) || hasExcludeHit(d, allExcludes)) {
+    return 0;
+  }
+
   let best = 0;
 
   for (const dir of directions) {
-    // Exclude hit in either surface → this direction contributes nothing.
-    // Checked first so a full-phrase match on an excluded ad still yields 0.
-    if (hasExcludeHit(t, dir.excludeTerms) || hasExcludeHit(d, dir.excludeTerms)) {
-      continue;
-    }
-
     let tier = 0;
 
     for (const term of dir.searchTerms) {
@@ -156,7 +245,9 @@ export function directionFitStrength(
     }
 
     if (tier < 0.8) {
-      const longWords = dir.searchTerms.flatMap(tokenize).filter((w) => w.length >= 8);
+      const longWords = dir.searchTerms
+        .flatMap(tokenize)
+        .filter((w) => w.length >= 8 && !NON_DISCRIMINATIVE_ROLE_WORDS.has(w));
       if (longWords.some((w) => containsWord(t, w))) {
         tier = Math.max(tier, 0.6);
       } else if (d.length > 0 && longWords.some((w) => containsWord(d, w))) {
