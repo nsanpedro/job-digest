@@ -53,6 +53,12 @@ export {
   type MatchSurface,
   type MatchTier,
 } from './matching';
+export {
+  describeMatch,
+  explainMatch,
+  type ExplainableDirection,
+  type MatchExplanation,
+} from './explain-match';
 export { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from './default-ruleset';
 export {
   DIAGNOSTIC_MIN_CURATED,
