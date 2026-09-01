@@ -43,6 +43,16 @@ export {
   type CurationDirection,
   type CurationMode,
 } from './curation';
+export {
+  DISTANCE_FACTOR,
+  NON_DISCRIMINATIVE_ROLE_WORDS,
+  computeMatch,
+  containsWord,
+  tokenize,
+  type MatchResult,
+  type MatchSurface,
+  type MatchTier,
+} from './matching';
 export { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from './default-ruleset';
 export {
   DIAGNOSTIC_MIN_CURATED,

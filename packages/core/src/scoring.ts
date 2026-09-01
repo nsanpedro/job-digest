@@ -16,6 +16,15 @@
  */
 import { LEVELS, type Facts, type Ruleset, type Verdict } from './types';
 import type { Distance } from './discovery';
+import { computeMatch, DISTANCE_FACTOR, ROLE_SYNONYMS as MATCHING_ROLE_SYNONYMS } from './matching';
+
+/**
+ * Re-exported from `matching.ts` — kept at the old import path so callers
+ * outside this package (currently `packages/db/src/queries/digest.ts` via
+ * the barrel `@job-digest/core`) don't need to know the constant moved.
+ * The one source of truth is in `matching.ts`.
+ */
+export const ROLE_SYNONYMS = MATCHING_ROLE_SYNONYMS;
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -190,161 +199,31 @@ function contractMargin(f: Facts, c: Ruleset['Contract']['condition']): number {
 
 // ── Direction fit ────────────────────────────────────────────────────────────
 
-const STOP_WORDS = new Set([
-  'and', 'the', 'for', 'with', 'from',
-  'von', 'und', 'für', 'mit', 'der', 'die', 'das', 'bei', 'zur', 'als',
-]);
-
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[\s/,\-()+]+/)
-    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
-}
-
-// The two direction distances defined by ADR-001 (`Distance = 'adjacent' |
-// 'stretch'`). `adjacent` is a direction close to the user's current profile;
-// `stretch` is further away and its evidence therefore counts for less.
-// ADR-003 §2.4 named a third `primary` tier that does not exist in the
-// system — the two-tier model here is authoritative.
-const DISTANCE_FACTOR: Record<Distance, number> = {
-  adjacent: 1.0,
-  stretch: 0.5,
-};
-
 /**
- * Role synonyms — treat these words as interchangeable when matching a
- * direction's search terms against an ad title. Bilingual by design: the
- * German market posts ads in both English and German (often mixed in the
- * same title), and the user's directions may be written in either language.
- * Without this map, a direction whose search term is "Engineer" would fail
- * to match a title "Fullstack Developer" — the same role, different word.
+ * Best `computeMatch(title).tier × DISTANCE_FACTOR[distance]` across the
+ * user's directions.
  *
- * Key = search-term word; values = accepted matches in the ad title.
- * Kept minimal on purpose: only widely-interchangeable role words. Adding
- * "senior"/"lead" would open false positives ("Senior Nurse" ≠ engineering).
+ * The match ladder itself (full-phrase / long-word tiers, role-suffix
+ * blocklist, synonyms) lives in `matching.ts` and is shared with the
+ * ingest gate and the digest read gate. This function is title-only —
+ * ranking runs at digest read time on ads that have already cleared the
+ * ingest gate, and we don't have descriptions in that path.
  *
- * All entries are ≥8 chars, so the long-word gate in `directionFit` remains
- * meaningful — a synonym match is still evidence of role affinity, not
- * accidental substring overlap.
- */
-export const ROLE_SYNONYMS: Readonly<Record<string, readonly string[]>> = {
-  // Engineering family — English ↔ German
-  engineer: ['engineer', 'developer', 'entwickler'],
-  developer: ['engineer', 'developer', 'entwickler'],
-  entwickler: ['engineer', 'developer', 'entwickler'],
-  // Design family — English ↔ German. "gestalter" covers "UX-Gestalter",
-  // "Kommunikationsgestalter", etc. "creative" picks up "Creative Director".
-  designer: ['designer', 'gestalter'],
-  gestalter: ['designer', 'gestalter'],
-  // Product family
-  manager: ['manager', 'managerin'],
-  managerin: ['manager', 'managerin'],
-};
-
-/**
- * Role-suffix words that cannot be evidence of a match on their own.
- * See `NON_DISCRIMINATIVE_ROLE_WORDS` in `curation.ts` for the reasoning —
- * duplicated here for the same reason ROLE_SYNONYMS is: the ingest gate
- * and the digest score answer different questions, and a false-positive
- * class we add to one list should not silently loosen the other. Keeping
- * the two lists side-by-side forces the diff into the changing file.
- *
- * If you add an entry here, add it there too — but as an explicit decision,
- * not as a code-sharing side effect.
- */
-const NON_DISCRIMINATIVE_ROLE_WORDS: ReadonlySet<string> = new Set([
-  'director',
-  'engineer',
-  'engineers',
-  'engineering',
-  'entwickler',
-  'entwicklerin',
-  'developer',
-  'developers',
-  'development',
-  'designer',
-  'designers',
-  'gestalter',
-  'gestalterin',
-  'managerin',
-  'onboarding',
-  'coordinator',
-  'coordinators',
-  'specialist',
-  'specialists',
-  'associate',
-  'associates',
-  'consultant',
-  'consultants',
-  'architect',
-  'architects',
-  'generalist',
-  'strategist',
-  'executive',
-  'executives',
-  'professional',
-  'professionals',
-  'representative',
-  'representatives',
-]);
-
-/** True when `word` (or any of its ROLE_SYNONYMS) appears as a substring of `title`. */
-function titleHasWord(title: string, word: string): boolean {
-  const alts = ROLE_SYNONYMS[word] ?? [word];
-  return alts.some((alt) => title.includes(alt));
-}
-
-/**
- * Graded upgrade of `matchesAnyDirection` (`packages/db/src/queries/digest.ts`).
- * That version is boolean — either a direction matches or it doesn't.
- * Ranking needs finer signal: a title that matches a whole search phrase is
- * stronger evidence than one that only shares a long word.
- *
- * Match strength per direction:
- *   1.0 — full-phrase: every tokenized word of any searchTerm appears in the
- *         title as a substring.
- *   0.6 — long-word: at least one ≥8-char word from any searchTerm appears
- *         in the title AND that word is NOT a non-discriminative role suffix
- *         (director, engineer, designer, onboarding, ...). Role suffixes need
- *         the full phrase to count — otherwise "Sales Director" matches a
- *         design user's "Creative Director" direction on "director" alone.
- *   0.0 — no signal.
- *
- * Direction fit for the ad is the max over `matchStrength × DISTANCE_FACTOR`.
- * When the user has no interested directions we return 1.0 — neutral, so an
- * ad neither wins nor loses on a signal the user did not give.
+ * When the user has no interested directions we return 1.0 — neutral, so
+ * an ad neither wins nor loses on a signal the user did not give. (There
+ * is a design question about whether a user with zero directions should
+ * even see top-picks at all; deferred, see the roadmap.)
  */
 export function directionFit(title: string, directions: readonly ScoringDirection[]): number {
-  // No directions configured → direction fit is not a signal at all.
-  // Return 1.0 (full score) rather than 0.5 so unconfigured users aren't
-  // silently penalised — every ad is equally valid direction-wise until the
-  // user tells us otherwise.
   if (directions.length === 0) return 1.0;
-  const t = title.toLowerCase();
   let best = 0;
   for (const dir of directions) {
-    const factor = DISTANCE_FACTOR[dir.distance];
-    let strength = 0;
-    for (const term of dir.searchTerms) {
-      const words = tokenize(term);
-      if (words.length === 0) continue;
-      if (words.every((w) => titleHasWord(t, w))) {
-        strength = Math.max(strength, 1);
-      }
+    const { tier } = computeMatch(title, null, dir.searchTerms);
+    const scaled = tier * DISTANCE_FACTOR[dir.distance];
+    if (scaled > best) {
+      best = scaled;
+      if (best >= 1.0) break; // ceiling — no other direction can beat this.
     }
-    if (strength < 1) {
-      const anyLong = dir.searchTerms
-        .flatMap(tokenize)
-        .some(
-          (w) =>
-            w.length >= 8 &&
-            !NON_DISCRIMINATIVE_ROLE_WORDS.has(w) &&
-            titleHasWord(t, w),
-        );
-      if (anyLong) strength = Math.max(strength, 0.6);
-    }
-    best = Math.max(best, strength * factor);
   }
   return best;
 }

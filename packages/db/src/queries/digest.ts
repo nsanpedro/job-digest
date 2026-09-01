@@ -18,7 +18,7 @@
  */
 import {
   DEFAULT_CALIBRATION,
-  ROLE_SYNONYMS,
+  computeMatch,
   evaluate,
   scoreAd,
   selectTiers,
@@ -84,119 +84,44 @@ function passesLocationFilter(locationRaw: string | null, city: string, remoteOk
 }
 
 // ── Direction matching ────────────────────────────────────────────────────────
+//
+// The match ladder itself (full-phrase / long-word tiers, synonyms,
+// role-suffix blocklist) lives in `packages/core/src/matching.ts` under
+// `computeMatch`. This file consumes it as a boolean gate — an ad either
+// matches at least one direction (tier > 0) or it doesn't.
+//
+// A single pass over directions computes the boolean, the matched ids, and
+// the matched labels together; the previous shape called the matcher three
+// times per ad, which was pure waste at read time when a digest routinely
+// covers hundreds of ads.
 
-const STOP_WORDS = new Set(['and', 'the', 'for', 'with', 'from', 'von', 'und', 'für', 'mit', 'der', 'die', 'das', 'bei', 'zur', 'als']);
-
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[\s/,\-()+]+/)
-    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
-}
-
-/**
- * Role-suffix words that cannot be evidence of a match on their own — the
- * boolean-gate mirror of `NON_DISCRIMINATIVE_ROLE_WORDS` in
- * `packages/core/src/curation.ts`. See that file for the reasoning and the
- * "Sales Director" example. Kept duplicated for the same reason the
- * curation and scoring copies are — ingest gate, digest read gate, and
- * ranking answer three different questions; a false-positive class we add
- * to one list should not silently loosen the others.
- */
-const NON_DISCRIMINATIVE_ROLE_WORDS: ReadonlySet<string> = new Set([
-  'director',
-  'engineer',
-  'engineers',
-  'engineering',
-  'entwickler',
-  'entwicklerin',
-  'developer',
-  'developers',
-  'development',
-  'designer',
-  'designers',
-  'gestalter',
-  'gestalterin',
-  'managerin',
-  'onboarding',
-  'coordinator',
-  'coordinators',
-  'specialist',
-  'specialists',
-  'associate',
-  'associates',
-  'consultant',
-  'consultants',
-  'architect',
-  'architects',
-  'generalist',
-  'strategist',
-  'executive',
-  'executives',
-  'professional',
-  'professionals',
-  'representative',
-  'representatives',
-]);
-
-/**
- * True when `word` (or any of its ROLE_SYNONYMS from core) appears as a
- * substring of the title. Mirrors the same helper in `packages/core`'s
- * `directionFit` — kept duplicated because the two functions differ only
- * in graded-vs-boolean output.
- */
-function titleHasWord(title: string, word: string): boolean {
-  const alts = ROLE_SYNONYMS[word] ?? [word];
-  return alts.some((alt) => title.includes(alt));
-}
-
-function directionMatches(title: string, dir: DirectionRow): boolean {
-  if (dir.searchTerms.some((term) => {
-    const words = tokenize(term);
-    return words.length > 0 && words.every((w) => titleHasWord(title, w));
-  })) return true;
-  return dir.searchTerms
-    .flatMap(tokenize)
-    .some(
-      (w) =>
-        w.length >= 8 &&
-        !NON_DISCRIMINATIVE_ROLE_WORDS.has(w) &&
-        titleHasWord(title, w),
-    );
+/** All three "who matched this title?" answers, computed in one pass. */
+function classifyDirections(
+  title: string,
+  dirs: readonly DirectionRow[],
+): { any: boolean; ids: string[]; labels: string[] } {
+  const ids: string[] = [];
+  const labels: string[] = [];
+  for (const dir of dirs) {
+    if (computeMatch(title, null, dir.searchTerms).tier > 0) {
+      ids.push(dir.id);
+      labels.push(dir.label);
+    }
+  }
+  return { any: ids.length > 0, ids, labels };
 }
 
 /**
  * True when this job title is relevant to at least one of the user's
- * interested directions. Used as the gate in Pass 3 — same two-track logic
- * as `directionFit` in scoring, but boolean: ads that fail this gate go
- * straight to explore without scoring.
+ * interested directions. Used as the gate in Pass 3 — ads that fail this
+ * gate go straight to explore without scoring.
  *
  * Exported so the worker can apply the same gate at ingest time (before
  * writing to the DB) when the user has directions configured.
  */
 export function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
   if (dirs.length === 0) return true;
-  const t = title.toLowerCase();
-  return dirs.some((dir) => directionMatches(t, dir));
-}
-
-/**
- * The IDs of directions that match this title, for the per-direction
- * diversity cap in selectTiers (I24). Same matching logic as matchesAnyDirection.
- */
-function getMatchedDirectionIds(title: string, dirs: readonly DirectionRow[]): string[] {
-  const t = title.toLowerCase();
-  return dirs
-    .filter((dir) => directionMatches(t, dir))
-    .map((dir) => dir.id);
-}
-
-/** The human-readable labels of directions that match this title. */
-function getMatchedDirectionLabels(title: string, dirs: readonly DirectionRow[]): string[] {
-  const t = title.toLowerCase();
-  return dirs
-    .filter((dir) => directionMatches(t, dir))
-    .map((dir) => dir.label);
+  return classifyDirections(title, dirs).any;
 }
 
 // ── Ordering (explore bucket) ─────────────────────────────────────────────────
@@ -391,6 +316,14 @@ export async function getDigest(
   const scoredPool: ScoredAd[] = [];
 
   for (const { ad, facts } of candidates) {
+    // One pass over directions gives us the ids (for the diversity cap)
+    // and the labels (for the AdCard rendering). Was three passes when
+    // matchesAnyDirection / getMatchedDirectionIds / getMatchedDirectionLabels
+    // each walked the direction set independently.
+    const matched = interestedDirs.length > 0
+      ? classifyDirections(ad.title, interestedDirs)
+      : { any: true, ids: [], labels: [] };
+
     const breakdown: ScoreBreakdown = scoreAd({
       facts,
       verdicts: ad.verdicts,
@@ -407,7 +340,7 @@ export async function getDigest(
       ...ad,
       score: breakdown.total,
       scoreBreakdown: breakdown,
-      matchedDirectionLabels: getMatchedDirectionLabels(ad.title, interestedDirs),
+      matchedDirectionLabels: matched.labels,
     };
     adById.set(ad.id, withScore);
 
@@ -417,7 +350,7 @@ export async function getDigest(
       verdicts: ad.verdicts,
       company: ad.company,
       source: ad.source,
-      matchedDirectionIds: getMatchedDirectionIds(ad.title, interestedDirs),
+      matchedDirectionIds: matched.ids,
       hasPreferenceWarn: ad.verdicts.some(
         (v) => v.severity === 'preference' && v.state === 'warn',
       ),
