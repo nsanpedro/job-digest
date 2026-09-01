@@ -138,27 +138,36 @@ export async function startRefresh(): Promise<{ runId: string }> {
   );
   const runId = run[0]!.id;
 
-  after(() =>
-    runIngestion({
+  // API-sources run reuses the same after() callback as Gmail, chained
+  // sequentially — running them in parallel meant both pulled from the
+  // same pool (max=4 prod / max=2 dev, see app/lib/db.ts): Gmail's
+  // FETCH_CONCURRENCY=3 + API's FETCH_CONCURRENCY=2 = up to 5 in-flight
+  // against 4 connections, which meant one flow blocked on the other's
+  // conns and the observed 60s Hobby maxDuration ran out mid-run. Their
+  // own run row keeps the Gmail progress counter honest.
+  const db = rawPool();
+  const apiRun = await workerWithTenant(db, userId, (tx) =>
+    tx.insert(runs).values({ userId, parserVersion: 0 }).returning({ id: runs.id }),
+  );
+  const apiRunId = apiRun[0]?.id ?? null;
+
+  after(async () => {
+    await runIngestion({
       userId,
       mailboxId: mb.id,
       runId,
       authKind: mb.authKind,
       provider: mb.provider,
       lastSyncedAt: mb.lastSyncedAt,
-    }),
-  );
-
-  // Kick off API sources in parallel — own run row so it doesn't interfere
-  // with the Gmail progress counter. Failures land on source.lastError, not here.
-  const db = rawPool();
-  const apiRun = await workerWithTenant(db, userId, (tx) =>
-    tx.insert(runs).values({ userId, parserVersion: 0 }).returning({ id: runs.id }),
-  );
-  if (apiRun[0]) {
-    const apiRunId = apiRun[0].id;
-    after(() => fetchApiSources(db, { userId, runId: apiRunId }));
-  }
+    });
+    if (apiRunId) {
+      // Failures land on source.lastError; never thrown back to a caller
+      // that's already gone (see runIngestion's own try/catch shape).
+      await fetchApiSources(db, { userId, runId: apiRunId }).catch((err) =>
+        console.error('fetchApiSources after Gmail:', err),
+      );
+    }
+  });
 
   return { runId };
 }

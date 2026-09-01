@@ -15,9 +15,12 @@
  * constant in @job-digest/ingest/classify.ts — this module imports it rather
  * than repeating it.
  *
- * Scope cut, stated plainly: one page of up to 200 messages per run — fine
- * for a personal mailbox, easy to tighten once real usage shows what's
- * needed. The other scope cut this file used to carry (no incremental fetch;
+ * Scope cut, stated plainly: one page of up to MAX_MESSAGES (60) per run —
+ * sized to fit inside Vercel Hobby's 60s route budget so a run cannot time
+ * out mid-flight and leave `runs.status` pinned to 'running'. The
+ * watermark handles the rest: a mailbox with a larger backlog drains
+ * across two or three consecutive clicks of "Update now", not one hung
+ * one. The other scope cut this file used to carry (no incremental fetch;
  * every run re-scanned the last 90 days) is gone: found live as the reason
  * "Update now" was slow on every single click, not just the first — see
  * `since` below.
@@ -49,10 +52,32 @@ async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) =>
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const MAX_MESSAGES = 200;
+/**
+ * Ceiling on messages per run. Was 200; found live as the reason "Update
+ * now" felt stuck at ~75/200: Vercel Hobby caps route execution at 60s,
+ * and `after()` (which drives this ingest) runs on the *invoking route's*
+ * budget — see the docstring on ingestFromGmail. 60 messages × the
+ * observed ~800ms per message (fetch + parse + insert + counter) fits
+ * inside 60s with margin; anything larger risks a mid-run timeout that
+ * leaves runs.status stuck at 'running' forever.
+ *
+ * The watermark (`mailboxes.last_synced_at`) makes this safe: a user
+ * with 200 unread mails clicks "Update now" three or four times and gets
+ * them all, one bounded batch at a time, instead of one hung batch.
+ */
+const MAX_MESSAGES = 60;
 const LOOKBACK_DAYS = 90;
-/** How many messages to fetch+ingest concurrently. Gmail's own per-user rate limit is generous; this is about not opening dozens of DB transactions at once. */
-const FETCH_CONCURRENCY = 5;
+/**
+ * How many messages to fetch+ingest concurrently. Bounded by the web pool
+ * (max=4 in prod, max=2 in dev — see packages/app/src/lib/db.ts): each
+ * worker holds one connection for its ingest transaction and takes a
+ * second, sequential connection for the counter increment. Sitting below
+ * the pool cap leaves at least one connection free for concurrent page
+ * loads, and — critically — for the counter-increment step itself, which
+ * would otherwise deadlock behind the workers that are supposed to be
+ * feeding it.
+ */
+const FETCH_CONCURRENCY = 3;
 /**
  * Subtracted from the watermark before querying, so a run started at the
  * exact instant a message arrived — or a small clock skew between this
