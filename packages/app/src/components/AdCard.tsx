@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useOptimistic, useTransition } from 'react';
+import { describeMatch, type MatchExplanation } from '@job-digest/core';
 import type { DigestAd } from '@job-digest/db';
 import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
@@ -333,8 +334,24 @@ function matchSummary(ad: DigestAd): string {
   return clauses.join('. ') + '.';
 }
 
+/**
+ * Style class for one MatchExplanation row.
+ *
+ * Kind → visual weight, deliberately quiet: `matched` uses the base
+ * body colour to draw the eye there first (it's the answer to "why is
+ * this here?"), `excluded` warms up in red to warn about a filter that
+ * fired, `no-signal` fades to muted so it doesn't distract from the ones
+ * that did fire.
+ */
+const WHY_CLASS: Record<MatchExplanation['kind'], string> = {
+  matched: styles.whyItemMatched!,
+  excluded: styles.whyItemExcluded!,
+  'no-signal': styles.whyItemNoSignal!,
+};
+
 function ExpandedPanel({ ad }: { ad: DigestAd }) {
   const [showMath, setShowMath] = useState(false);
+  const hasExplanations = ad.matchExplanations.length > 0;
 
   return (
     <div className={styles.panel}>
@@ -347,12 +364,31 @@ function ExpandedPanel({ ad }: { ad: DigestAd }) {
               className={styles.mathToggle}
               onClick={() => setShowMath((v) => !v)}
             >
-              {showMath ? 'Hide scoring math' : 'Show scoring math'}
+              {showMath
+                ? (hasExplanations ? 'Hide match details' : 'Hide scoring math')
+                : (hasExplanations ? 'Show match details' : 'Show scoring math')}
             </button>
             {showMath && (
-              <div className={styles.scoreBreakdownWrap}>
-                <ScoreBreakdown breakdown={ad.scoreBreakdown} />
-              </div>
+              <>
+                {hasExplanations && (
+                  <ul className={styles.whyList} aria-label="Why is this here?">
+                    {ad.matchExplanations.map((exp, i) => (
+                      <li
+                        // The index is stable within a render: matchExplanations
+                        // preserves the order of `interestedDirs`. Two directions
+                        // could share a label, so the index disambiguates.
+                        key={`${exp.label}-${i}`}
+                        className={`${styles.whyItem} ${WHY_CLASS[exp.kind]}`}
+                      >
+                        {describeMatch(exp)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className={styles.scoreBreakdownWrap}>
+                  <ScoreBreakdown breakdown={ad.scoreBreakdown} />
+                </div>
+              </>
             )}
           </div>
         )}

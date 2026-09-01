@@ -84,6 +84,7 @@ function toDigestAd(row: {
     fieldProvenance: ad.fieldProvenance ?? null,
     scoreBreakdown: null,
     matchedDirectionLabels: [],
+    matchExplanations: [],
   };
 }
 

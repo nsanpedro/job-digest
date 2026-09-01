@@ -251,6 +251,48 @@
   color: var(--text-muted);
 }
 
+/* ── "Why is this here?" per-direction explanations ──────────────────────── */
+/*
+ * Sits under the match summary in the expanded panel. Renders one row per
+ * direction — matched / excluded / no-signal — using data from
+ * `ad.matchExplanations` (which is `explainMatch(...)` computed server-
+ * side in getDigest). No new toggle: piggybacks on the existing
+ * "Show match details" show/hide alongside the scoring math.
+ */
+
+.whyList {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.whyItem {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg-tint, oklch(0.985 0.003 260));
+  border: 1px solid var(--border-faint, oklch(0.93 0.005 260));
+}
+
+.whyItemMatched {
+  color: var(--text);
+}
+
+.whyItemExcluded {
+  color: oklch(0.44 0.11 25);
+  background: oklch(0.97 0.02 25);
+  border-color: oklch(0.87 0.05 25);
+}
+
+.whyItemNoSignal {
+  color: var(--text-faint);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 .panelLabel {

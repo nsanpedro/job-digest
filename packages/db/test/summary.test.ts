@@ -37,6 +37,8 @@ function ad(over: Partial<DigestAd> = {}): DigestAd {
     platformFields: {},
     scoreBreakdown: null,
     matchedDirectionLabels: [],
+    matchExplanations: [],
+    fieldProvenance: null,
     ...over,
   };
 }

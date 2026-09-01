@@ -20,8 +20,10 @@ import {
   DEFAULT_CALIBRATION,
   computeMatch,
   evaluate,
+  explainMatch,
   scoreAd,
   selectTiers,
+  type MatchExplanation,
   type ScoreBreakdown,
   type ScoredAd,
   type Verdict,
@@ -95,20 +97,48 @@ function passesLocationFilter(locationRaw: string | null, city: string, remoteOk
 // times per ad, which was pure waste at read time when a digest routinely
 // covers hundreds of ads.
 
-/** All three "who matched this title?" answers, computed in one pass. */
+/**
+ * Everything the digest read path needs to know about "how did this ad's
+ * title fare against the user's directions?", computed in one pass:
+ *
+ *   - `any` — did at least one direction match? (Gates the pre-filter.)
+ *   - `ids` / `labels` — which ones? (For the diversity cap + the card.)
+ *   - `explanations` — full per-direction outcome (matched | excluded |
+ *     no-signal) with evidence. Powers the "Why is this here?" chip in
+ *     ExpandedPanel.
+ *
+ * Was three separate walks over the direction list; folded together
+ * because at read-time this runs per-ad on hundreds of ads and every
+ * duplicated tokenization is pure waste. `explainMatch` returns the same
+ * per-direction shape and we derive the boolean/ids/labels from it,
+ * rather than running `computeMatch` twice.
+ *
+ * Description is null: the read-time gate is title-only (see the note
+ * on `directionFit` in scoring.ts).
+ */
 function classifyDirections(
   title: string,
   dirs: readonly DirectionRow[],
-): { any: boolean; ids: string[]; labels: string[] } {
+): { any: boolean; ids: string[]; labels: string[]; explanations: MatchExplanation[] } {
+  const explanations = explainMatch(
+    title,
+    null,
+    dirs.map((d) => ({
+      label: d.label,
+      distance: d.distance,
+      searchTerms: d.searchTerms,
+      excludeTerms: d.excludeTerms,
+    })),
+  );
   const ids: string[] = [];
   const labels: string[] = [];
-  for (const dir of dirs) {
-    if (computeMatch(title, null, dir.searchTerms).tier > 0) {
-      ids.push(dir.id);
-      labels.push(dir.label);
+  for (let i = 0; i < dirs.length; i++) {
+    if (explanations[i]!.kind === 'matched') {
+      ids.push(dirs[i]!.id);
+      labels.push(dirs[i]!.label);
     }
   }
-  return { any: ids.length > 0, ids, labels };
+  return { any: ids.length > 0, ids, labels, explanations };
 }
 
 /**
@@ -243,6 +273,7 @@ export async function getDigest(
       gap: narrative?.gap ?? null,
       scoreBreakdown: null, // filled in below for eligible ads
       matchedDirectionLabels: [],
+      matchExplanations: [], // filled in below for eligible ads
       applicationStatus: appliedByAd.get(row.ad.id) ?? null,
       platformFields: capabilities[row.ad.source as Platform] ?? {},
       fieldProvenance: row.ad.fieldProvenance ?? null,
@@ -316,13 +347,13 @@ export async function getDigest(
   const scoredPool: ScoredAd[] = [];
 
   for (const { ad, facts } of candidates) {
-    // One pass over directions gives us the ids (for the diversity cap)
-    // and the labels (for the AdCard rendering). Was three passes when
-    // matchesAnyDirection / getMatchedDirectionIds / getMatchedDirectionLabels
-    // each walked the direction set independently.
+    // One pass over directions gives us the ids (for the diversity cap),
+    // the labels (for the AdCard row), AND the full per-direction
+    // explanations (for the "Why is this here?" chip in ExpandedPanel).
+    // Was three separate passes.
     const matched = interestedDirs.length > 0
       ? classifyDirections(ad.title, interestedDirs)
-      : { any: true, ids: [], labels: [] };
+      : { any: true, ids: [], labels: [], explanations: [] };
 
     const breakdown: ScoreBreakdown = scoreAd({
       facts,
@@ -341,6 +372,7 @@ export async function getDigest(
       score: breakdown.total,
       scoreBreakdown: breakdown,
       matchedDirectionLabels: matched.labels,
+      matchExplanations: matched.explanations,
     };
     adById.set(ad.id, withScore);
 

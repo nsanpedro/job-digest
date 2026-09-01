@@ -6,7 +6,7 @@
  * the UI can show the ad's literal German next to each verdict — facts feed
  * evaluation, wording feeds the UI (§9).
  */
-import type { AdFieldProvenance, Distance, ScoreBreakdown, TitleFacts, Verdict, Wording } from '@job-digest/core';
+import type { AdFieldProvenance, Distance, MatchExplanation, ScoreBreakdown, TitleFacts, Verdict, Wording } from '@job-digest/core';
 
 export type Platform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
 
@@ -83,6 +83,19 @@ export interface DigestAd {
    * "not in this email" (null) from "not stated in ad" (unknown_after_fetch).
    */
   fieldProvenance: AdFieldProvenance | null;
+  /**
+   * One entry per user direction (same order as `listInterestedDirections`) —
+   * the honest per-direction verdict for this ad's title: matched (with
+   * evidence: which term, via full-phrase or long-word, in which surface),
+   * excluded (with the term that fired), or no-signal.
+   *
+   * Empty when the user has zero directions (nothing to explain against).
+   * Non-empty on every scored ad — the expanded panel's "Why is this here?"
+   * chip renders these; the labels shown as chips in the collapsed row come
+   * from the same source (`matchedDirectionLabels` is a projection of the
+   * `matched` entries here).
+   */
+  matchExplanations: readonly MatchExplanation[];
 }
 
 /**

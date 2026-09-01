@@ -218,5 +218,6 @@ function toTrackedApplication(input: {
     needsFollowUp: open && daysSinceLastEvent >= FOLLOW_UP_AFTER_DAYS,
     scoreBreakdown: null,
     matchedDirectionLabels: [],
+    matchExplanations: [],
   };
 }
