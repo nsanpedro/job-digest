@@ -86,10 +86,10 @@ export function RefreshButton() {
         disabled={state === 'running'}
         onClick={run}
       >
-        <span
-          className={`${styles.dot} ${state === 'running' ? styles.dotPulse : ''}`}
-          style={{ background: v.dot }}
-        />
+        {state === 'running'
+          ? <span className={styles.spinner} aria-hidden="true" />
+          : <span className={styles.dot} style={{ background: v.dot }} />
+        }
         {label}
       </button>
       {state === 'error' && errorDetail && <p className={styles.error}>{errorDetail}</p>}
