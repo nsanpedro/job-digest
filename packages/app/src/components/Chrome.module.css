@@ -49,7 +49,7 @@
     margin-left: 0;
     overflow-x: auto;
     scrollbar-width: none;
-    padding: 4px 0 6px;
+    padding: 4px 0 10px;
     border-top: 1px solid var(--border-soft-2);
     min-width: 0;
   }
@@ -58,14 +58,18 @@
     display: none;
   }
 
-  /* Hide email text — dot alone is enough to identify the profile link */
+  /* Show email truncated — full email was hidden but a lone green dot
+     is too ambiguous for users to recognize as a profile link. */
   .mailboxEmail {
-    display: none;
+    display: block;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  /* Tighter chip when text is hidden */
   .mailboxChip {
-    padding: 5px 7px;
+    max-width: 200px;
   }
 }
 

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { getDerivationProgress, uploadCv } from '@/lib/discovery-actions';
 import styles from './CvIntake.module.css';
 
-type State = 'idle' | 'running' | 'error';
+type State = 'idle' | 'running' | 'success' | 'error';
 
 /** Same cadence RefreshButton polls run progress at — fast enough to feel live. */
 const POLL_MS = 1000;
@@ -44,8 +44,9 @@ export function CvIntake() {
 
         if (pollRef.current) clearInterval(pollRef.current);
         if (p.status === 'ok') {
-          setState('idle');
+          setState('success');
           if (fileInputRef.current) fileInputRef.current.value = '';
+          setTimeout(() => setState('idle'), 5000);
         } else {
           setState('error');
           setErrorMessage(p.errorMessage ?? 'Something went wrong reading that CV.');
@@ -78,20 +79,26 @@ export function CvIntake() {
         Upload a PDF. We read it once, propose skills and directions with the exact words from your CV next to
         each one, and never store the file itself.
       </p>
-      <label className={`${styles.uploadBtn} ${state === 'running' ? styles.uploadBtnDisabled : ''}`}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/pdf"
-          disabled={state === 'running'}
-          className={styles.fileInput}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onFileSelected(file);
-          }}
-        />
-        {state === 'running' ? 'Reading your CV…' : 'Upload CV (PDF)'}
-      </label>
+      <div className={styles.row}>
+        <label className={`${styles.uploadBtn} ${state === 'running' || state === 'success' ? styles.uploadBtnDisabled : ''}`}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            disabled={state === 'running' || state === 'success'}
+            className={styles.fileInput}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onFileSelected(file);
+            }}
+          />
+          {state === 'running' && <span className={styles.spinner} aria-hidden="true" />}
+          {state === 'running' ? 'Reading your CV…' : 'Upload CV (PDF)'}
+        </label>
+        {state === 'success' && (
+          <span className={styles.success}>✓ CV uploaded successfully</span>
+        )}
+      </div>
       {state === 'error' && errorMessage && <p className={styles.error}>{errorMessage}</p>}
     </div>
   );

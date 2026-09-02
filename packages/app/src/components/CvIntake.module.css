@@ -40,6 +40,33 @@
   opacity: 0.7;
 }
 
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.success {
+  font-size: 13px;
+  font-weight: 500;
+  color: oklch(0.42 0.075 152);
+}
+
 .fileInput {
   position: absolute;
   width: 1px;
