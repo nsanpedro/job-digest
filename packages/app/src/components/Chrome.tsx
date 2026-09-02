@@ -27,12 +27,14 @@ export function TopBar({
   savedCount,
   applicationCount = 0,
   userEmail,
+  city,
 }: {
   unreadCount: number;
   savedCount: number;
   /** Open applications — the ones still waiting on an answer. */
   applicationCount?: number;
   userEmail: string;
+  city?: string | null;
 }) {
   const active = useActiveTab();
 
@@ -42,7 +44,7 @@ export function TopBar({
         <div className={styles.brand}>
           <span className={styles.logo}>J</span>
           <span className={styles.brandName}>Job digest</span>
-          <span className={styles.brandCity}>hamburg</span>
+          {city && <span className={styles.brandCity}>{city}</span>}
         </div>
 
         <nav className={styles.tabs}>
@@ -79,7 +81,7 @@ export function TopBar({
         <div className={styles.right}>
           <Link href="/profile" className={styles.mailboxChip} title="Profile & settings">
             <span className={styles.mailboxDot} />
-            {userEmail}
+            <span className={styles.mailboxEmail}>{userEmail}</span>
           </Link>
           <form action={signOutAction}>
             <button type="submit" className={styles.signOut}>

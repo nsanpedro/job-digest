@@ -31,7 +31,7 @@ export default async function LoginPage({
       <div className={styles.card}>
         <div className={styles.brand}>
           <span className={styles.logo}>J</span>
-          <span className={styles.brandLabel}>Job alert digest · Hamburg</span>
+          <span className={styles.brandLabel}>Job alert digest</span>
         </div>
 
         <h1 className={styles.h1}>Sign in</h1>

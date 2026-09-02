@@ -16,7 +16,7 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Job alert digest · Hamburg',
+  title: 'Job alert digest',
   description: 'Weekly digest of job alert emails, filtered by rules you control.',
 };
 

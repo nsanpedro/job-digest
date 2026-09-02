@@ -9,7 +9,7 @@
  * makes tab-switching read as "the page updates" rather than "the app
  * reloads".
  */
-import { getApplicationCountsCached, getSavedCountCached, getUnreadEmailsCached } from '@/lib/nav-data';
+import { getApplicationCountsCached, getSavedCountCached, getUnreadEmailsCached, getUserCityCached } from '@/lib/nav-data';
 import { getIsOnboarded } from '@/lib/onboarding-actions';
 import { TopBar } from '@/components/Chrome';
 import { OnboardingModal } from '@/components/OnboardingModal';
@@ -17,11 +17,12 @@ import { currentUser } from '@/lib/session';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
-  const [unread, savedCount, applications, isOnboarded] = await Promise.all([
+  const [unread, savedCount, applications, isOnboarded, city] = await Promise.all([
     getUnreadEmailsCached(user.id),
     getSavedCountCached(user.id),
     getApplicationCountsCached(user.id),
     getIsOnboarded(),
+    getUserCityCached(user.id),
   ]);
 
   return (
@@ -31,6 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         savedCount={savedCount}
         applicationCount={applications.open}
         userEmail={user.email}
+        city={city}
       />
       {!isOnboarded && <OnboardingModal />}
       {children}

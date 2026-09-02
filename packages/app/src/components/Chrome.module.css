@@ -16,10 +16,56 @@
   gap: 24px;
 }
 
-@media (max-width: 480px) {
+/* Mobile: two-row header — brand+actions on top, tab strip below */
+@media (max-width: 640px) {
   .inner {
-    padding: 12px 16px;
-    gap: 12px;
+    padding: 10px 16px 0;
+    flex-wrap: wrap;
+    gap: 8px;
+    row-gap: 0;
+    align-items: center;
+  }
+
+  .brand {
+    order: 1;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .right {
+    order: 2;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  /* Full-width scrollable tab strip as second row */
+  .tabs {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 4px 0 6px;
+    border-top: 1px solid var(--border-soft-2);
+    min-width: 0;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide email text — dot alone is enough to identify the profile link */
+  .mailboxEmail {
+    display: none;
+  }
+
+  /* Tighter chip when text is hidden */
+  .mailboxChip {
+    padding: 5px 7px;
   }
 }
 
@@ -68,19 +114,6 @@
   margin-left: 12px;
 }
 
-@media (max-width: 640px) {
-  .tabs {
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin-left: 0;
-  }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
-  }
-}
 
 .tab {
   display: inline-flex;
@@ -162,6 +195,10 @@
 
 .mailboxChip:hover {
   border-color: var(--border-hover);
+}
+
+.mailboxEmail {
+  /* Hidden on mobile via the ≤640px breakpoint */
 }
 
 .mailboxDot {
