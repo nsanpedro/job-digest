@@ -82,26 +82,6 @@
   flex-shrink: 0;
 }
 
-.logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: var(--logo-grad);
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.brandName {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--text-strong);
-}
-
 .brandCity {
   font-family: var(--font-mono);
   font-size: 11px;

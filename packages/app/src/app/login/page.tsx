@@ -1,4 +1,6 @@
 import { signIn } from '@/auth';
+import { SiftLogo } from '@/components/SiftLogo';
+import { SiftWordmark } from '@/components/SiftWordmark';
 import styles from './page.module.css';
 
 /**
@@ -30,8 +32,8 @@ export default async function LoginPage({
     <div className={styles.wrap}>
       <div className={styles.card}>
         <div className={styles.brand}>
-          <span className={styles.logo}>J</span>
-          <span className={styles.brandLabel}>Job alert digest</span>
+          <SiftLogo size={28} />
+          <SiftWordmark size={19} />
         </div>
 
         <h1 className={styles.h1}>Sign in</h1>

@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { signOutAction } from '@/lib/actions';
+import { SiftLogo } from './SiftLogo';
+import { SiftWordmark } from './SiftWordmark';
 import styles from './Chrome.module.css';
 
 export type Tab = 'digest' | 'saved' | 'applications' | 'dismissed' | 'unread' | 'profile';
@@ -42,8 +44,8 @@ export function TopBar({
     <header className={styles.header}>
       <div className={styles.inner}>
         <div className={styles.brand}>
-          <span className={styles.logo}>J</span>
-          <span className={styles.brandName}>Job digest</span>
+          <SiftLogo size={24} />
+          <SiftWordmark size={15} />
           {city && <span className={styles.brandCity}>{city}</span>}
         </div>
 
