@@ -18,18 +18,43 @@
   margin-left: auto;
 }
 
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 .h1 {
-  font-size: 32px;
+  font-size: 44px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text-strong);
-  margin: 0;
+  margin: 8px 0 0;
+  line-height: 1.05;
+}
+
+.h1Count {
+  font-family: var(--font-mono);
+  font-size: 1.35em;
+  font-weight: 500;
+  color: var(--link);
+  letter-spacing: -0.02em;
+  margin-right: 0.1em;
+  font-variant-numeric: tabular-nums;
 }
 
 .subtitle {
   font-size: 14px;
   color: var(--text-muted);
   margin: 8px 0 0;
+}
+
+/* Dotted separator between the H1 block and the metric row */
+.headerRule {
+  margin-top: 8px;
+  margin-bottom: 20px;
 }
 
 /* ── Metrics 3-up ──────────────────────────────────────────────────────────── */
@@ -43,8 +68,26 @@
 .cell {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border-radius: 12px;
   padding: 18px 20px;
+}
+
+/* The middle "Through the sift" card — accented with a blue vertical bar
+   and a blue label, since it's the digest's headline number. */
+.cellFeature {
+  position: relative;
+  overflow: hidden;
+  padding-left: 22px;
+}
+
+.cellFeatureBar {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  background: var(--link);
+  border-radius: 0 2px 2px 0;
 }
 
 .label {
@@ -55,6 +98,10 @@
   color: var(--text-muted);
 }
 
+.labelAccent {
+  color: var(--link);
+}
+
 .value {
   font-family: var(--font-mono);
   font-size: 34px;
@@ -62,6 +109,12 @@
   letter-spacing: -0.03em;
   color: var(--text-strong);
   margin: 6px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.valueFeature {
+  font-size: 40px;
+  margin-top: 4px;
 }
 
 .context {
@@ -70,7 +123,7 @@
   margin: 2px 0 0;
 }
 
-/* ── Lane legend ───────────────────────────────────────────────────────────── */
+/* ── Rule lane strip ───────────────────────────────────────────────────────── */
 
 .laneLegend {
   display: flex;
@@ -89,15 +142,44 @@
   white-space: nowrap;
 }
 
+.laneRules {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-strong-alt);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.laneRule {
+  color: var(--text-strong-alt);
+}
+
+/* Hard rules land in the accent color to hint what tightens the sift. */
+.laneRuleHard {
+  color: var(--text-strong-alt);
+  font-weight: 500;
+}
+
+.laneSep {
+  color: var(--link);
+  margin: 0 4px 0 -2px;
+}
+
 .laneLegendRule {
   flex: 1;
-  height: 1px;
-  background: var(--border);
+  opacity: 0.7;
 }
 
 @media (max-width: 640px) {
   .h1 {
-    font-size: 26px;
+    font-size: 32px;
+  }
+
+  .h1Count {
+    font-size: 1.25em;
   }
 
   .header {
@@ -110,13 +192,13 @@
   }
 
   .laneLegend {
-    flex-direction: column;
+    flex-wrap: wrap;
     align-items: flex-start;
     gap: 6px;
   }
 
-  .laneLegendText {
-    white-space: normal;
+  .laneRules {
+    flex-wrap: wrap;
   }
 
   .laneLegendRule {

@@ -1,6 +1,6 @@
 import { RULE_KEYS, type Ruleset } from '@job-digest/core';
 import type { Digest } from '@job-digest/db';
-import { formatTimestamp, formatWindow } from '@/lib/format';
+import { formatTimestamp, formatWeekKicker } from '@/lib/format';
 import { RefreshButton } from './RefreshButton';
 import styles from './DigestHeader.module.css';
 
@@ -9,7 +9,7 @@ function hardRulesNote(rules: Ruleset): string {
   const hard = RULE_KEYS.filter((k) => rules[k].severity === 'hard');
   if (hard.length === 0) return 'No hard rules — nothing gets filtered out';
   if (hard.length === 1) return `${hard[0]} is the only hard rule`;
-  return `${hard.join(' & ')} ${hard.length === 2 ? 'are hard rules' : 'are hard rules'}`;
+  return `${hard.join(' & ')} are hard rules`;
 }
 
 function platformList(platforms: readonly string[]): string {
@@ -26,7 +26,10 @@ export function DigestHeader({ digest, rules }: { digest: Digest; rules: Ruleset
     <>
       <div className={styles.header}>
         <div className={styles.left}>
-          <h1 className={styles.h1}>{formatWindow(window)}</h1>
+          <div className={styles.kicker}>{formatWeekKicker(window)}</div>
+          <h1 className={styles.h1}>
+            <span className={styles.h1Count}>{metrics.inDigest}</span> passed the sift
+          </h1>
           <p className={styles.subtitle}>
             {parse.emailsRead} alert email{parse.emailsRead === 1 ? '' : 's'} read from{' '}
             {platformList(parse.platforms)} · {runNote}
@@ -37,9 +40,11 @@ export function DigestHeader({ digest, rules }: { digest: Digest; rules: Ruleset
         </div>
       </div>
 
+      <div className={`mesh-rule ${styles.headerRule}`} />
+
       <div className={styles.metrics}>
         <div className={styles.cell}>
-          <div className={styles.label}>Ads received</div>
+          <div className={styles.label}>Received</div>
           <div className={styles.value}>{metrics.adsReceived}</div>
           <p className={styles.context}>
             {metrics.explore !== null
@@ -47,31 +52,39 @@ export function DigestHeader({ digest, rules }: { digest: Digest; rules: Ruleset
               : `from ${parse.emailsRead} alert email${parse.emailsRead === 1 ? '' : 's'}`}
           </p>
         </div>
-        <div className={styles.cell}>
-          <div className={styles.label}>In your digest</div>
-          <div className={styles.value}>{metrics.inDigest}</div>
-          <p className={styles.context}>
-            {metrics.filteredByRule} filtered out on a hard rule
-          </p>
+        <div className={`${styles.cell} ${styles.cellFeature}`}>
+          <span className={styles.cellFeatureBar} />
+          <div className={`${styles.label} ${styles.labelAccent}`}>Through the sift</div>
+          <div className={`${styles.value} ${styles.valueFeature}`}>{metrics.inDigest}</div>
+          <p className={styles.context}>{metrics.filteredByRule} held by the sift</p>
         </div>
         <div className={styles.cell}>
-          <div className={styles.label}>Already seen</div>
+          <div className={styles.label}>Seen before</div>
           <div className={styles.value}>{metrics.alreadySeen}</div>
           <p className={styles.context}>Repeats from earlier weeks</p>
         </div>
       </div>
 
       {/*
-        The lane no longer renders all five rules on every row — since 3 Aug
-        2026 it shows the ones that read something and collapses the rest, so a
-        legend promising a fixed five-column order would now be describing a
-        layout the cards do not have.
+        Rule-lane strip: names the five rules the sift is built on and, on the
+        right, notes which of them are hard right now. Purely presentational —
+        the per-ad chips read `rules` themselves.
       */}
       <div className={styles.laneLegend}>
-        <span className={styles.laneLegendText}>
-          Rule chips show what the email actually said; the rest collapse. Open an ad for all five.
+        <span className={styles.laneLegendText}>Rule lane</span>
+        <span className={styles.laneRules}>
+          {RULE_KEYS.map((k, i) => (
+            <span key={k}>
+              {i > 0 && <span className={styles.laneSep}>·</span>}
+              <span
+                className={rules[k].severity === 'hard' ? styles.laneRuleHard : styles.laneRule}
+              >
+                {k}
+              </span>
+            </span>
+          ))}
         </span>
-        <span className={styles.laneLegendRule} />
+        <span className={`mesh-rule ${styles.laneLegendRule}`} />
         <span className={styles.laneLegendText}>{hardRulesNote(rules)}</span>
       </div>
     </>
