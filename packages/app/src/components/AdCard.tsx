@@ -101,14 +101,15 @@ export function AdCard({
 
         <div className={styles.metaRow}>
           {ad.company && <span className={styles.metaCompany}>{ad.company}</span>}
-          {ad.company && ad.location && <span className={styles.metaSep}>/</span>}
+          {ad.company && ad.location && <span className={styles.metaDot} />}
           {ad.location && <span>{ad.location}</span>}
-          {(ad.company || ad.location) && <span className={styles.metaSep}>/</span>}
+          {(ad.company || ad.location) && <span className={styles.metaDot} />}
           <span className={styles.metaSource}>{ad.source}</span>
         </div>
 
         <div className={styles.main}>
           <div className={styles.mainLeft}>
+            <div className={`mesh-rule ${styles.bodyRule}`} />
             {/*
               Above the rule lane on purpose: measured on the corpus, title
               facts populate more often (avg 1.67/ad) than the rule lane does
@@ -123,10 +124,23 @@ export function AdCard({
               source={ad.source}
             />
             {(ad.fit || ad.gap) && (
-              <div className={styles.prose}>
-                {ad.fit && <p className={styles.proseFit}>{ad.fit}</p>}
-                {ad.gap && <p className={styles.proseGap}>{ad.gap}</p>}
-              </div>
+              <>
+                <div className={`mesh-rule ${styles.bodyRule}`} />
+                <div className={styles.prose}>
+                  {ad.fit && (
+                    <div className={styles.proseRow}>
+                      <span className={styles.proseDotFit} />
+                      <span className={styles.proseFit}>{ad.fit}</span>
+                    </div>
+                  )}
+                  {ad.gap && (
+                    <div className={styles.proseRow}>
+                      <span className={styles.proseDotGap} />
+                      <span className={styles.proseGap}>{ad.gap}</span>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
           <div className={styles.score}>

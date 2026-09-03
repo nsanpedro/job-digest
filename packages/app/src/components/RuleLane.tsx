@@ -105,35 +105,54 @@ export function RuleLane({
 }) {
   const { shown, notSent, notFoundInAd, notRead, noLimit } = group(verdicts, wording, platformFields, fieldProvenance);
 
-  return (
-    <div className={styles.lane}>
-      {shown.map((v) => {
-        const sv = STATE_VISUALS[v.state];
-        const value = cellValue(v, wording);
-        return (
-          <span
-            key={v.key}
-            className={`${styles.chip} ${compact ? styles.chipCompact : ''}`}
-            style={{ background: sv.bg, borderColor: sv.bd, color: sv.fg }}
-            title={`${v.key}: ${sv.label} — ${value}`}
-          >
-            <span className={styles.glyph} style={{ background: sv.fg, color: sv.bg }} aria-label={sv.label}>
-              {sv.glyph}
-            </span>
-            <span className={styles.name}>{v.key}:</span>
-            {value}
-          </span>
-        );
-      })}
+  const hasMuted =
+    notSent.length + notFoundInAd.length + notRead.length + noLimit.length > 0;
 
-      <MutedChip
-        keys={notSent}
-        text={source ? `not sent by ${source}` : 'not sent by this platform'}
-        compact={compact}
-      />
-      <MutedChip keys={notFoundInAd} text="not stated in ad" compact={compact} />
-      <MutedChip keys={notRead} text="not in this email" compact={compact} />
-      <MutedChip keys={noLimit} text="no limit set" compact={compact} />
-    </div>
+  return (
+    <>
+      <div className={styles.lane}>
+        {shown.map((v) => {
+          const sv = STATE_VISUALS[v.state];
+          const value = cellValue(v, wording);
+          return (
+            <div
+              key={v.key}
+              className={`${styles.tile} ${compact ? styles.tileCompact : ''}`}
+              style={{ background: sv.bg, borderColor: sv.bd, color: sv.fg }}
+              title={`${v.key}: ${sv.label} — ${value}`}
+            >
+              <div className={styles.tileHead}>
+                <span
+                  className={styles.tileGlyph}
+                  style={{ background: sv.fg, color: sv.bg }}
+                  aria-label={sv.label}
+                >
+                  {sv.glyph}
+                </span>
+                <span className={styles.tileName} style={{ color: sv.fg }}>
+                  {v.key}
+                </span>
+              </div>
+              <div className={styles.tileValue} style={{ color: sv.fg }}>
+                {value}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {hasMuted && (
+        <div className={styles.laneMuted}>
+          <MutedChip
+            keys={notSent}
+            text={source ? `not sent by ${source}` : 'not sent by this platform'}
+            compact={compact}
+          />
+          <MutedChip keys={notFoundInAd} text="not stated in ad" compact={compact} />
+          <MutedChip keys={notRead} text="not in this email" compact={compact} />
+          <MutedChip keys={noLimit} text="no limit set" compact={compact} />
+        </div>
+      )}
+    </>
   );
 }

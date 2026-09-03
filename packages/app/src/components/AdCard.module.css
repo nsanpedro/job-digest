@@ -25,11 +25,12 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text);
+  letter-spacing: -0.018em;
+  color: var(--text-strong);
   text-align: left;
+  line-height: 1.25;
 }
 
 .titleBtn:hover {
@@ -57,25 +58,44 @@
 .metaRow {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  margin-top: 4px;
+  gap: 10px;
+  font-size: 13.5px;
+  margin-top: 6px;
   color: var(--text-secondary);
   flex-wrap: wrap;
 }
 
 .metaCompany {
   font-weight: 500;
+  color: var(--text-strong-alt);
+  font-size: 14px;
 }
 
-.metaSep {
-  color: var(--separator);
+/* Tiny dot separator — replaces the earlier slash. */
+.metaDot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--separator);
+  flex-shrink: 0;
 }
 
 .metaSource {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+}
+
+/* Dotted separator inside the ad body — sits above the rule lane and
+   between the lane and the fit/gap prose. Trimmed narrower than the
+   card so it reads as a divider under the ad's substance, not a border. */
+.bodyRule {
+  margin-top: 16px;
+  max-width: 480px;
+  opacity: 0.55;
 }
 
 .main {
@@ -90,11 +110,42 @@
   min-width: 0;
 }
 
+/*
+ * Fit + gap prose — one row per statement, with a colored dot in a fixed
+ * 12px column so the two lines start aligned even when the wording
+ * wraps. Fit blue (the "why it's here"), gap amber (the caveat).
+ */
 .prose {
-  max-width: 660px;
-  font-size: 13.5px;
-  line-height: 1.55;
-  margin: 10px 0 0;
+  max-width: 680px;
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.proseRow {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.proseDotFit {
+  width: 6px;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--link);
+}
+
+.proseDotGap {
+  width: 6px;
+  height: 6px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: oklch(0.8 0.06 70);
 }
 
 .proseFit {
@@ -102,43 +153,50 @@
 }
 
 .proseGap {
-  color: var(--text-muted);
-  margin-top: 3px;
+  color: var(--text-secondary);
 }
 
+/* Score column — bumped from 88px to 108px, with a left rule that reads
+   as a separator from the body content rather than a floating number. */
 .score {
-  width: 88px;
+  width: 108px;
   flex-shrink: 0;
   text-align: right;
+  padding-top: 2px;
+  padding-left: 20px;
+  border-left: 1px solid var(--border-soft);
 }
 
 .scoreLabel {
   font-family: var(--font-mono);
   font-size: 9px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-faint);
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
 }
 
 .scoreValue {
   font-family: var(--font-mono);
-  font-size: 17px;
+  font-size: 26px;
+  font-weight: 500;
   color: var(--text-strong);
-  margin-top: 2px;
-  letter-spacing: -0.02em;
+  margin-top: 4px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
 }
 
 .scoreBar {
-  height: 3px;
+  height: 4px;
   border-radius: 2px;
-  background: oklch(0.92 0.004 260);
-  margin-top: 6px;
+  background: oklch(0.955 0.003 260);
+  margin-top: 10px;
   overflow: hidden;
 }
 
 .scoreFill {
   height: 100%;
-  background: linear-gradient(90deg, oklch(0.7 0.005 260), oklch(0.4 0.005 260));
+  background: var(--link);
+  border-radius: 2px;
 }
 
 .actions {
