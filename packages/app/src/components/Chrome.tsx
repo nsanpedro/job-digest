@@ -81,7 +81,7 @@ export function TopBar({
         <div className={styles.spacer} />
 
         <div className={styles.right}>
-          <Link href="/profile" className={styles.mailboxChip} title="Profile & settings">
+          <Link href="/profile" className={styles.mailboxChip} title="The sift & settings">
             <span className={styles.mailboxDot} />
             <span className={styles.mailboxEmail}>{userEmail}</span>
           </Link>
@@ -92,6 +92,7 @@ export function TopBar({
           </form>
         </div>
       </div>
+      <div className={`mesh-rule ${styles.meshBorder}`} />
     </header>
   );
 }
