@@ -1,0 +1,88 @@
+/*
+ * Shared shape with ParseBanner.module.css — same layout so the two banners
+ * stack coherently on /digest when both fire. Two color variants (.amber
+ * and .block) instead of one, since the two states have different
+ * urgencies and readers should feel the difference at a glance.
+ */
+
+.amber,
+.block {
+  margin: 16px auto 0;
+  max-width: 1120px;
+  border-radius: var(--radius-card);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.amber {
+  border: 1px solid var(--amber-bd);
+  background: var(--amber-bg);
+}
+
+.block {
+  border: 1px solid var(--block-bd);
+  background: var(--block-bg);
+}
+
+.text {
+  flex: 1;
+  min-width: 260px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.headline {
+  font-weight: 600;
+}
+
+.amber .headline {
+  color: var(--amber-fg);
+}
+
+.block .headline {
+  color: var(--block-fg);
+}
+
+.address {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.detail {
+  color: var(--text-muted);
+}
+
+.btnAmber,
+.btnBlock {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: var(--radius-btn);
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+}
+
+.btnAmber {
+  border: 1px solid oklch(0.75 0.07 70);
+  color: oklch(0.4 0.09 70);
+}
+
+.btnAmber:hover {
+  background: oklch(0.96 0.03 85);
+}
+
+.btnBlock {
+  border: 1px solid var(--block-edge);
+  color: var(--block-fg);
+}
+
+.btnBlock:hover {
+  background: oklch(0.97 0.02 25);
+}

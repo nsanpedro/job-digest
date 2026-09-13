@@ -1,9 +1,14 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { eur, type Ruleset } from '@job-digest/core';
 import { getActiveRuleset, getDigest, NoActiveRulesetError, summarizeWeek, type Digest } from '@job-digest/db';
 import { DigestHeader } from '@/components/DigestHeader';
 import { DigestList } from '@/components/DigestList';
 import { ParseBanner } from '@/components/ParseBanner';
 import { WeekSummary } from '@/components/WeekSummary';
+import { SKIP_GMAIL_COOKIE } from '@/lib/gmail-actions';
+import { getGmailMailboxStatus } from '@/lib/mailbox-status';
+import { getIsOnboarded } from '@/lib/onboarding-actions';
 import { currentUser, withTenant } from '@/lib/session';
 
 // Reads live data and drives server-action revalidation — never statically cached.
@@ -17,6 +22,27 @@ export const maxDuration = 60;
 
 export default async function DigestPage() {
   const user = await currentUser();
+
+  // B1: bounce onboarded users without a working Gmail to the connect
+  // page — the "no mailbox / expired / auth_failed" case that made the
+  // PM test user autoconclude "no habrá mucho esta semana" when the
+  // real cause was Testing-mode's 7-day cliff and a missing token.
+  //
+  // Only fires for onboarded users: a fresh account still has the
+  // OnboardingModal in front of it (layout.tsx:37), and that modal owns
+  // the first-time Gmail grant. Bouncing them here would race that flow.
+  // The dismiss cookie stops the loop for a week (see gmail-actions.ts);
+  // the status banner in the (app) layout keeps the state visible until
+  // the user acts.
+  const [isOnboarded, gmailState, cookieStore] = await Promise.all([
+    getIsOnboarded(),
+    getGmailMailboxStatus(user.id),
+    cookies(),
+  ]);
+  const skipped = cookieStore.get(SKIP_GMAIL_COOKIE)?.value === '1';
+  if (isOnboarded && gmailState.status === 'missing' && !skipped) {
+    redirect('/onboarding/connect-gmail');
+  }
 
   let digest: Digest;
   let rules: Ruleset;
