@@ -25,9 +25,9 @@ export function FilteredSection({
   return (
     <div className={styles.wrap}>
       <div className={styles.headRow}>
-        <h2 className={styles.heading}>Filtered out — {dismissed.length}</h2>
-        <span className={styles.gloss}>shown so you can check the filter, not to re-read them</span>
-        <span className={styles.rule} />
+        <h2 className={styles.heading}>Held by the sift — {dismissed.length}</h2>
+        <span className={styles.gloss}>shown so you can see where the sift catches</span>
+        <span className={`mesh-rule ${styles.rule}`} />
         <button type="button" className={styles.toggle} onClick={() => setOpen((o) => !o)}>
           {open ? 'Hide' : 'Show'}
         </button>

@@ -45,3 +45,22 @@ button {
     opacity: 0.25;
   }
 }
+
+/*
+ * Dotted horizontal rule — the "sieve" motif. Used as a section separator
+ * across the app (header bottom border, digest header rule, ad card body
+ * dividers). Two variants: neutral (border color) and accent (blue).
+ */
+.mesh-rule {
+  height: 1px;
+  background-image: linear-gradient(to right, var(--separator) 50%, transparent 50%);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+}
+
+.mesh-rule-accent {
+  height: 1px;
+  background-image: linear-gradient(to right, oklch(0.5 0.16 250 / 0.45) 50%, transparent 50%);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+}

@@ -1,6 +1,5 @@
 .header {
-  border-bottom: 1px solid var(--border);
-  background: oklch(0.99 0.002 260 / 0.8);
+  background: oklch(0.99 0.002 260 / 0.85);
   backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
@@ -10,10 +9,18 @@
 .inner {
   max-width: var(--content-max);
   margin: 0 auto;
-  padding: 14px 32px;
+  padding: 18px 32px;
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
+}
+
+/* Dotted separator under the header — replaces the previous solid border,
+   the "sieve" motif carried across the redesign. */
+.meshBorder {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  opacity: 0.7;
 }
 
 /* Mobile: two-row header — brand+actions on top, tab strip below */
@@ -82,26 +89,6 @@
   flex-shrink: 0;
 }
 
-.logo {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: var(--logo-grad);
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.brandName {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--text-strong);
-}
-
 .brandCity {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -115,7 +102,7 @@
 .tabs {
   display: flex;
   gap: 2px;
-  margin-left: 12px;
+  margin-left: 8px;
 }
 
 
@@ -123,27 +110,27 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 14px 9px;
+  border-radius: 8px;
   border: none;
-  font-size: 13px;
+  font-size: 14px;
   text-decoration: none;
   color: var(--text-muted);
-  font-weight: 400;
+  font-weight: 500;
   white-space: nowrap;
   background: transparent;
-  transition: color 80ms, background 80ms;
+  transition: color 120ms, background 120ms;
 }
 
 .tab:hover {
-  background: var(--surface-hover);
+  background: oklch(0.965 0.003 260);
   color: var(--text);
 }
 
 .tabActive {
-  background: oklch(0.94 0.004 260);
+  background: oklch(0.945 0.005 260);
   color: var(--text-strong);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* count badges inside tabs */

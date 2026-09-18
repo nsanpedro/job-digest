@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { signOutAction } from '@/lib/actions';
+import { SiftLogo } from './SiftLogo';
+import { SiftWordmark } from './SiftWordmark';
 import styles from './Chrome.module.css';
 
 export type Tab = 'digest' | 'saved' | 'applications' | 'dismissed' | 'unread' | 'profile';
@@ -42,8 +44,8 @@ export function TopBar({
     <header className={styles.header}>
       <div className={styles.inner}>
         <div className={styles.brand}>
-          <span className={styles.logo}>J</span>
-          <span className={styles.brandName}>Job digest</span>
+          <SiftLogo size={24} />
+          <SiftWordmark size={15} />
           {city && <span className={styles.brandCity}>{city}</span>}
         </div>
 
@@ -79,7 +81,7 @@ export function TopBar({
         <div className={styles.spacer} />
 
         <div className={styles.right}>
-          <Link href="/profile" className={styles.mailboxChip} title="Profile & settings">
+          <Link href="/profile" className={styles.mailboxChip} title="The sift & settings">
             <span className={styles.mailboxDot} />
             <span className={styles.mailboxEmail}>{userEmail}</span>
           </Link>
@@ -90,6 +92,7 @@ export function TopBar({
           </form>
         </div>
       </div>
+      <div className={`mesh-rule ${styles.meshBorder}`} />
     </header>
   );
 }

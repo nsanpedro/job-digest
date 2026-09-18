@@ -25,6 +25,7 @@ export function ParseBanner({ parse }: { parse: ParseSummary }) {
 
   return (
     <div className={styles.banner}>
+      <span className={styles.icon} aria-hidden="true">!</span>
       <p className={styles.text}>
         <span className={styles.headline}>
           {parse.emailsNotFullyRead} alert email{parse.emailsNotFullyRead === 1 ? '' : 's'}{' '}
@@ -33,7 +34,7 @@ export function ParseBanner({ parse }: { parse: ParseSummary }) {
         {fragments.length > 0 && <span className={styles.detail}>{fragments.join(' ')}</span>}
       </p>
       <Link href="/unread" className={styles.btn}>
-        See the {parse.emailsNotFullyRead} email{parse.emailsNotFullyRead === 1 ? '' : 's'}
+        Review {parse.emailsNotFullyRead} email{parse.emailsNotFullyRead === 1 ? '' : 's'} →
       </Link>
     </div>
   );

@@ -16,8 +16,8 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Job alert digest',
-  description: 'Weekly digest of job alert emails, filtered by rules you control.',
+  title: 'Sift',
+  description: 'Only the jobs worth reading, sifted from your inbox.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

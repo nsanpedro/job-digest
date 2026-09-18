@@ -42,15 +42,25 @@ export function DismissedRow({
 
   return (
     <div className={styles.row} style={{ opacity: justActed ? 0.6 : 1 }}>
+      <span className={styles.bar} style={{ background: sv.fg }} />
       <div className={styles.main}>
-        <div className={styles.title}>{ad.title}</div>
-        <div className={styles.meta}>
-          {ad.company} {ad.company && ad.location && '· '}
-          {ad.location}
-        </div>
+        <span className={styles.title}>{ad.title}</span>
+        {ad.company && (
+          <>
+            <span className={styles.dot} />
+            <span className={styles.company}>{ad.company}</span>
+          </>
+        )}
+        <span className={styles.source}>{ad.source}</span>
       </div>
       <div className={styles.reason} style={{ color: sv.fg }}>
-        <span className={styles.reasonGlyph}>{sv.glyph}</span>
+        <span
+          className={styles.reasonGlyph}
+          style={{ background: sv.bg, color: sv.fg }}
+          aria-hidden="true"
+        >
+          {sv.glyph}
+        </span>
         <span>{reasonText(ad, rules)}</span>
       </div>
       <div className={styles.score}>{ad.score !== null ? `${ad.score}%` : '—'}</div>

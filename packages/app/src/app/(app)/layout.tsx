@@ -12,6 +12,7 @@
 import { getApplicationCountsCached, getSavedCountCached, getUnreadEmailsCached, getUserCityCached } from '@/lib/nav-data';
 import { getIsOnboarded } from '@/lib/onboarding-actions';
 import { TopBar } from '@/components/Chrome';
+import { Footer } from '@/components/Footer';
 import { GmailStatusBanner } from '@/components/GmailStatusBanner';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { currentUser } from '@/lib/session';
@@ -44,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       */}
       <GmailStatusBanner userId={user.id} />
       {children}
+      <Footer />
     </>
   );
 }

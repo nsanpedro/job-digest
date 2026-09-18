@@ -22,27 +22,6 @@
   margin-bottom: 28px;
 }
 
-.logo {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-badge);
-  background: var(--ink);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.brandLabel {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
 .h1 {
   font-size: 21px;
   font-weight: 600;

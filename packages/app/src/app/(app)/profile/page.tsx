@@ -69,7 +69,19 @@ export default async function ProfilePage({
 
   return (
     <div className="container">
-        <h1 className={styles.h1}>Profile</h1>
+        <div className={styles.pageHeader}>
+          <div className={styles.kicker}>How your sift works</div>
+          <h1 className={styles.h1}>Set your sift</h1>
+          <p className={styles.intro}>
+            Five rules. Set them as <strong className={styles.strongHard}>hard</strong> and they
+            tighten the sift an ad has to pass through. Set them as{' '}
+            <strong className={styles.strongPref}>preference</strong> and an ad that fails still
+            passes, marked with a warning. Changes apply live to the current digest.
+          </p>
+        </div>
+
+        <div className={styles.layout}>
+          <div className={styles.main}>
 
         <div className={styles.section}>
           <p className={styles.sectionLabel}>Role discovery</p>
@@ -89,7 +101,7 @@ export default async function ProfilePage({
         </div>
 
         <div className={styles.section}>
-          <p className={styles.sectionLabel}>Filtering rules</p>
+          <p className={styles.sectionLabel}>The five rules</p>
           {ruleset.version === 0 && (
             <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
               No rules saved yet — starting from sensible defaults. Adjust and save to activate
@@ -212,6 +224,41 @@ export default async function ProfilePage({
               />
             </div>
           </div>
+        </div>
+
+          </div>
+
+          <aside className={styles.sidebar}>
+            <div className={styles.sideCard}>
+              <div className={styles.sideCardLabel}>Live sift</div>
+              <p className={styles.sideCardBody}>
+                Changes here apply immediately to the current week's digest — no re-run needed.
+                Tighten the rules and fewer ads pass. Loosen them and more come through, marked
+                with a warning where they would have been held.
+              </p>
+              <a href="/digest" className={styles.sideCardCta}>
+                See the digest
+              </a>
+            </div>
+
+            <div className={styles.sideCard}>
+              <div className={styles.sideCardLabel}>Alerts we read</div>
+              {account && account.mailboxes.length > 0 ? (
+                <div className={styles.sideMailboxes}>
+                  {account.mailboxes.map((mb) => (
+                    <div key={mb.id} className={styles.sideMailboxRow}>
+                      <span className={styles.sideMailboxName}>{mb.provider}</span>
+                      <span className={styles.sideMailboxKind}>{mb.authKind}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.sideCardBody}>
+                  No mailbox connected yet — connect one below to start reading alerts.
+                </p>
+              )}
+            </div>
+          </aside>
         </div>
       </div>
   );
