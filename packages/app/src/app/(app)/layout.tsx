@@ -12,6 +12,7 @@
 import { getApplicationCountsCached, getSavedCountCached, getUnreadEmailsCached, getUserCityCached } from '@/lib/nav-data';
 import { getIsOnboarded } from '@/lib/onboarding-actions';
 import { TopBar } from '@/components/Chrome';
+import { GmailStatusBanner } from '@/components/GmailStatusBanner';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { currentUser } from '@/lib/session';
 
@@ -35,6 +36,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         city={city}
       />
       {!isOnboarded && <OnboardingModal />}
+      {/*
+        Renders nothing when Gmail is healthy — so this row stays out of
+        the way for the common case. Two loud shapes otherwise: amber
+        when the user dismissed the connect page for a week, block when
+        the connection stopped working (see GmailStatusBanner.tsx).
+      */}
+      <GmailStatusBanner userId={user.id} />
       {children}
     </>
   );

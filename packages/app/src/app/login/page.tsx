@@ -8,8 +8,12 @@ import styles from './page.module.css';
  * restricted-scope gate (Testing mode's test-user list, or a paid CASA
  * assessment to go public) blocked *signing in at all*, not just connecting
  * Gmail. Splitting them means anyone can create an account — connecting a
- * mailbox (Gmail via "Connect Gmail" in Profile, or forwarding, which needs
- * no Google involvement at all) is a separate, later, opt-in step.
+ * mailbox is a separate, later, opt-in step.
+ *
+ * The split is invisible to the user because the second consent runs
+ * immediately after this one (via /onboarding/connect-gmail — see the B1
+ * gate in digest/page.tsx). The copy on this page names both up front so
+ * the second prompt does not feel like a surprise.
  */
 
 const ERROR_COPY: Record<string, string> = {
@@ -36,8 +40,11 @@ export default async function LoginPage({
 
         <h1 className={styles.h1}>Sign in</h1>
         <p className={styles.intro}>
-          Sign in with Google to create your account and see your weekly digest. This step alone
-          never touches a mailbox — you connect one afterward, from Profile.
+          Sign in with Google to create your account. Right after, we ask for one more
+          permission — read-only access to Gmail — so we can also read the job alerts you
+          already receive. Google keeps sign-in and mailbox access on separate consent
+          screens, so you will see two prompts. You can skip the second one and still see
+          public jobs.
         </p>
 
         {errorMessage && <div className={styles.errorBox}>{errorMessage}</div>}
@@ -55,14 +62,13 @@ export default async function LoginPage({
         </form>
 
         <div className={styles.scopes}>
-          <ScopeRow ok>Just your name and email — this app never sees your mailbox yet.</ScopeRow>
-          <ScopeRow ok>Never applies to a job or answers a recruiter on your behalf.</ScopeRow>
+          <ScopeRow ok>First prompt: just your name and email — no mailbox access yet.</ScopeRow>
+          <ScopeRow ok>Second prompt (optional): read-only Gmail — never sends, deletes, or replies.</ScopeRow>
         </div>
 
         <p className={styles.note}>
-          After signing in, connect a mailbox from Profile — Gmail (read-only, revocable any
-          time) or a forwarding address that works with any provider and never grants us access
-          at all.
+          You can always change or revoke Gmail access later from your Google Account or
+          from the Profile page.
         </p>
       </div>
     </div>
