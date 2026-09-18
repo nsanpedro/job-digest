@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Ruleset } from '@job-digest/core';
 import type { Digest, DigestAd } from '@job-digest/db';
 import { AdCard } from './AdCard';
+import { EmptyDigestDiagnostic } from './EmptyDigestDiagnostic';
 import { FilteredSection } from './FilteredSection';
 import styles from './DigestList.module.css';
 
@@ -53,13 +54,23 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
     ...digest.stillOpen,
   ].sort((a, b) => (b.scoreBreakdown?.total ?? 0) - (a.scoreBreakdown?.total ?? 0));
 
-  const hasAnything =
-    matches.length > 0 ||
-    digest.explore.length > 0 ||
-    digest.dismissed.length > 0;
-
-  if (!hasAnything) {
-    return <p className={styles.empty}>No ads arrived in this window.</p>;
+  // The empty case has two flavors — nothing at all, and "we saw ads but none
+  // tiered". Both used to collapse to a single line ("No matches this week." /
+  // "No ads arrived in this window."), which read the same to a test PM user
+  // as "nothing happened this week" and hid the mechanism (parse failures,
+  // below-threshold misses, everything blocked by rules). The diagnostic below
+  // narrates the counts the digest already carries — see EmptyDigestDiagnostic.
+  if (matches.length === 0) {
+    return (
+      <div className={styles.root}>
+        <EmptyDigestDiagnostic digest={digest} rules={rules} />
+        <FilteredSection
+          dismissed={digest.dismissed}
+          rules={rules}
+          rulesetVersion={digest.rulesetVersion}
+        />
+      </div>
+    );
   }
 
   return (
