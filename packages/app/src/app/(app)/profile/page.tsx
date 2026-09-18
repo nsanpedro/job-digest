@@ -41,31 +41,38 @@ export default async function ProfilePage({
       ? (catalogMarket as Market)
       : null;
 
-  const [[ruleset, account, profile, directions, coverage], userSources, suggestedSources, catalog] = await Promise.all([
-    withTenant(user.id, async (tx) => {
-      let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
-      try {
-        rs = await getActiveRuleset(tx, user.id);
-      } catch (err) {
-        if (!(err instanceof NoActiveRulesetError)) throw err;
-        rs = { version: 0, savedRules: DEFAULT_RULESET, mode: DEFAULT_MODE };
-      }
-      const acct = await getAccountOverview(tx, user.id);
-      // Role discovery from a CV (docs/adr-001-role-discovery.md §3) — no
-      // active profile yet just means nobody has uploaded a CV, not an error.
-      const prof = await getActiveProfile(tx, user.id);
-      const dirs = prof ? await listDirections(tx, user.id, prof.version) : [];
-      // Coverage is only meaningful once a direction is past 'interested', but
-      // computed for all of them in one query rather than branching per-card —
-      // cheap (one query for the user's ad titles, matched in memory) and
-      // simpler than threading a second conditional query through.
-      const cov = await getDirectionCoverage(tx, user.id, dirs);
-      return [rs, acct, prof, dirs, cov] as const;
-    }),
-    getSources(),
-    getSuggestedSources(),
-    getCuratedCatalog(requestedMarket ?? 'ALL'),
-  ]);
+  // Serial, not Promise.all, because every branch opens its own
+  // withTenant (four for the sources/catalog server actions, plus this
+  // block's own). At Promise.all this page holds four Postgres connections
+  // at once — with the app pool at max: 4 in prod (packages/app/src/lib/db.ts:25)
+  // one open Profile tab exhausts a Vercel instance's share of the
+  // Supabase pooler (design §11's I13, and the Aug-2026 EMAXCONNSESSION
+  // incident recorded in memory). Serialised, this page holds one
+  // connection at a time; the latency cost is the sum-vs-max of a handful
+  // of small tx, which /profile is not perf-critical enough to pay for.
+  const [ruleset, account, profile, directions, coverage] = await withTenant(user.id, async (tx) => {
+    let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
+    try {
+      rs = await getActiveRuleset(tx, user.id);
+    } catch (err) {
+      if (!(err instanceof NoActiveRulesetError)) throw err;
+      rs = { version: 0, savedRules: DEFAULT_RULESET, mode: DEFAULT_MODE };
+    }
+    const acct = await getAccountOverview(tx, user.id);
+    // Role discovery from a CV (docs/adr-001-role-discovery.md §3) — no
+    // active profile yet just means nobody has uploaded a CV, not an error.
+    const prof = await getActiveProfile(tx, user.id);
+    const dirs = prof ? await listDirections(tx, user.id, prof.version) : [];
+    // Coverage is only meaningful once a direction is past 'interested', but
+    // computed for all of them in one query rather than branching per-card —
+    // cheap (one query for the user's ad titles, matched in memory) and
+    // simpler than threading a second conditional query through.
+    const cov = await getDirectionCoverage(tx, user.id, dirs);
+    return [rs, acct, prof, dirs, cov] as const;
+  });
+  const userSources = await getSources();
+  const suggestedSources = await getSuggestedSources();
+  const catalog = await getCuratedCatalog(requestedMarket ?? 'ALL');
 
   return (
     <div className="container">
