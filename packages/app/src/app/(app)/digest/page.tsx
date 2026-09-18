@@ -6,7 +6,7 @@ import { DigestHeader } from '@/components/DigestHeader';
 import { DigestList } from '@/components/DigestList';
 import { ParseBanner } from '@/components/ParseBanner';
 import { WeekSummary } from '@/components/WeekSummary';
-import { SKIP_GMAIL_COOKIE } from '@/lib/gmail-actions';
+import { SKIP_GMAIL_COOKIE } from '@/lib/gmail-cookie';
 import { getGmailMailboxStatus } from '@/lib/mailbox-status';
 import { getIsOnboarded } from '@/lib/onboarding-actions';
 import { currentUser, withTenant } from '@/lib/session';

@@ -22,9 +22,7 @@
 
 import { cookies } from 'next/headers';
 import { signIn } from '@/auth';
-
-export const SKIP_GMAIL_COOKIE = 'jd_skip_gmail';
-export const SKIP_GMAIL_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+import { SKIP_GMAIL_COOKIE, SKIP_GMAIL_MAX_AGE_SECONDS } from './gmail-cookie';
 
 export async function connectGmail(): Promise<void> {
   // signIn throws NEXT_REDIRECT — do not wrap it in try/catch.

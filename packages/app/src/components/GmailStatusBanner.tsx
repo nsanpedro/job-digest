@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
-import { connectGmail, SKIP_GMAIL_COOKIE } from '@/lib/gmail-actions';
+import { connectGmail } from '@/lib/gmail-actions';
+import { SKIP_GMAIL_COOKIE } from '@/lib/gmail-cookie';
 import { getGmailMailboxStatus } from '@/lib/mailbox-status';
 import styles from './GmailStatusBanner.module.css';
 
