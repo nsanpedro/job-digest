@@ -1,0 +1,14 @@
+Daniel Okonkwo
+Senior Technical Project Manager based in Amsterdam
+
+Six years driving cross-functional delivery for B2B SaaS teams: scoping, sprint planning, dependency mapping, risk registers, stakeholder communication, and the unglamorous work of chasing the last three tickets before a release. PMP certified in 2022, Certified Scrum Master since 2020. I run the meetings people actually want to attend and cancel the ones they don't.
+
+Currently Senior Project Manager at Loomwave (Amsterdam, 2023 to present), coordinating a 22-person platform org across three squads. I own the quarterly OKR cycle end to end: goal-setting workshops with the VP of Engineering, mid-quarter check-ins, and the retro that feeds the next planning session. I introduced RACI matrices for cross-team initiatives, cut our average feature cycle time from 47 to 29 days, and stood up a weekly steering committee that finally made the roadmap trade-offs visible to the leadership team.
+
+Previously Program Manager at Ferrocarbo Analytics (Berlin, 2020 to 2023), where I shepherded a 14-month platform migration off a legacy Rails monolith. Managed the Gantt, ran the risk log, and translated engineering constraints into commitments the sales team could actually make to customers. Before that, Associate PM at Klaring (Rotterdam, 2019 to 2020), doing standups, backlog grooming, and burndown charts for a smaller product team.
+
+Tools I live in: Jira, Linear (recent migration I led), Confluence, Notion for lightweight docs, Miro for workshops, Google Sheets for capacity planning, and Slack for the async work. Comfortable with Gantt views, dependency graphs, and building executive-ready status reports that don't hide bad news.
+
+I believe schedule risk is a communication problem more than an estimation problem. I write project charters, RAID logs, and post-mortems that are actually read. I'm not a scrum purist — I pick the ceremony that fits the team.
+
+Interested in senior technical project manager, program manager, or delivery lead roles at a product-led company.

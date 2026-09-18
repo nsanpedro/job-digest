@@ -1,0 +1,14 @@
+Priya Nadeem
+Senior UX Designer based in Lisbon
+
+Seven years designing product experiences for SaaS and fintech teams. I run discovery, synthesize research, prototype flows, and pair with engineers through implementation. I don't hand off a Figma file and disappear — I sit in the sprint review.
+
+Currently Senior Product Designer at Contravent (Lisbon, 2023 to present), the sole designer embedded in the billing squad of a mid-market HR platform. Redesigned the plan management flow after five weeks of moderated interviews with 22 admins; the new flow cut support tickets on billing changes by 61% in the first quarter after ship. Owned the design system contribution process — auditing patterns, writing usage docs in Figma, and running a monthly design critique with three other designers.
+
+Previously UX Designer at Marbelo Health (Berlin, 2020 to 2023), designing patient-facing web and mobile flows for a telehealth product. Ran weekly usability tests with real patients, built a clickable prototype in Figma that surfaced a critical intake-form drop-off, and shipped an accessibility overhaul for WCAG 2.1 AA compliance across the core booking journey. Before that, Interaction Designer at Studio Belfry (London, 2019 to 2020), agency work on consumer apps and marketing sites.
+
+Daily tools: Figma with variables and auto-layout, FigJam for workshops, Maze and UserTesting for unmoderated studies, Dovetail for research repos, Notion for design docs. I sketch in Procreate before I open Figma. Comfortable with information architecture (card sorts, tree tests), journey mapping, and running a Jobs to Be Done interview without leading the participant.
+
+I believe usability testing five people is worth more than a thousand-response survey most of the time. I write research plans, screener criteria, and readouts that product managers actually reference. I read Nielsen Norman Group weekly and disagree with them occasionally.
+
+Interested in senior UX designer, senior product designer, or lead product designer roles on a product team that ships regularly.
