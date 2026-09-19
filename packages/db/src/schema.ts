@@ -186,7 +186,7 @@ export const mailboxes = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: userId(),
-    /** e.g. 'gmail', 'gmx', 'web.de', 'manual' — display + IMAP presets. */
+    /** e.g. 'google' (Gmail OAuth), 'gmx', 'web.de', 'manual' — display + IMAP presets. Written by auth.ts:73 for the OAuth path; the IMAP-preset examples cover other acquisition paths (§4.5). */
     provider: text('provider').notNull(),
     authKind: authKindEnum('auth_kind').notNull(),
     emailAddress: text('email_address').notNull(),

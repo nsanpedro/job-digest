@@ -90,7 +90,7 @@ beforeAll(async () => {
     .insert(schema.mailboxes)
     .values({
       userId,
-      provider: 'gmail',
+      provider: 'google',
       authKind: 'oauth',
       emailAddress: 'a@example.com',
       credentialsEnc: Buffer.from('sealed'),

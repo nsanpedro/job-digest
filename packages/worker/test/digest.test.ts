@@ -63,7 +63,7 @@ beforeAll(async () => {
     .insert(schema.mailboxes)
     .values({
       userId,
-      provider: 'gmail',
+      provider: 'google',
       authKind: 'app_password',
       emailAddress: 'nico@example.com',
       status: 'active',

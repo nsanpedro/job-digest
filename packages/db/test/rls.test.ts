@@ -45,7 +45,7 @@ beforeAll(async () => {
       .insert(schema.mailboxes)
       .values({
         userId,
-        provider: 'gmail',
+        provider: 'google',
         authKind: 'app_password',
         emailAddress: `${who}@example.com`,
         credentialsEnc: Buffer.from(`sealed-secret-${who}`),
@@ -185,7 +185,7 @@ describe('I13 at the database level (design §14)', () => {
       SELECT id, provider, auth_kind, email_address, status, credential_expires_at
       FROM mailboxes`;
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.['provider']).toBe('gmail');
+    expect(rows[0]?.['provider']).toBe('google');
     await asOwner();
   });
 
