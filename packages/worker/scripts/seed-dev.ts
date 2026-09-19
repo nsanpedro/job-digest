@@ -36,7 +36,7 @@ async function main() {
       .insert(mailboxes)
       .values({
         userId,
-        provider: 'gmail',
+        provider: 'google',
         authKind: 'app_password',
         emailAddress: SEED_EMAIL,
         status: 'active',
