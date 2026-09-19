@@ -34,11 +34,18 @@ export default async function DigestPage() {
   // The dismiss cookie stops the loop for a week (see gmail-actions.ts);
   // the status banner in the (app) layout keeps the state visible until
   // the user acts.
-  const [isOnboarded, gmailState, cookieStore] = await Promise.all([
-    getIsOnboarded(),
-    getGmailMailboxStatus(user.id),
-    cookies(),
-  ]);
+  // Serial, not Promise.all, for the two DB-hitting calls: both open
+  // their own withTenant, so at Promise.all this page holds two
+  // Postgres connections against an app pool of max: 4 in prod
+  // (packages/app/src/lib/db.ts:25). Combined with the (app) layout's
+  // five (also just serialised in this branch), one /digest render was
+  // enough to push the shared 15-connection Supabase pooler into
+  // EMAXCONNSESSION — same failure mode as /profile before its fix
+  // (commit 062d27d). cookies() is a next/headers call, not a DB call;
+  // it can stay parallel with either read but is easier to leave inline.
+  const isOnboarded = await getIsOnboarded();
+  const gmailState = await getGmailMailboxStatus(user.id);
+  const cookieStore = await cookies();
   const skipped = cookieStore.get(SKIP_GMAIL_COOKIE)?.value === '1';
   if (isOnboarded && gmailState.status === 'missing' && !skipped) {
     redirect('/onboarding/connect-gmail');

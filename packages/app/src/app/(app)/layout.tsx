@@ -19,13 +19,21 @@ import { currentUser } from '@/lib/session';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
-  const [unread, savedCount, applications, isOnboarded, city] = await Promise.all([
-    getUnreadEmailsCached(user.id),
-    getSavedCountCached(user.id),
-    getApplicationCountsCached(user.id),
-    getIsOnboarded(),
-    getUserCityCached(user.id),
-  ]);
+  // Serial, not Promise.all: this layout renders on every authenticated
+  // route, and every branch below opens its own withTenant, so at
+  // Promise.all the layout alone holds five Postgres connections per
+  // request against an app pool of max: 4 in prod (packages/app/src/lib/db.ts:25) —
+  // that overshoot cascades into EMAXCONNSESSION on the shared
+  // 15-connection Supabase pooler exactly the way /profile did (see the
+  // /profile fix in commit 062d27d for the source incident and the same
+  // rationale). Serialised, the layout holds one connection at a time;
+  // the latency cost is the sum-vs-max of five small tenant-scoped
+  // reads, which the layout is not perf-critical enough to pay for.
+  const unread = await getUnreadEmailsCached(user.id);
+  const savedCount = await getSavedCountCached(user.id);
+  const applications = await getApplicationCountsCached(user.id);
+  const isOnboarded = await getIsOnboarded();
+  const city = await getUserCityCached(user.id);
 
   return (
     <>
