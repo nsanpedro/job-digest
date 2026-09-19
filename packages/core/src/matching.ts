@@ -230,10 +230,37 @@ export function tokenize(text: string): string[] {
     .filter((w) => w.length >= MIN_TOKEN_LEN && !STOP_WORDS.has(w));
 }
 
-/** True when `word` (or any of its ROLE_SYNONYMS) appears as a substring of the (already-lowercased) haystack. */
+/**
+ * True when `word` (or any of its ROLE_SYNONYMS) appears in the (already-
+ * lowercased) haystack.
+ *
+ * Tokens ≥ LONG_WORD_MIN (8) chars match by substring, deliberately: the
+ * long-word tier (0.6/0.4) leans on this to let "typescript" inside
+ * "typescriptdev" or "designer" inside "graphic-designer-lead" pull an ad
+ * in even when the wrapping title uses non-standard punctuation. Short
+ * tokens (< 8) match at a word boundary instead, because a plain substring
+ * pulls a short discriminator into any host word that happens to spell it
+ * out — "art" was inside "startup" and "chart", so a searchTerm of
+ * "art director" fired tier 1.0 against "Startup Director" and "Chart
+ * Director" for every graphic-design CV in the audit. The word-boundary
+ * regex uses the /u flag so non-ASCII letters (ñ, ä, ö, ü) count as word
+ * characters — a searchTerm of "gerente" boundary-matches "gerente de
+ * cuentas" without splitting the tilde-carrying letter, matching the
+ * excludes convention already used in curation.ts's hasExcludeHit.
+ *
+ * `word` itself is passed at whatever length the caller tokenized it to,
+ * but each candidate `alt` in the ROLE_SYNONYMS family may have a
+ * different length (e.g. "manager"=7 and "managerin"=9 sit in the same
+ * family) — so the threshold is applied per-alt, not per-word.
+ */
+const REGEX_META = /[.*+?^${}()|[\]\\]/g;
 export function containsWord(haystack: string, word: string): boolean {
   const alts = ROLE_SYNONYMS[word] ?? [word];
-  return alts.some((alt) => haystack.includes(alt));
+  return alts.some((alt) => {
+    if (alt.length >= LONG_WORD_MIN) return haystack.includes(alt);
+    const escaped = alt.replace(REGEX_META, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'iu').test(haystack);
+  });
 }
 
 // ── The one match function ───────────────────────────────────────────────────
