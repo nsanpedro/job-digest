@@ -341,3 +341,48 @@ The three matcher changes — spelling pre-pass (`normalizeRoleSpelling`), word-
 | v4 + level gate | 0.857 | 0.315 | 0.538 | 3 | 6 / 3 |
 
 The level gate removed 15 direction-matched ads across the weeks — 8 of them dismissed, none positive — so it only changes the curated tiers (their juniors already ranked below the positives). The one week still weak (0.167) has a single positive, "Staff Engineer - Virtual Assembly Line", that matches none of the user's directions: a direction-coverage gap, not a matcher error.
+
+### 8.x Dismiss reasons as explicit feedback (Sep 2026)
+
+Saved, dismissed and applied ads did not affect the ranking; they were only the eval's labels. Dismiss now takes an optional *why*, and some answers turn into an effect the user can see and undo.
+
+**Capture.** Dismiss still takes one click. The card becomes a one-line "Dismissed" row in its own place in the list, with Undo and an optional "Why?" and five chips: Wrong role, Wrong level, Location, Company, Other. Picking one is never needed. The reason is stored in `ad_user_state.dismiss_reason`, a nullable Postgres enum `dismiss_reason` (migration 0019). It is a closed set for the same reason as `application_status`: each value has written copy and a defined effect. Changing the reason undoes the previous reason's effect. Undo on the dismissal clears the reason and removes every effect that dismissal produced. The Dismissed list shows the reason ("Dismissed by you — wrong role").
+
+**Effects.** They are pure functions in `packages/core/src/feedback.ts`, dispatched by `planDismissFeedback`:
+
+| Reason | Effect | Where it applies | Undo |
+| --- | --- | --- | --- |
+| `company` | Mute the company. Its ads go to Explore, unscored. The card says "Muted company — in Explore, unscored" and has an Unmute button. | `getDigest` pass 2: `applyPreFilters` runs a mute gate before the direction gate (`isMutedCompany`), counted in `metrics.explore.mutedCompany` | Unmute on the card, in the follow-up, or in Profile → "From your dismissals" |
+| `wrong_role` | Propose up to three title words to exclude from every direction the title matched (`suggestExcludeTerms`). **Nothing is saved until the user picks a word.** The server recomputes the proposal and saves only a word it still contains. | The existing per-direction `exclude_terms`, which the matcher already reads at read time and at the ingest gate | Remove, in the follow-up or in Profile |
+| `wrong_level` | No new mechanism. The follow-up states what the level gate (§8.7) does: entry-level titles already go to Explore for a senior-or-above target; with no rung named the gate is off; otherwise the reason is only recorded. | — | — |
+| `location`, `other` | Recorded only. They are eval labels, and the follow-up says "nothing is filtered". | — | — |
+
+A company is matched on `companyKey`: lowercase, diacritics folded, punctuation removed, and trailing legal forms dropped (GmbH, AG, & Co. KG, Inc, S.L.U., …). So "Acme GmbH" mutes "ACME GmbH & Co. KG", but not "Acme Group" or "Acmetech".
+
+An exclude is proposed only for a word that passes all of these checks:
+
+- It is **not covered by the user's directions**. It must not appear, at a word boundary (the exclude gate's own rule), in any direction's label or search terms. Excluding a word a direction searches for would remove that direction's own matches.
+- It is not a seniority word (level has its own reason), not a word from the company or location line, and not title boilerplate ("m/w/d", "all gender", "Vollzeit", "remote", …).
+- It actually fires: with the word added, every matched direction reads `excluded` for this title.
+
+"Most specific first" means longer words first, with ties broken by title order. There is no corpus frequency, so the proposal can be explained from the title alone. The word goes to every matched direction, because excluding it from only one would leave the ad in through another. The API ingest gate (`directionFitStrength`) combines the excludes of all directions, so a word saved on one direction also filters at ingest the ads another direction matched. Checking coverage across *all* directions keeps that from removing any direction's own search phrases.
+
+**Storage.** Each saved effect is a row in `feedback_effects`: `kind` (`mute_company` | `exclude_term`), `value`, `value_key`, `direction_id` for an exclude, the source `ad_id`, and `created_at`. The table has partial unique indexes (one mute per company key, one term per direction), a CHECK that only an exclude has a direction, RLS with the tenant policy, and `SELECT, INSERT, DELETE` for `app_user` and `SELECT` for `worker`. An exclude's term also goes into `directions.exclude_terms`, where the matcher reads it; the row records where it came from and when. Rows are deleted to undo, never edited.
+
+**Eval honesty.** `eval-ranking.ts` grades the ranking against dismissals. Once dismissals change the ranking, the eval could end up checking the ranking against its own answer key. Three rules prevent that:
+
+1. The +fb variant applies only effects saved strictly before the replayed week's start (`effectsBefore(effects, window.start)`). A dismissal made during a week is a label for that week and never an input to it.
+2. Every other variant runs with the feedback excludes removed from the stored directions (`withoutExcludeEffects`). The baseline is therefore the pipeline without this feature, not the current directions with the feedback already included.
+3. An ad already dismissed before a week started is unlabelled in that week, for every variant (`dismissedBefore`). The product had already moved it aside, and with feedback on, the dismissal that created a mute would otherwise grade that mute in every later week. This changes the earlier variants' numbers slightly when an ad is seen again after its dismissal.
+
+The report adds a `v4+level+fb` row, the dismiss-reason counts, and how many direction-matched ads the prior effects sent to Explore. A positive among those ads is a cost of the feedback.
+
+**Why this is not the learned weights §2.5 rejected.** §2.5 refused to fit the five score weights to applied/saved/dismissed actions, because at N=1 that is fitting noise. None of that happens here:
+
+- **No weight moves.** Calibration, components and thresholds are unchanged. A reason changes a *gate* the user already has (their direction excludes) or adds a new *explicit* one (a muted company). No number is fitted.
+- **One statement, one effect, one undo.** The user says "not this company", and that company is muted. Nothing is inferred from a pattern of clicks. An unexplained dismissal still changes nothing.
+- **The user confirms the one effect that generalises.** An exclude word can affect ads the user has not seen, so it is only proposed and saved after the user picks it.
+- **It is visible and reversible.** The follow-up names each effect when it happens. A muted ad carries a line on its card, and every standing effect is listed in Profile → "From your dismissals" with its undo. The proposal is deterministic in (reason, title, directions): the same inputs always give the same words.
+- **Wrong level and location stay labels.** Where the product already has a mechanism (the level gate, `locationFit`), a reason does not add a second one that would compete with it.
+
+Candidate.ts still keeps saved, dismissed and applied out of `CandidateProfile`. Feedback enters only as explicit gates, with its own temporal split in the eval, as that file's note required.

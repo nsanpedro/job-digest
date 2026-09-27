@@ -6,7 +6,7 @@
  * the UI can show the ad's literal German next to each verdict — facts feed
  * evaluation, wording feeds the UI (§9).
  */
-import type { AdFieldProvenance, Distance, MatchExplanation, ScoreBreakdown, TitleFacts, Verdict, Wording } from '@job-digest/core';
+import type { AdFieldProvenance, DismissReason, Distance, MatchExplanation, ScoreBreakdown, TitleFacts, Verdict, Wording } from '@job-digest/core';
 
 export type Platform = 'LinkedIn' | 'Xing' | 'Indeed' | 'StepStone';
 
@@ -96,6 +96,12 @@ export interface DigestAd {
    * `matched` entries here).
    */
   matchExplanations: readonly MatchExplanation[];
+  /**
+   * True when the ad's company is one the user muted from a dismissal
+   * (ADR-003 §8.x): it went to Explore unscored, and the card says so with
+   * a way to unmute. Absent everywhere but the digest's explore bucket.
+   */
+  mutedCompany?: boolean;
 }
 
 /**
@@ -104,7 +110,8 @@ export interface DigestAd {
  * from the ruleset, and an override is a third thing again.
  */
 export type DismissalReason =
-  | { kind: 'user' }
+  /** `why` — the reason the user gave, if they gave one (ADR-003 §8.x). */
+  | { kind: 'user'; why?: DismissReason | null }
   | { kind: 'rule'; blockers: Verdict[] };
 
 export interface DismissedAd extends DigestAd {
@@ -125,10 +132,10 @@ export interface DigestMetrics {
   inDigest: number;
   /**
    * Ads in the explore bucket. Null when no pre-filter was active (no
-   * directions and no senior-or-above target rung — the pre-pass didn't
-   * run, so everything was scored).
+   * muted company, no directions and no senior-or-above target rung — the
+   * pre-pass didn't run, so everything was scored).
    *
-   * The three counts are disjoint and sum to `total`:
+   * The four counts are disjoint and sum to `total` (`mutedCompany` below):
    *
    * `preFilterMisses` — ads that matched none of the user's directions and
    * went to explore before scoring. (Location stopped being a pre-filter in
@@ -144,6 +151,8 @@ export interface DigestMetrics {
     preFilterMisses: number;
     belowTargetLevel: number;
     belowThreshold: number;
+    /** Ads from a company the user muted (ADR-003 §8.x) — counted first, so never in the other buckets. */
+    mutedCompany: number;
   } | null;
   filteredByRule: number;
   dismissedByUser: number;

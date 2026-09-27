@@ -12,6 +12,7 @@ export default async function ExplorePage() {
   let preFilterMisses: number;
   let belowTargetLevel: number;
   let belowThreshold: number;
+  let mutedCompany: number;
 
   try {
     const loaded = await withTenant(user.id, async (tx) => {
@@ -23,6 +24,7 @@ export default async function ExplorePage() {
     preFilterMisses = loaded.metrics.explore?.preFilterMisses ?? 0;
     belowTargetLevel = loaded.metrics.explore?.belowTargetLevel ?? 0;
     belowThreshold = loaded.metrics.explore?.belowThreshold ?? 0;
+    mutedCompany = loaded.metrics.explore?.mutedCompany ?? 0;
   } catch (err) {
     if (err instanceof NoActiveRulesetError) {
       return (
@@ -56,6 +58,12 @@ export default async function ExplorePage() {
       ) : (
         <>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>
+            {mutedCompany > 0 && (
+              <>
+                {mutedCompany} {mutedCompany === 1 ? 'is' : 'are'} from companies you muted (
+                <a href="/profile#feedback">manage</a>).{' '}
+              </>
+            )}
             {preFilterMisses > 0 && (
               <>{preFilterMisses} matched none of your directions. </>
             )}

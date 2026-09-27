@@ -98,6 +98,28 @@ export {
   type ExplainableDirection,
   type MatchExplanation,
 } from './explain-match';
+export {
+  DISMISS_REASONS,
+  DISMISS_REASON_LABEL,
+  companyKey,
+  dismissedBefore,
+  effectsBefore,
+  isDismissReason,
+  isMutedCompany,
+  levelFeedback,
+  mutedCompanyKeys,
+  planDismissFeedback,
+  suggestExcludeTerms,
+  withExcludeEffects,
+  withoutExcludeEffects,
+  type DismissFeedback,
+  type DismissReason,
+  type ExcludeSuggestion,
+  type FeedbackDirection,
+  type FeedbackEffect,
+  type FeedbackEffectKind,
+  type LevelFeedback,
+} from './feedback';
 export { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from './default-ruleset';
 export {
   DIAGNOSTIC_MIN_CURATED,

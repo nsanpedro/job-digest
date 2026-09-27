@@ -3,6 +3,7 @@
  * gate of ADR-003 §8.7). Pure, so no database; the titles are the real ones
  * from the ranking eval on a lead + senior account.
  */
+import { companyKey } from '@job-digest/core';
 import { describe, expect, it } from 'vitest';
 import { applyPreFilters } from '../src/queries/digest';
 import type { DirectionRow } from '../src/queries/types';
@@ -82,5 +83,39 @@ describe('applyPreFilters', () => {
     expect(none.passed).toHaveLength(all.length);
     // Neither gate had signal: getDigest reports `metrics.explore` as null.
     expect(none.active).toBe(false);
+  });
+
+  describe('muted companies (ADR-003 §8.x)', () => {
+    const at = (title: string, company: string | null) => ({ ad: { title, company } });
+    const muted = new Set([companyKey('Acme GmbH')!]);
+
+    it('an ad from a muted company goes to its own bucket, before any other gate', () => {
+      const split = applyPreFilters(
+        [
+          at('Senior Frontend Engineer', 'ACME GmbH & Co. KG'),
+          at('Junior Accountant (m/w/d)', 'Acme'),
+          at('Senior Frontend Engineer', 'Globex'),
+        ],
+        [direction('Frontend Engineer', ['Frontend Engineer'])],
+        LEAD_SENIOR,
+        muted,
+      );
+      expect(split.mutedCompany.map((e) => e.ad.company)).toEqual(['ACME GmbH & Co. KG', 'Acme']);
+      expect(split.directionMisses).toEqual([]);
+      expect(split.belowTargetLevel).toEqual([]);
+      expect(split.passed.map((e) => e.ad.company)).toEqual(['Globex']);
+    });
+
+    it('a mute alone turns the pre-pass on; no mutes changes nothing', () => {
+      const entries = [at('Designer', 'Acme'), at('Designer', null)];
+      const split = applyPreFilters(entries, [], { seniorities: [] }, muted);
+      expect(split.active).toBe(true);
+      expect(split.mutedCompany).toHaveLength(1);
+      expect(split.passed).toHaveLength(1);
+      const none = applyPreFilters(entries, [], { seniorities: [] });
+      expect(none.active).toBe(false);
+      expect(none.mutedCompany).toEqual([]);
+      expect(none.passed).toHaveLength(2);
+    });
   });
 });
