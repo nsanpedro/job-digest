@@ -34,6 +34,9 @@ import {
   provenanceFromFacts,
   type CurationDirection,
 } from '@job-digest/core';
+// mapWithConcurrency lived here originally; now shared in concurrency.ts
+// so refresh-onboarding.ts and discover-sources.ts can hit the same cap.
+import { mapWithConcurrency } from './concurrency';
 import { withTenant, type Db } from './tenant';
 
 // Keep well below the app pool's max so web requests are never starved.
@@ -49,18 +52,6 @@ function providerFor(name: string): JobBoardProvider | undefined {
   return PROVIDERS.find((p) => p.name === name);
 }
 
-// ── Concurrency helper (same shape as gmail.ts) ──────────────────────────────
-
-async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < items.length) {
-      const item = items[next++]!;
-      await fn(item);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-}
 
 // ── DB write: one job → ads + ad_sightings ────────────────────────────────────
 

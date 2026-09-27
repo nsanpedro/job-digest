@@ -13,7 +13,21 @@ import { lever } from './providers/lever';
 import { personio } from './providers/personio';
 import type { JobBoardProvider } from './providers/types';
 import { CURATED_COMPANIES, type CuratedCompany } from './curated-companies';
+import { mapWithConcurrency } from './concurrency';
 import type { Db } from './tenant';
+
+/**
+ * How many companies refresh in parallel. Each one opens its own
+ * `db.transaction` with `SET LOCAL ROLE worker`, so this directly caps
+ * how many Postgres connections the refresh holds at once against the
+ * shared 15-connection Supabase pooler. 3 leaves margin over the app
+ * pool (max: 4) and above whatever ingest happens to be running.
+ * CURATED_COMPANIES.length is 28 today — the old
+ * `Promise.allSettled(CURATED_COMPANIES.map(...))` would have opened all
+ * 28 transactions concurrently, blowing past the pool the same way the
+ * /profile incident (2026-09-18) did.
+ */
+const REFRESH_CONCURRENCY = 3;
 
 const PROVIDERS: Record<string, JobBoardProvider> = {
   Greenhouse: greenhouse,
@@ -66,5 +80,16 @@ async function refreshCompany(db: Db, company: CuratedCompany): Promise<void> {
 }
 
 export async function refreshOnboardingCache(db: Db): Promise<void> {
-  await Promise.allSettled(CURATED_COMPANIES.map((c) => refreshCompany(db, c)));
+  // refreshCompany catches its own provider fetch errors, but a
+  // transaction-level failure (connection reset, lock timeout, malformed
+  // row) would still escape. The old Promise.allSettled swallowed those;
+  // this wrapper preserves that tolerance — one company failing does not
+  // stop the rest — while capping in-flight transactions to REFRESH_CONCURRENCY.
+  await mapWithConcurrency(CURATED_COMPANIES.slice(), REFRESH_CONCURRENCY, async (c) => {
+    try {
+      await refreshCompany(db, c);
+    } catch (err) {
+      console.warn(`[onboarding-cache] tx failed for ${c.name}: ${err instanceof Error ? err.message : err}`);
+    }
+  });
 }
