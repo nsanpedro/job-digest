@@ -309,6 +309,25 @@ export const runs = pgTable(
     /** emailsProcessed / emailsTotal is literally the "Reading the inbox… 4 of 12" label. */
     emailsTotal: integer('emails_total'),
     emailsProcessed: integer('emails_processed').notNull().default(0),
+    /**
+     * Narration counters (migration 0017 — feat/ingest-live-narration). The
+     * "Update now" button used to say nothing while it worked, which made a
+     * quiet finish read as "nothing to see here" instead of "we looked and
+     * nothing cleared the bar". These columns feed the honest counts the
+     * live narration quotes. Every column traces to something the pipeline
+     * already computes; nothing is fabricated to fill a sentence.
+     *
+     *   `adsCreated`     — Gmail: alerts found (new ads from this run's mail).
+     *                       API:  jobs ingested as new ads across all sources.
+     *   `itemsReviewed`  — API only: total jobs pulled from all providers
+     *                       BEFORE the direction gate — the "187 postings
+     *                       reviewed" number. On the Gmail path this stays at
+     *                       0 (redundant with emailsProcessed there).
+     *   `itemsSkipped`   — API only: jobs the direction gate filtered out.
+     */
+    adsCreated: integer('ads_created').notNull().default(0),
+    itemsReviewed: integer('items_reviewed').notNull().default(0),
+    itemsSkipped: integer('items_skipped').notNull().default(0),
     parserVersion: integer('parser_version').notNull(),
     errorKind: runErrorKindEnum('error_kind'),
     errorDetail: jsonb('error_detail').$type<Record<string, unknown>>(),

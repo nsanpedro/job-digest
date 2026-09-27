@@ -206,6 +206,20 @@ export async function ingestFromGmail(
       );
       processed++;
       created += result.adsCreated;
+      // Atomic increment of the narration counter (`ads_created`) — the
+      // number the live narration quotes as "N new alerts". Written per
+      // message rather than at the end so the count grows visibly as the
+      // run progresses, same reasoning as emails_processed. Kept in the
+      // same try-block as `created += ...` so a bad message can't count
+      // toward "alerts found" while its ingest transaction rolled back.
+      if (result.adsCreated > 0) {
+        await withTenant(db, params.userId, (tx) =>
+          tx
+            .update(runs)
+            .set({ adsCreated: sql`${runs.adsCreated} + ${result.adsCreated}` })
+            .where(eq(runs.id, params.runId)),
+        );
+      }
       // Tier 1 enrichment: fetch the original ad from Greenhouse/Lever API
       // post-transaction so network I/O doesn't hold the DB connection open.
       // Fire-and-forget per candidate — a failure is logged in enrichAd, not thrown.
