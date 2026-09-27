@@ -1,0 +1,14 @@
+Marcus Fenwick
+Senior Backend Engineer based in Dublin
+
+Eight years building distributed backend services in Go and Node.js. I care about correctness under concurrency, boring operational stories, and API contracts that don't leak internal implementation. Comfortable owning a service from schema design through production incident.
+
+Currently Staff Backend Engineer at Halcyon Payments (Dublin, 2023 to present), where I own the settlement pipeline: an event-driven service processing ~40M ledger entries per day across PostgreSQL, Kafka, and Redis. Rewrote the reconciliation engine to use a transactional outbox pattern, eliminated a class of double-post bugs, and cut P99 settlement latency from 8s to 900ms. Led the migration from RabbitMQ to Kafka; wrote the design doc, ran the shadow-traffic rollout, and did the on-call runbook.
+
+Previously Senior Backend Developer at Threadmark (London, 2020 to 2023), building the core API for a B2B logistics platform in TypeScript with Fastify, Prisma, and PostgreSQL. Introduced OpenAPI-first contracts, integration tests against real containers via Testcontainers, and a circuit breaker for the third-party carrier integrations that stopped a full outage during a UPS API degradation. Before that, Backend Engineer at Sagra Software (Manchester, 2018 to 2020) working on a Go microservice mesh with gRPC, protobuf, and a lot of Prometheus dashboards.
+
+Stack I reach for: Go 1.22, TypeScript with strict mode, PostgreSQL (I write my own migrations and understand indexes), Redis for caching and rate limiting, Kafka for event sourcing, Docker, Kubernetes, and Terraform for the infra I own. I've written enough SQL to know when the ORM is lying to me. Comfortable with load testing (k6, wrk), profiling (pprof, clinic.js), and reading flame graphs.
+
+I write ADRs. I care about idempotency keys, at-least-once vs exactly-once semantics, and the difference between a retry storm and a healthy backoff. I've been on-call for four years and it has made me a better designer.
+
+Interested in senior backend engineer, staff engineer, or platform engineer roles at a company that treats reliability as a product feature.

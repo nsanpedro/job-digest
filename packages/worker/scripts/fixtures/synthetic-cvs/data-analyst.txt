@@ -1,0 +1,14 @@
+Sofía Restrepo
+Senior Data Analyst based in Bogotá
+
+Six years turning messy operational data into decisions product and finance teams actually use. I write the SQL, model the metric, build the dashboard, and sit in the review meeting to defend the number.
+
+Currently Senior Analyst on the Growth team at Vermilio (Bogotá, remote, 2023 to present), a B2C subscription app. I own the retention model, run the weekly cohort review with the product lead, and built the self-serve LookML explore that finally got PMs off the "can you pull me a quick number?" treadmill. Redesigned the activation funnel definition after finding a 12% inflation from bot signups, and wrote the anomaly detection job (Python + Airflow) that flags DAU drift against a seven-day baseline.
+
+Previously Marketing Analyst at Andina Digital (Medellín, 2021 to 2023), reporting on paid acquisition across Google Ads, Meta, and TikTok. Built the attribution model in dbt, reconciled it against Amplitude, and produced the monthly CAC/LTV deck for the executive team. Started as a Junior Analyst at Grupo Sabana (Bogotá, 2019 to 2021) doing operational reporting for a retail chain, mostly in Excel and PowerBI, and gradually migrated the team to Looker.
+
+Daily tools: SQL (Postgres, BigQuery, Snowflake — comfortable with window functions, CTEs, and query optimization), Python for analysis (pandas, statsmodels, scikit-learn for the occasional model), dbt for transformations, Looker and Metabase for BI, Airflow for orchestration, Git for everything. I write clean models with tests, document my metrics in a semantic layer, and refuse to build a dashboard without a clear owner.
+
+Comfortable with A/B test design (power analysis, sequential testing pitfalls, novelty vs long-term effects), cohort analysis, funnel decomposition, and the difference between statistical and practical significance. I've read Trustworthy Online Controlled Experiments cover to cover.
+
+Interested in senior data analyst, analytics engineer, or product analyst roles on a data team that treats the metric definition as production code.
