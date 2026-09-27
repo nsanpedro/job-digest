@@ -450,3 +450,17 @@ The report adds a `v4+level+fb` row, the dismiss-reason counts, and how many dir
 - **Wrong level and location stay labels.** Where the product already has a mechanism (the level gate, `locationFit`), a reason does not add a second one that would compete with it.
 
 Candidate.ts still keeps saved, dismissed and applied out of `CandidateProfile`. Feedback enters only as explicit gates, with its own temporal split in the eval, as that file's note required.
+
+### 8.12 §8.9–§8.11 measured on the real account (27 Sep 2026)
+
+Same account as §8.6/§8.8, 13 weeks, now with the eval's temporal split (§8.11): an ad dismissed before a week began is unlabelled in that week, so the label counts (30 positive / 37 dismissed label-weeks) and the absolute numbers are not comparable with §8.8's table — compare rows within this run.
+
+| variant | pairwise | nDCG@10 | recall@10 | dismissed in top 10 | Top pick: empty weeks | Top pick (+/−) |
+| --- | --- | --- | --- | --- | --- | --- |
+| v2 | 0.637 | 0.124 | 0.167 | 15 | 11 / 11 | 0 / 0 |
+| v4 + level | 0.825 | 0.351 | 0.600 | 3 | 10 / 11 | 0 / 0 |
+| **v5 + level** (§8.9) | 0.825 | 0.351 | 0.600 | 3 | **1 / 11** | **3 / 0** |
+| v5 + level + feedback (§8.11) | 0.825 | 0.351 | 0.600 | 3 | 1 / 11 | 3 / 0 |
+
+- **Top pick (§8.9)** is the measurable change: the tier was empty 10 of 11 weeks, now 1 of 11, and the 3 ads it picked across those weeks are ads the user applied to or saved — none dismissed. Ranking metrics are unchanged by construction (v5 scores exactly as v4).
+- **Descriptions (§8.10)** and **dismiss reasons (§8.11)** show no effect yet, correctly: production has no stored descriptions (the column arrives with migration 0018 and fills as API ads are re-fetched) and no dismiss reasons (0019). Re-measure after a few weeks of both.
