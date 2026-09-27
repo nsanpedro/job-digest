@@ -25,7 +25,10 @@
 //
 // Usage:
 //   DATABASE_URL=... npx tsx packages/worker/scripts/eval-ranking.ts \
-//     --userId <uuid> [--weeks 8] [--k 10] [--movers 10]
+//     --userId <uuid> [--weeks 8] [--k 10] [--movers 10] [--no-location-gate]
+//
+// --no-location-gate replays every week without the city pre-filter — a
+// what-if for "is the location gate hiding ads the user wants?".
 //
 // Exit codes: 0 — report printed; 2 — argument or connection error.
 import {
@@ -71,10 +74,11 @@ interface Args {
   weeks: number;
   k: number;
   movers: number;
+  locationGate: boolean;
 }
 
 function parseArgs(argv: readonly string[]): Args {
-  const out: Args = { userId: '', weeks: 8, k: 10, movers: 10 };
+  const out: Args = { userId: '', weeks: 8, k: 10, movers: 10, locationGate: true };
   const int = (raw: string | undefined, fallback: number) => {
     const n = Number.parseInt(raw ?? '', 10);
     return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -85,6 +89,7 @@ function parseArgs(argv: readonly string[]): Args {
     else if (a === '--weeks') out.weeks = int(argv[++i], out.weeks);
     else if (a === '--k') out.k = int(argv[++i], out.k);
     else if (a === '--movers') out.movers = int(argv[++i], out.movers);
+    else if (a === '--no-location-gate') out.locationGate = false;
   }
   if (!out.userId) throw new Error('missing --userId <uuid>');
   return out;
@@ -250,7 +255,7 @@ async function main() {
         .from(accounts)
         .where(eq(accounts.id, args.userId))
         .limit(1);
-      const city = acct[0]?.city?.toLowerCase() ?? null;
+      const city = args.locationGate ? (acct[0]?.city?.toLowerCase() ?? null) : null;
       const remoteOk = acct[0]?.remoteOk ?? false;
       const dirs = await listInterestedDirections(tx, args.userId);
       const profile = await getActiveProfile(tx, args.userId);
@@ -287,7 +292,10 @@ async function main() {
     const day = (d: Date) => d.toISOString().slice(0, 10);
 
     console.log(`Ranking eval — user ${args.userId}, ${weeks.length} week(s), k=${args.k}`);
-    console.log(`ruleset@v${report.rulesetVersion}, ${report.dirs.length} direction(s)`);
+    console.log(
+      `ruleset@v${report.rulesetVersion}, ${report.dirs.length} direction(s)` +
+        (args.locationGate ? '' : ', location gate OFF (what-if)'),
+    );
     console.log(
       `candidate: seniorities=[${candidate.seniorities.join(', ') || '—'}] stack=[${candidate.stack.join(', ') || '—'}]`,
     );

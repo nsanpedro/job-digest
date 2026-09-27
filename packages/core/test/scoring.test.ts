@@ -663,6 +663,17 @@ describe('scoreAd with a candidate profile (v3)', () => {
     expect(Math.round(100 * rows)).toBe(r.total);
   });
 
+  it('seniority and stack stay silent when no direction matched the role', () => {
+    // "Senior" on an unrelated role is a rung on the wrong ladder — the
+    // real-account eval showed v3 lifting "Senior Consultant" ads without this.
+    const r = scoreAd({ ...base, title: 'Senior Consultant Digitalisierung (React)', candidate, calibration: DEFAULT_CALIBRATION });
+    expect(r.directionFit).toBe(0);
+    expect(r.seniorityFit).toBeNull();
+    expect(r.stackFit).toBeNull();
+    const v2 = scoreAd({ ...base, title: 'Senior Consultant Digitalisierung (React)', calibration: CALIBRATION_V2 });
+    expect(r.total).toBe(v2.total);
+  });
+
   it('reports the components it used, null for the ones without signal', () => {
     const r = scoreAd({
       ...base,

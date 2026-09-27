@@ -548,8 +548,14 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   const sc = signalCompleteness(facts, ruleset);
   const fr = freshness(receivedAt, now, calibration.freshnessDecayDays, calibration.freshnessFloor);
   const sq = sourceQuality(source, calibration);
-  const sf = seniorityFit(readSeniority(title), candidate.seniorities);
-  const kf = stackFit(readStack(title), candidate.stack);
+  // Seniority and stack qualify a role match; they are not evidence of one.
+  // Without a direction match, "Senior" in "Senior Consultant
+  // Digitalisierung" is a rung on the wrong ladder — scoring it lifted
+  // exactly those ads in the first real-account eval (Sep 2026). So the two
+  // v3 components only speak when directionFit found the role.
+  const qualifies = df > 0;
+  const sf = qualifies ? seniorityFit(readSeniority(title), candidate.seniorities) : null;
+  const kf = qualifies ? stackFit(readStack(title), candidate.stack) : null;
 
   // Weights honor "signals nobody gave": with zero directions the
   // directionFit weight is redistributed (an unconfigured user isn't given
