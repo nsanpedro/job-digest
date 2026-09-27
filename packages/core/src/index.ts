@@ -95,6 +95,7 @@ export {
 export {
   describeMatch,
   explainMatch,
+  isDirectionHit,
   type ExplainableDirection,
   type MatchExplanation,
 } from './explain-match';

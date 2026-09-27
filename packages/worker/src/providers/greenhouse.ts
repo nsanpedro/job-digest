@@ -4,8 +4,17 @@
  * Endpoints used:
  *   GET boards-api.greenhouse.io/v1/boards/{slug}
  *     → validate slug + get display name (throws 404 on unknown slug)
- *   GET boards-api.greenhouse.io/v1/boards/{slug}/jobs
+ *   GET boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true
  *     → paginated list of open positions (pagination via ?page=&per_page=)
+ *
+ * `content=true` makes the list endpoint include each job's description
+ * (`content`, entity-escaped HTML) — same number of requests, no per-job
+ * call. The cost is payload: descriptions are ~5–15 KB of escaped HTML per
+ * job, so a 500-job board grows from a few hundred KB to several MB per
+ * fetch (onboarding-cache refresh pays it too). Accepted: the ingest gate
+ * and the digest need the lede to match generic titles (ADR-003 §8.x
+ * "Descriptions in matching"), and the alternative — one extra request per
+ * job — is strictly worse on every axis.
  *
  * What Greenhouse gives us structurally:
  *   - title, location.name, absolute_url, id, company_name, first_published
@@ -22,6 +31,7 @@
 import { normalizePay, normalizeWorkplace } from '@job-digest/ingest';
 import { eur } from '@job-digest/core';
 import type { Facts } from '@job-digest/core';
+import { toStoredDescription } from './description';
 import type { JobBoardProvider, NormalizedJob } from './types';
 
 const BASE = 'https://boards-api.greenhouse.io/v1/boards';
@@ -37,6 +47,8 @@ interface GreenhouseJob {
   location: { name: string } | null;
   first_published: string | null;
   metadata: Array<{ name: string; value: string | null }> | null;
+  /** Present with `?content=true`: the description as entity-escaped HTML. */
+  content?: string | null;
 }
 
 interface GreenhouseJobsResponse {
@@ -84,7 +96,7 @@ function extractPayFromMetadata(
 }
 
 async function fetchPage(slug: string, page: number): Promise<GreenhouseJob[]> {
-  const url = `${BASE}/${encodeURIComponent(slug)}/jobs?page=${page}&per_page=${PER_PAGE}`;
+  const url = `${BASE}/${encodeURIComponent(slug)}/jobs?content=true&page=${page}&per_page=${PER_PAGE}`;
   const res = await fetch(url);
   if (res.status === 404) throw new Error(`Greenhouse: board "${slug}" not found`);
   if (!res.ok) throw new Error(`Greenhouse: HTTP ${res.status} fetching ${url}`);
@@ -143,6 +155,7 @@ function mapJob(job: GreenhouseJob): NormalizedJob {
     facts,
     wording,
     postedAt: job.first_published ? new Date(job.first_published) : null,
+    description: toStoredDescription(job.content),
   };
 }
 

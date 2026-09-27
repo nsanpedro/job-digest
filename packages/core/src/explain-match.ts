@@ -1,5 +1,5 @@
 /**
- * Structured explanations for `title × directions` matching.
+ * Structured explanations for `(title, description) × directions` matching.
  *
  * The rest of the curation stack — `computeMatch`, `directionFitStrength`,
  * `directionFit`, `matchesAnyDirection` — answers "does this ad match?"
@@ -165,6 +165,31 @@ export function explainMatch(
       longWord: match.viaLongWord,
     };
   });
+}
+
+// ── Gate policy ──────────────────────────────────────────────────────────────
+
+/**
+ * Does this explanation put the ad *in* the direction, for the digest read
+ * gate (`classifyDirections` in db/queries/digest.ts) and everything keyed
+ * off it (matched labels, the diversity cap)?
+ *
+ * Every title match does (tiers 1.0 and 0.6, as before descriptions were
+ * stored), and so does a full phrase in the description lede (0.8): a
+ * generic "Software Engineer (m/w/d)" whose first lines say "Engineering
+ * Manager for our frontend team" is an Engineering Manager ad.
+ *
+ * A lone long-word hit in the description (0.4) does not: one domain word
+ * in 400 chars of prose ("…our distributed team…") is usually company
+ * context, not the role. The focused ingest gate (0.7) already refuses it;
+ * here it sends the ad to Explore instead of the tiers. The explanation
+ * itself stays `matched` — it is a true statement about the text, and
+ * `directionFit` still scores it when the ad got in on other evidence.
+ * ADR-003 §8.x "Descriptions in matching".
+ */
+export function isDirectionHit(exp: MatchExplanation): boolean {
+  if (exp.kind !== 'matched') return false;
+  return !(exp.surface === 'description' && exp.via === 'long-word');
 }
 
 // ── Human wording ────────────────────────────────────────────────────────────

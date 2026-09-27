@@ -341,3 +341,31 @@ The three matcher changes — spelling pre-pass (`normalizeRoleSpelling`), word-
 | v4 + level gate | 0.857 | 0.315 | 0.538 | 3 | 6 / 3 |
 
 The level gate removed 15 direction-matched ads across the weeks — 8 of them dismissed, none positive — so it only changes the curated tiers (their juniors already ranked below the positives). The one week still weak (0.167) has a single positive, "Staff Engineer - Virtual Assembly Line", that matches none of the user's directions: a direction-coverage gap, not a matcher error.
+
+### §8.x Descriptions in matching
+
+`computeMatch` always had a description window — tier 0.8 for a full phrase, 0.4 for a long domain word, both read from the first `DESCRIPTION_MATCH_CHARS` (400) of the description — but every caller passed `null`: the providers didn't carry a description, and nothing stored one. A generic title ("Software Engineer (m/w/d)") whose lede says "Engineering Manager for our frontend team" matched nothing.
+
+**Carried and stored.** `NormalizedJob.description` (plain text) comes from the response each adapter already fetches — no extra call per job:
+
+| Provider | Field | Cost |
+| --- | --- | --- |
+| Greenhouse | `content` (entity-escaped HTML) | needs `?content=true` on the list call: same request count, payload ~5–15 KB per job (several MB for a 500-job board; the onboarding-cache refresh pays it too). Accepted — one request per job would be worse on every axis. |
+| Lever | `descriptionPlain` + `lists[]` + `additionalPlain` | none, already in `mode=json` |
+| Ashby | `descriptionPlain` (fallback `descriptionHtml`) | none |
+| Personio | `<jobDescriptions>` (CDATA / escaped HTML), stored as "section\ntext" | none |
+
+One HTML → text pass (`packages/worker/src/providers/description.ts`) for all of them and for enrichment: block tags become newlines (the matcher splits phrases on `\n`, so a heading line stays its own segment), inline tags vanish, entities decode once. Stored in `ads.description` (migration `0018_ads_description.sql`, nullable text, no backfill), capped at **4 000 chars**: the matcher reads 400, but the cap covers the 3 500-char LLM extraction window with slack, so a re-extraction or a re-tuned window can run from the stored text, and bounds a row at ~4 KB. API ingest writes it (and refreshes it on every fetch; a fetch without one never erases it). Enrichment of Greenhouse/Lever-linked email ads fills it when null. Email-alert ads stay null → title-only, exactly as before.
+
+**Read by every caller.** The ingest gate (`directionFitStrength(job.title, job.description, …)`), the digest read gate and the explanations (`classifyDirections` → `explainMatch`), and ranking (`ScoreAdArgs.description` → `directionFit`). With a null or omitted description every number is the title-only one (pinned by tests).
+
+**Guards — prose is not a title.** The 400-char window stays the anti-boilerplate guard (company intro and EEO text past it cannot match). Two more, in `computeMatch`'s 0.8 tier only (title tiers unchanged):
+
+- *Tight phrase.* In a title "both words, in order, in one segment" is already tight; a prose sentence is long, and "…with our engineering team and the product manager…" would read as "Engineering Manager". The description phrase test is one contiguous run (any order), or term order with at most one token between words ("Join our Front-End team as an engineer" still reads as "frontend engineer"). No "Role, Qualifier" inversion in prose — its "qualifier anywhere" rule is a title idiom.
+- *No one-word phrases.* A one-word term in prose is word evidence and falls to the 0.4 long-word tier, keeping its ≥ 8-char floor and role-suffix blocklist ("engineer" in a lede grants nothing).
+
+**Gate policy.** A description full phrase (0.8) passes the digest read gate on its own — that is the point. A lone description long-word (0.4) does not (`isDirectionHit` in `explain-match.ts`): one domain word in 400 chars of prose ("…our distributed team…") is usually company context, not the role. The focused ingest gate (0.7) already refuses it; discovery mode (0.3) ingests it and the digest puts it in Explore. Its explanation stays `matched` (a true statement about the text) and `directionFit` still scores it when the ad got in on other evidence. At ingest, 0.8 × stretch (0.5) = 0.4 clears discovery only, like any stretch evidence.
+
+**Excludes now see the description too.** `directionFitStrength` and `explainMatch` already checked `excludeTerms` against the description window; with descriptions stored that path goes live. Kept as designed and tested — an industry exclude ("insurance", "gambling") is usually evidenced in the lede, not the title — but it is the one place this change can *remove* an ad a title-only gate kept ("junior" as an exclude hits "you will mentor junior engineers"). Watch for it in the next eval run.
+
+**Deploy order.** The digest selects whole `ads` rows, so migration 0018 must be applied before this code runs. Not yet measured: the eval (`eval-ranking.ts`, now reading `ads.description`) is only informative once API-sourced ads have been re-fetched with descriptions.

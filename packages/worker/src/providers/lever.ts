@@ -9,6 +9,10 @@
  *   - title (text), location (categories.location), absolute URL (hostedUrl)
  *   - salaryRange: {min, max, currency, interval} — optional, not all posts include it
  *   - commitment (categories.commitment): "Full-time", "Part-time", "Contract", etc.
+ *   - the description, already in the list response (no extra call):
+ *     `descriptionPlain` (the opening), `lists[]` (HTML sections such as
+ *     "What you'll do"), `additionalPlain` (closing) — concatenated in that
+ *     order, the order the posting page shows them.
  *
  * What Lever does NOT give us:
  *   - Shift, German level, Contract type — left null (I4).
@@ -17,6 +21,7 @@
 import { normalizePay, normalizeWorkplace } from '@job-digest/ingest';
 import { eur } from '@job-digest/core';
 import type { Facts } from '@job-digest/core';
+import { toStoredDescription } from './description';
 import type { JobBoardProvider, NormalizedJob } from './types';
 
 const BASE = 'https://api.lever.co/v0/postings';
@@ -39,6 +44,11 @@ interface LeverPosting {
     currency?: string;
     interval?: string;
   };
+  description?: string | null;
+  descriptionPlain?: string | null;
+  lists?: Array<{ text: string; content: string }> | null;
+  additional?: string | null;
+  additionalPlain?: string | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -73,6 +83,20 @@ function extractPayText(range: LeverPosting['salaryRange']): string | null {
   return interval.includes('year')
     ? `${fmt(range.min)} – ${fmt(range.max)} annual`
     : `${fmt(range.min)} – ${fmt(range.max)} monthly`;
+}
+
+/**
+ * Opening, then each list section as "heading\ncontent", then the closing.
+ * Plain variants preferred; the HTML ones are the fallback for postings
+ * that only carry markup.
+ */
+function leverDescription(posting: LeverPosting): string | null {
+  const lists = (posting.lists ?? []).flatMap((l) => [l.text, l.content]);
+  return toStoredDescription(
+    posting.descriptionPlain || posting.description,
+    ...lists,
+    posting.additionalPlain || posting.additional,
+  );
 }
 
 function mapPosting(posting: LeverPosting, slug: string): NormalizedJob {
@@ -126,6 +150,7 @@ function mapPosting(posting: LeverPosting, slug: string): NormalizedJob {
     facts,
     wording,
     postedAt: null,
+    description: leverDescription(posting),
   };
 }
 

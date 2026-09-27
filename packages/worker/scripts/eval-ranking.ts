@@ -10,7 +10,8 @@
 //
 // What is replayed, per week and per variant:
 //   evaluate() → drop hard-blocked (unless overridden) → the variant's
-//   pre-filters (direction, via the same matchesAnyDirection getDigest uses;
+//   pre-filters (direction, via the same matchesAnyDirection getDigest uses,
+//   title + stored description;
 //   plus the pre-v4 city gate for the variants that had it, and the level
 //   gate for the variant that has it) → scoreAd →
 //   rank: gated ads by score desc, then pre-filter misses by score desc.
@@ -145,6 +146,8 @@ function legacyPassesLocation(locationRaw: string | null, city: string | null, r
 interface WeekAd {
   id: string;
   title: string;
+  /** `ads.description` — fed to the direction gate and to scoreAd, as getDigest does. */
+  description: string | null;
   company: string | null;
   source: string;
   label: Label | null;
@@ -199,10 +202,11 @@ async function loadWeek(
       blocked++;
       continue;
     }
-    const directionOk = ctx.dirs.length === 0 || matchesAnyDirection(row.ad.title, ctx.dirs);
+    const directionOk = ctx.dirs.length === 0 || matchesAnyDirection(row.ad.title, ctx.dirs, row.ad.description);
     out.push({
       id: row.ad.id,
       title: row.ad.title,
+      description: row.ad.description,
       company: row.ad.company,
       source: row.ad.source,
       label: labelFromState({
@@ -242,6 +246,7 @@ function runVariant(
         directions: ctx.dirs,
         candidate: variant.candidate,
         title: ad.title,
+        description: ad.description,
         locationRaw: ad.locationRaw,
         source: ad.source,
         receivedAt: ad.receivedAt,

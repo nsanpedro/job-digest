@@ -414,6 +414,21 @@ export const ads = pgTable(
      * location_raw) — nothing to re-fetch, nothing to re-parse.
      */
     titleFacts: jsonb('title_facts').$type<TitleFacts>(),
+    /**
+     * The posting's description as plain text (HTML stripped, block
+     * boundaries as newlines), capped at 4 000 chars by the writer
+     * (`DESCRIPTION_MAX_CHARS` in worker/src/providers/description.ts).
+     * Feeds the direction matcher's description window — only its first
+     * DESCRIPTION_MATCH_CHARS (400) are read for matching (ADR-003 §8.x
+     * "Descriptions in matching").
+     *
+     * Written by API ingest (every provider whose list response carries a
+     * description) and by post-ingest enrichment for Greenhouse/Lever-linked
+     * email ads (fill-if-null). Null for email-alert ads without enrichment
+     * and for ads that predate the column — null means "no description
+     * known" (I4), and every matcher call degrades to title-only on it.
+     */
+    description: text('description'),
     /** Enriched facts (§6.6): commute etc. — no quote, marked as inferred. */
     enriched: jsonb('enriched').$type<Record<string, unknown>>(),
     /** Per-field provenance: method (deterministic|llm), extractor version. */

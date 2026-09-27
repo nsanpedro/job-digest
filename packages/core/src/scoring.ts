@@ -333,14 +333,15 @@ function contractMargin(f: Facts, c: Ruleset['Contract']['condition']): number {
 // ── Direction fit ────────────────────────────────────────────────────────────
 
 /**
- * Best `computeMatch(title).tier × DISTANCE_FACTOR[distance]` across the
- * user's directions.
+ * Best `computeMatch(title, description).tier × DISTANCE_FACTOR[distance]`
+ * across the user's directions.
  *
  * The match ladder itself (full-phrase / long-word tiers, role-suffix
  * blocklist, synonyms) lives in `matching.ts` and is shared with the
- * ingest gate and the digest read gate. This function is title-only —
- * ranking runs at digest read time on ads that have already cleared the
- * ingest gate, and we don't have descriptions in that path.
+ * ingest gate and the digest read gate. `description` is the ad's stored
+ * `ads.description` (ADR-003 §8.x "Descriptions in matching"); omitted or
+ * null, this is the title-only function it always was — same number for
+ * every ad without one.
  *
  * When the user has no interested directions we return 0 — nothing to
  * measure. The old contract returned 1.0 ("no signal, no penalty") but
@@ -352,11 +353,15 @@ function contractMargin(f: Facts, c: Ruleset['Contract']['condition']): number {
  * — the unconfigured user is not silently penalised, but neither is she
  * shown top-picks that stand on nothing.
  */
-export function directionFit(title: string, directions: readonly ScoringDirection[]): number {
+export function directionFit(
+  title: string,
+  directions: readonly ScoringDirection[],
+  description: string | null = null,
+): number {
   if (directions.length === 0) return 0;
   let best = 0;
   for (const dir of directions) {
-    const { tier } = computeMatch(title, null, dir.searchTerms);
+    const { tier } = computeMatch(title, description, dir.searchTerms);
     const scaled = tier * DISTANCE_FACTOR[dir.distance];
     if (scaled > best) {
       best = scaled;
@@ -580,6 +585,8 @@ export interface ScoreAdArgs {
   /** What the user's own text says about them. Omitted = no signal (v2 behaviour). */
   candidate?: CandidateProfile;
   title: string;
+  /** The ad's stored description (`ads.description`). Omitted/null = title-only directionFit. */
+  description?: string | null;
   /** The ad's raw location line. Omitted = no location signal. */
   locationRaw?: string | null;
   source: string;
@@ -603,7 +610,7 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   const candidate = args.candidate ?? EMPTY_CANDIDATE;
 
   const rm = ruleMargin(facts, ruleset);
-  const df = directionFit(title, directions);
+  const df = directionFit(title, directions, args.description ?? null);
   const sc = signalCompleteness(facts, ruleset);
   const fr = freshness(receivedAt, now, calibration.freshnessDecayDays, calibration.freshnessFloor);
   const sq = sourceQuality(source, calibration);

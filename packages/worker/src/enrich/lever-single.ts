@@ -2,10 +2,13 @@
  * Fetch one Lever posting by slug + posting ID (ADR-003 Tier 1).
  * Same salary + commitment parsing as providers/lever.ts.
  *
- * Also returns plain-text description for LLM extraction (ADR-003 Tier 1.5).
+ * Also returns plain-text description for LLM extraction (ADR-003 Tier 1.5)
+ * and for `ads.description` (ADR-003 §8.x "Descriptions in matching") —
+ * same sections, order and text shape as the batch provider (providers/lever.ts).
  */
 import { normalizePay } from '@job-digest/ingest';
 import type { Facts } from '@job-digest/core';
+import { toStoredDescription } from '../providers/description';
 
 const BASE = 'https://api.lever.co/v0/postings';
 
@@ -16,6 +19,7 @@ interface LeverSinglePosting {
   descriptionPlain: string | null;
   lists: Array<{ text: string; content: string }> | null;
   additional: string | null;
+  additionalPlain?: string | null;
   categories: {
     commitment?: string;
   };
@@ -25,10 +29,6 @@ interface LeverSinglePosting {
     currency?: string;
     interval?: string;
   };
-}
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
 }
 
 export async function fetchLeverPosting(
@@ -78,22 +78,13 @@ export async function fetchLeverPosting(
     facts.permanent = false;
   }
 
-  // Collect all description text for LLM extraction.
-  const parts: string[] = [];
-  if (posting.descriptionPlain) {
-    parts.push(posting.descriptionPlain);
-  } else if (posting.description) {
-    parts.push(stripHtml(posting.description));
-  }
-  if (posting.lists) {
-    for (const list of posting.lists) {
-      parts.push(stripHtml(list.content));
-    }
-  }
-  if (posting.additional) {
-    parts.push(stripHtml(posting.additional));
-  }
-  const descriptionText = parts.length > 0 ? parts.join(' ') : null;
+  // Collect all description text: opening, list sections, closing.
+  const lists = (posting.lists ?? []).flatMap((l) => [l.text, l.content]);
+  const descriptionText = toStoredDescription(
+    posting.descriptionPlain || posting.description,
+    ...lists,
+    posting.additionalPlain || posting.additional,
+  );
 
   return { facts, descriptionText };
 }

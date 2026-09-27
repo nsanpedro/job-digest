@@ -101,6 +101,10 @@ async function ingestJob(
           externalId: prior.externalId ?? job.externalId,
           externalUrl: prior.externalUrl ?? job.externalUrl,
           sourceId: prior.sourceId ?? sourceId,
+          // The API is the posting's own source: its current description
+          // wins over an older one (companies edit ads after posting). A
+          // fetch without one keeps what we had — never erase to null.
+          description: job.description ?? prior.description,
         })
         .where(eq(ads.id, prior.id));
       adId = prior.id;
@@ -123,6 +127,7 @@ async function ingestJob(
           // the authoritative source and the field wasn't there).
           fieldProvenance: provenanceFromFacts(job.facts, 'from_ad', true),
           titleFacts: extractTitleFacts(job.title, job.locationRaw),
+          description: job.description,
           sourceId,
           // Use the fetch timestamp, not the job's original posting date: from
           // the user's perspective, they "first saw" this job when we ingested
@@ -230,15 +235,18 @@ export async function fetchApiSources(
       // alone. Excludes are ad-level: an exclude term in ANY direction
       // zeros the whole ad, matching the user's mental model.
       //
-      // Descriptions aren't populated by the providers yet — this call
-      // passes `null` and the gate degrades to title-only until the
-      // provider adapters add `description` to NormalizedJob.
+      // The description is the provider's own (plain text, see
+      // providers/description.ts); only its first DESCRIPTION_MATCH_CHARS
+      // are read, so a generic title whose lede names the role reaches the
+      // 0.8/0.4 description tiers while EEO/benefits boilerplate further
+      // down cannot. A null description degrades to title-only
+      // (ADR-003 §8.x "Descriptions in matching").
       const jobs = interestedDirs.length > 0
         ? (() => {
             const curationDirs = interestedDirs.map(toCurationDirection);
             const threshold = CURATION_THRESHOLDS[inferMode(curationDirs)];
             return allJobs.filter(
-              (job) => directionFitStrength(job.title, null, curationDirs) >= threshold,
+              (job) => directionFitStrength(job.title, job.description, curationDirs) >= threshold,
             );
           })()
         : allJobs;

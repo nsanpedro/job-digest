@@ -23,6 +23,7 @@ import {
   evaluate,
   explainMatch,
   isBelowTargetLevel,
+  isDirectionHit,
   scoreAd,
   selectTiers,
   targetsSeniorOnly,
@@ -82,16 +83,19 @@ type Db = PostgresJsDatabase<Record<string, unknown>>;
  * per-direction shape and we derive the boolean/ids/labels from it,
  * rather than running `computeMatch` twice.
  *
- * Description is null: the read-time gate is title-only (see the note
- * on `directionFit` in scoring.ts).
+ * `description` is the ad's stored `ads.description` (null for email-alert
+ * ads → title-only). A direction counts when `isDirectionHit` says so:
+ * any title match or a full phrase in the description lede, not a lone
+ * description long-word (ADR-003 §8.x "Descriptions in matching").
  */
 function classifyDirections(
   title: string,
   dirs: readonly DirectionRow[],
+  description: string | null = null,
 ): { any: boolean; ids: string[]; labels: string[]; explanations: MatchExplanation[] } {
   const explanations = explainMatch(
     title,
-    null,
+    description,
     dirs.map((d) => ({
       label: d.label,
       distance: d.distance,
@@ -102,7 +106,7 @@ function classifyDirections(
   const ids: string[] = [];
   const labels: string[] = [];
   for (let i = 0; i < dirs.length; i++) {
-    if (explanations[i]!.kind === 'matched') {
+    if (isDirectionHit(explanations[i]!)) {
       ids.push(dirs[i]!.id);
       labels.push(dirs[i]!.label);
     }
@@ -118,9 +122,13 @@ function classifyDirections(
  * Exported so the worker can apply the same gate at ingest time (before
  * writing to the DB) when the user has directions configured.
  */
-export function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
+export function matchesAnyDirection(
+  title: string,
+  dirs: readonly DirectionRow[],
+  description: string | null = null,
+): boolean {
   if (dirs.length === 0) return true;
-  return classifyDirections(title, dirs).any;
+  return classifyDirections(title, dirs, description).any;
 }
 
 // ── Pre-filters (pass 2) ─────────────────────────────────────────────────────
@@ -148,7 +156,7 @@ export interface PreFilterSplit<T> {
  *
  * Exported for tests: the rest of `getDigest` needs a database, this doesn't.
  */
-export function applyPreFilters<T extends { ad: { title: string } }>(
+export function applyPreFilters<T extends { ad: { title: string }; description?: string | null }>(
   entries: readonly T[],
   dirs: readonly DirectionRow[],
   candidate: Pick<CandidateProfile, 'seniorities'>,
@@ -162,7 +170,7 @@ export function applyPreFilters<T extends { ad: { title: string } }>(
     active: directionGate || levelGate,
   };
   for (const entry of entries) {
-    if (directionGate && !matchesAnyDirection(entry.ad.title, dirs)) {
+    if (directionGate && !matchesAnyDirection(entry.ad.title, dirs, entry.description ?? null)) {
       out.directionMisses.push(entry);
     } else if (levelGate && isBelowTargetLevel(entry.ad.title, candidate)) {
       out.belowTargetLevel.push(entry);
@@ -267,7 +275,11 @@ export async function getDigest(
   // Eligible ads (not user-dismissed, not hard-blocked) plus their raw facts
   // — facts are needed for scoring and dropped from DigestAd to keep that
   // type light.
-  const eligible: Array<{ ad: DigestAd; facts: typeof rows[number]['ad']['facts'] }> = [];
+  const eligible: Array<{
+    ad: DigestAd;
+    facts: typeof rows[number]['ad']['facts'];
+    description: string | null;
+  }> = [];
   const dismissed: DismissedAd[] = [];
   let filteredByRule = 0;
   let dismissedByUser = 0;
@@ -321,7 +333,7 @@ export async function getDigest(
       dismissed.push({ ...base, reason: { kind: 'rule', blockers } });
       continue;
     }
-    eligible.push({ ad: base, facts: row.ad.facts });
+    eligible.push({ ad: base, facts: row.ad.facts, description: row.ad.description });
   }
 
   // User dismissals above rule dismissals (design, screen 1).
@@ -365,13 +377,13 @@ export async function getDigest(
   const adById = new Map<string, DigestAd>();
   const scoredPool: ScoredAd[] = [];
 
-  for (const { ad, facts } of candidates) {
+  for (const { ad, facts, description } of candidates) {
     // One pass over directions gives us the ids (for the diversity cap),
     // the labels (for the AdCard row), AND the full per-direction
     // explanations (for the "Why is this here?" chip in ExpandedPanel).
     // Was three separate passes.
     const matched = interestedDirs.length > 0
-      ? classifyDirections(ad.title, interestedDirs)
+      ? classifyDirections(ad.title, interestedDirs, description)
       : { any: true, ids: [], labels: [], explanations: [] };
 
     const breakdown: ScoreBreakdown = scoreAd({
@@ -381,6 +393,7 @@ export async function getDigest(
       directions: interestedDirs,
       candidate,
       title: ad.title,
+      description,
       locationRaw: ad.location,
       source: ad.source,
       receivedAt: ad.receivedAt,

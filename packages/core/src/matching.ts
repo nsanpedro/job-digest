@@ -6,7 +6,10 @@
  *   - Ingest gate  (`directionFitStrength` in curation.ts)  — graduated 0..1
  *     against a mode-dependent threshold.
  *   - Digest read  (`matchesAnyDirection` in db/queries/digest.ts) — boolean.
- *   - Ranking      (`directionFit` in scoring.ts)  — graduated, title-only.
+ *   - Ranking      (`directionFit` in scoring.ts)  — graduated.
+ *
+ * All three pass the ad's stored description (`ads.description`, null for
+ * email-alert ads) since ADR-003 §8.x "Descriptions in matching".
  *
  * Before this file existed the same logic — tokenizer + synonyms +
  * role-suffix blocklist + tier ladder — lived independently in each of the
@@ -476,6 +479,57 @@ function phraseMatches(segs: readonly (readonly string[])[], words: readonly str
   return roleQualifierInversion(segs, words);
 }
 
+/**
+ * Most tokens (after `tokenize` drops short and stop words) allowed between
+ * two consecutive term words in a description phrase — see
+ * `descriptionPhraseMatches`.
+ */
+const DESCRIPTION_MAX_GAP = 1;
+
+/** `inTermOrder` with at most `maxGap` other tokens between consecutive term words. */
+function inTermOrderNear(seg: readonly string[], words: readonly string[], maxGap: number): boolean {
+  for (let start = 0; start < seg.length; start++) {
+    if (!containsWord(seg[start]!, words[0]!)) continue;
+    let prev = start;
+    let ok = true;
+    for (let k = 1; k < words.length && ok; k++) {
+      const limit = Math.min(seg.length - 1, prev + 1 + maxGap);
+      let j = prev + 1;
+      while (j <= limit && !containsWord(seg[j]!, words[k]!)) j++;
+      if (j > limit) ok = false;
+      else prev = j;
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+/**
+ * Full-phrase test for the description window (tier 0.8). Stricter than
+ * `phraseMatches`, because prose is not a title (ADR-003 §8.x
+ * "Descriptions in matching"):
+ *
+ *   - Multi-word terms only. A one-word "phrase" in prose is word
+ *     evidence, and word evidence is what the 0.4 long-word tier is for —
+ *     with its ≥8-char floor and role-suffix blocklist. Letting a one-word
+ *     term ("engineer") score 0.8 here would bypass both guards on exactly
+ *     the surface where they matter.
+ *   - Term words must sit close: one contiguous run (any order), or in
+ *     term order with at most DESCRIPTION_MAX_GAP tokens between them. A
+ *     title segment is a few words, so "anywhere in the segment" is
+ *     already tight; a prose sentence is long, and "…with our engineering
+ *     team and the product manager…" would otherwise read as
+ *     "Engineering Manager". "Join our Front-End team as an engineer"
+ *     (one token between) still reads as "frontend engineer".
+ *   - No "Role, Qualifier" inversion: its bare-head segment + qualifier
+ *     "anywhere in the text" rule is a title idiom; in 400 chars of prose
+ *     "anywhere" is too wide.
+ */
+function descriptionPhraseMatches(segs: readonly (readonly string[])[], words: readonly string[]): boolean {
+  if (words.length < 2) return false;
+  return segs.some((seg) => contiguousRun(seg, words) || inTermOrderNear(seg, words, DESCRIPTION_MAX_GAP));
+}
+
 // ── The one match function ───────────────────────────────────────────────────
 
 /**
@@ -485,7 +539,9 @@ function phraseMatches(segs: readonly (readonly string[])[], words: readonly str
  *         in the title in role order or as a "Role, Qualifier" inversion
  *         (see `phraseMatches` — word order matters since the Sep 2026
  *         ranking eval; a bag of words is not a phrase)
- *   0.8 — same, in the first DESCRIPTION_MATCH_CHARS of the description
+ *   0.8 — a multi-word searchTerm as a tight phrase in the first
+ *         DESCRIPTION_MATCH_CHARS of the description (see
+ *         `descriptionPhraseMatches` — stricter than the title rule)
  *   0.6 — a ≥8-char non-role-suffix word from any searchTerm appears in title
  *   0.4 — same, but in the description window
  *   0.0 — no match
@@ -495,9 +551,10 @@ function phraseMatches(segs: readonly (readonly string[])[], words: readonly str
  * wrote first is the one shown as evidence" intuition — the LLM
  * derivation orders search terms by relevance already.
  *
- * `description === null` collapses to a title-only check; the two lower
- * tiers cannot fire. Callers that never carry a description (the digest
- * read gate and the ranking layer today) pass null and stay honest.
+ * `description === null` collapses to a title-only check; the two
+ * description tiers cannot fire. Every caller passes `ads.description`,
+ * which is null for email-alert ads and for ads stored before the column
+ * existed — those stay title-only and honest.
  *
  * No distance factor here — that's a per-caller policy (see DISTANCE_FACTOR).
  * No excludes here either — excludes are ad-level and orthogonal to the
@@ -536,7 +593,7 @@ export function computeMatch(
     for (const term of searchTerms) {
       const words = tokenize(term);
       if (words.length === 0) continue;
-      if (phraseMatches(descSegs, words)) {
+      if (descriptionPhraseMatches(descSegs, words)) {
         return { tier: 0.8, matchedTerm: term, viaFullPhrase: true, viaLongWord: null, surface: 'description' };
       }
     }
