@@ -125,14 +125,26 @@ export interface DigestMetrics {
   inDigest: number;
   /**
    * Ads in the explore bucket. Null when no pre-filter was active (no
-   * directions — the pre-pass didn't run, so everything was scored).
+   * directions and no senior-or-above target rung — the pre-pass didn't
+   * run, so everything was scored).
+   *
+   * The three counts are disjoint and sum to `total`:
    *
    * `preFilterMisses` — ads that matched none of the user's directions and
    * went to explore before scoring. (Location stopped being a pre-filter in
-   * calibration v4; it is scored as `locationFit`.) `belowThreshold` — ads that were scored but
-   * didn't rank high enough to enter a tier.
+   * calibration v4; it is scored as `locationFit`.)
+   * `belowTargetLevel` — ads that did match a direction but whose title
+   * states the junior rung while the user targets only senior or above
+   * (ADR-003 §8.7); also sent to explore unscored.
+   * `belowThreshold` — ads that were scored but didn't rank high enough to
+   * enter a tier.
    */
-  explore: { total: number; preFilterMisses: number; belowThreshold: number } | null;
+  explore: {
+    total: number;
+    preFilterMisses: number;
+    belowTargetLevel: number;
+    belowThreshold: number;
+  } | null;
   filteredByRule: number;
   dismissedByUser: number;
   alreadySeen: number;
@@ -169,8 +181,9 @@ export interface Digest {
    */
   stillOpen: DigestAd[];
   /**
-   * Everything that didn't make the Top 10: pre-filter misses (wrong location /
-   * no signal / off-direction) plus ads that scored below tier thresholds.
+   * Everything that didn't make the Top 10: pre-filter misses (off-direction,
+   * or an entry-level title for a senior-or-above target) plus ads that
+   * scored below tier thresholds.
    * Collapsible — the user can always reach it, but the Top 10 is the default
    * view (I21, ADR-003 §5).
    */

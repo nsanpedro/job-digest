@@ -46,7 +46,9 @@ export {
   JUNIOR_MAX_YEARS,
   SENIOR_MIN_YEARS,
   deriveCandidateProfile,
+  isBelowTargetLevel,
   statedYears,
+  targetsSeniorOnly,
   type CandidateDirection,
   type CandidateProfile,
 } from './candidate';

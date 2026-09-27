@@ -10,6 +10,7 @@ export default async function ExplorePage() {
 
   let explore: Awaited<ReturnType<typeof getDigest>>['explore'];
   let preFilterMisses: number;
+  let belowTargetLevel: number;
   let belowThreshold: number;
 
   try {
@@ -20,6 +21,7 @@ export default async function ExplorePage() {
     });
     explore = loaded.explore;
     preFilterMisses = loaded.metrics.explore?.preFilterMisses ?? 0;
+    belowTargetLevel = loaded.metrics.explore?.belowTargetLevel ?? 0;
     belowThreshold = loaded.metrics.explore?.belowThreshold ?? 0;
   } catch (err) {
     if (err instanceof NoActiveRulesetError) {
@@ -56,6 +58,12 @@ export default async function ExplorePage() {
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>
             {preFilterMisses > 0 && (
               <>{preFilterMisses} matched none of your directions. </>
+            )}
+            {belowTargetLevel > 0 && (
+              <>
+                {belowTargetLevel} {belowTargetLevel === 1 ? 'is an entry-level role' : 'are entry-level roles'}{' '}
+                (junior, intern, working student) below the level you&rsquo;re targeting.{' '}
+              </>
             )}
             {belowThreshold > 0 && (
               <>{belowThreshold} scored below the match threshold.</>

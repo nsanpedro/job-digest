@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveCandidateProfile, statedYears } from '../src/candidate';
+import { deriveCandidateProfile, isBelowTargetLevel, statedYears, targetsSeniorOnly } from '../src/candidate';
 import type { Skill } from '../src/discovery';
 
 const skill = (text: string, quote = text): Skill => ({ text, quote });
@@ -62,5 +62,73 @@ describe('deriveCandidateProfile', () => {
       stack: [],
       location: { city: null, remoteOk: false },
     });
+  });
+});
+
+describe('isBelowTargetLevel (ADR-003 §8.7)', () => {
+  // The real account from the ranking eval: directions name lead + senior.
+  const leadSenior = deriveCandidateProfile({
+    skills: [],
+    directions: [
+      { label: 'Team Lead Frontend', searchTerms: ['Team Lead Software Entwicklung'] },
+      { label: 'Senior Frontend Engineer', searchTerms: ['Senior Frontend Engineer'] },
+    ],
+  });
+
+  it('the eval account targets lead + senior', () => {
+    expect([...leadSenior.seniorities].sort()).toEqual(['lead', 'senior']);
+    expect(targetsSeniorOnly(leadSenior)).toBe(true);
+  });
+
+  it.each([
+    'Junior Software Engineer (m/w/d)',
+    'Werkstudent Softwareentwicklung (m/w/d) – Greenfield / KI Fokus, InsurTech',
+    'Intern - Front-End Developer (all gender) (Fleet Energy Performance)',
+    '(Junior) Software Entwickler:in (m/w/d) | Java / Python / Apex',
+    'Junior Frontend Developer / Softwareentwickler:in',
+  ])('gates the entry-level ads the user dismissed: %s', (title) => {
+    expect(isBelowTargetLevel(title, leadSenior)).toBe(true);
+  });
+
+  it.each([
+    'Senior Frontend Engineer',
+    'Engineering Manager (m/w/d)',
+    'Frontend Developer (m/w/d) React',
+    'Staff Engineer - Virtual Assembly Line (m/f/d)',
+    'Head of Frontend Development (iGaming)',
+  ])('keeps passing for the same user: %s', (title) => {
+    expect(isBelowTargetLevel(title, leadSenior)).toBe(false);
+  });
+
+  it('a title that states no rung is never gated — no "Senior" is not "Junior"', () => {
+    expect(isBelowTargetLevel('Frontend Developer (m/w/d) React', { seniorities: ['head'] })).toBe(false);
+  });
+
+  it('off when the user targets junior, alone or next to a senior rung', () => {
+    expect(isBelowTargetLevel('Junior Software Engineer', { seniorities: ['junior'] })).toBe(false);
+    expect(isBelowTargetLevel('Junior Software Engineer', { seniorities: ['junior', 'senior'] })).toBe(false);
+    expect(targetsSeniorOnly({ seniorities: ['junior', 'senior'] })).toBe(false);
+  });
+
+  it('off when the user targets nothing — no signal is not a preference', () => {
+    expect(isBelowTargetLevel('Junior Software Engineer', { seniorities: [] })).toBe(false);
+    expect(targetsSeniorOnly({ seniorities: [] })).toBe(false);
+  });
+
+  it('a CV-derived senior target (≥ 5 stated years) turns it on too', () => {
+    const fromYears = deriveCandidateProfile({
+      skills: [{ text: '8 years of React', quote: '8 years of React' }],
+      directions: [{ label: 'Frontend Engineer', searchTerms: ['Frontend Entwickler'] }],
+    });
+    expect(isBelowTargetLevel('Praktikum Frontend (m/w/d)', fromYears)).toBe(true);
+  });
+
+  it('a user whose own direction is entry-level reads as a junior target, so the gate stays off', () => {
+    const student = deriveCandidateProfile({
+      skills: [],
+      directions: [{ label: 'Werkstudent Frontend', searchTerms: ['Working Student Frontend'] }],
+    });
+    expect(student.seniorities).toEqual(['junior']);
+    expect(isBelowTargetLevel('Werkstudent Softwareentwicklung (m/w/d)', student)).toBe(false);
   });
 });

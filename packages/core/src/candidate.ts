@@ -112,3 +112,37 @@ export function deriveCandidateProfile(input: {
     location: input.location ?? EMPTY_CANDIDATE.location,
   };
 }
+
+/**
+ * True when every rung the user targets is senior or above — i.e. they
+ * named at least one rung and none of them is junior. The ladder has
+ * nothing between junior and senior (`Seniority`), so "not junior" is
+ * "senior or above". False when they target nothing: no signal is not a
+ * preference.
+ */
+export function targetsSeniorOnly(candidate: Pick<CandidateProfile, 'seniorities'>): boolean {
+  return candidate.seniorities.length > 0 && !candidate.seniorities.includes('junior');
+}
+
+/**
+ * The level gate (ADR-003 §8.7): the title states the junior rung ("Junior",
+ * "Werkstudent", "Intern", "Praktikum", … — the closed list in
+ * `title-lexicon.ts`) and the user targets only senior-or-above rungs.
+ *
+ * A gate rather than a score because `seniorityFit` = 0 only lowers such an
+ * ad, and a long-word direction match ("software" out of "Team Lead Software
+ * Entwicklung") still carries it into the tiers, where a senior user
+ * dismisses it every time.
+ *
+ * Deliberately narrow: false when the user targets junior, targets nothing,
+ * or the title states no rung — "Frontend Developer (m/w/d)" is not read as
+ * junior for lack of a "Senior". Only the entry-level end is gated; a
+ * "Senior" ad for a lead still competes (one rung down scores 0.4, a
+ * reachable step, not a mismatch).
+ */
+export function isBelowTargetLevel(
+  title: string,
+  candidate: Pick<CandidateProfile, 'seniorities'>,
+): boolean {
+  return targetsSeniorOnly(candidate) && readSeniority(title) === 'junior';
+}
