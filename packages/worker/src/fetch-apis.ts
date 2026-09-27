@@ -244,12 +244,41 @@ export async function fetchApiSources(
         : allJobs;
       result.skipped = allJobs.length - jobs.length;
 
+      // Narration counters (feat/ingest-live-narration). `items_reviewed` is
+      // the number of postings we actually looked at across all providers this
+      // run, BEFORE the direction gate — the honest "187 postings reviewed"
+      // figure. `items_skipped` is what the direction gate rejected. Written
+      // once per source rather than per-job to keep the churn low: we already
+      // know both totals as soon as `allJobs` and `jobs` are computed. Atomic
+      // increments because several sources run under FETCH_CONCURRENCY.
+      if (allJobs.length > 0 || result.skipped > 0) {
+        await withTenant(db, userId, (tx) =>
+          tx
+            .update(runs)
+            .set({
+              itemsReviewed: sql`${runs.itemsReviewed} + ${allJobs.length}`,
+              itemsSkipped: sql`${runs.itemsSkipped} + ${result.skipped}`,
+            })
+            .where(eq(runs.id, runId)),
+        );
+      }
+
       const fetchedAt = new Date();
 
       await mapWithConcurrency(jobs, FETCH_CONCURRENCY, async (job) => {
         const r = await ingestJob(db, { userId, sourceId: source.id, runId, job, fetchedAt });
         result.fetched++;
-        if (r.created) result.created++;
+        if (r.created) {
+          result.created++;
+          // Same shape as gmail.ts: increment the narration counter as new
+          // ads land so the "N new" number grows visibly during the run.
+          await withTenant(db, userId, (tx) =>
+            tx
+              .update(runs)
+              .set({ adsCreated: sql`${runs.adsCreated} + 1` })
+              .where(eq(runs.id, runId)),
+          );
+        }
       });
 
       // Mark source healthy and record fetch time.

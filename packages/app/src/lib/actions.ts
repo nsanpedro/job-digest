@@ -112,7 +112,7 @@ export async function undoOverride(adId: string): Promise<void> {
  * `maxDuration` for the route, set in digest/page.tsx) — it runs longer than
  * the client's request, not indefinitely.
  */
-export async function startRefresh(): Promise<{ runId: string }> {
+export async function startRefresh(): Promise<{ runId: string; apiRunId: string | null }> {
   const userId = await currentUserId();
 
   // Explicit columns, not select(): app_user has no grant on
@@ -169,7 +169,7 @@ export async function startRefresh(): Promise<{ runId: string }> {
     }
   });
 
-  return { runId };
+  return { runId, apiRunId };
 }
 
 /**
@@ -230,11 +230,19 @@ async function runIngestion(params: {
 
       for (const { dir, file } of files) {
         const buf = readFileSync(join(dir, file));
-        await withTenant(userId, (tx) => ingestEmail(tx, { userId, mailboxId, runId, raw: buf }));
+        // Same shape as the Gmail path: capture adsCreated per email so the
+        // dev fallback also feeds `runs.ads_created` — the number the live
+        // narration reads as "N new alerts".
+        const result = await withTenant(userId, (tx) =>
+          ingestEmail(tx, { userId, mailboxId, runId, raw: buf }),
+        );
         await withTenant(userId, (tx) =>
           tx
             .update(runs)
-            .set({ emailsProcessed: sql`${runs.emailsProcessed} + 1` })
+            .set({
+              emailsProcessed: sql`${runs.emailsProcessed} + 1`,
+              adsCreated: sql`${runs.adsCreated} + ${result.adsCreated}`,
+            })
             .where(eq(runs.id, runId)),
         );
       }
@@ -265,11 +273,24 @@ async function runIngestion(params: {
   }
 }
 
-/** Polled by RefreshButton while a run is in flight — see startRefresh. */
+/**
+ * Polled by RefreshButton while a run is in flight — see startRefresh.
+ *
+ * Returns the narration counters alongside the progress ones: the button now
+ * renders a live, factual narration ("Reading Gmail — 42 emails scanned, 8
+ * new alerts. Reviewing 4 public sources — 187 postings, 3 new.") that keeps
+ * the user informed instead of leaving them to autoconclude from a quiet
+ * finish. Every field here traces to something the pipeline actually recorded
+ * on the `runs` row.
+ */
 export async function getRunProgress(runId: string): Promise<{
   status: 'running' | 'ok' | 'error';
   emailsTotal: number | null;
   emailsProcessed: number;
+  adsCreated: number;
+  itemsReviewed: number;
+  itemsSkipped: number;
+  errorKind: 'auth' | 'network' | 'internal' | null;
   errorMessage: string | null;
 } | null> {
   const userId = await currentUserId();
@@ -279,6 +300,10 @@ export async function getRunProgress(runId: string): Promise<{
         status: runs.status,
         emailsTotal: runs.emailsTotal,
         emailsProcessed: runs.emailsProcessed,
+        adsCreated: runs.adsCreated,
+        itemsReviewed: runs.itemsReviewed,
+        itemsSkipped: runs.itemsSkipped,
+        errorKind: runs.errorKind,
         errorDetail: runs.errorDetail,
       })
       .from(runs)
@@ -291,6 +316,10 @@ export async function getRunProgress(runId: string): Promise<{
     status: row.status,
     emailsTotal: row.emailsTotal,
     emailsProcessed: row.emailsProcessed,
+    adsCreated: row.adsCreated,
+    itemsReviewed: row.itemsReviewed,
+    itemsSkipped: row.itemsSkipped,
+    errorKind: row.errorKind,
     errorMessage: (row.errorDetail as { message?: string } | null)?.message ?? null,
   };
 }

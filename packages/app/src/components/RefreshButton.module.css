@@ -48,3 +48,20 @@
   flex-direction: column;
   align-items: flex-end;
 }
+
+/* Live narration under the button. One <li> per active stage — assembled
+   from real run counts in RefreshButton.tsx, same voice as ParseBanner. */
+.narration {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  max-width: 380px;
+  text-align: right;
+  font-size: 12px;
+  color: oklch(0.45 0.01 260);
+  line-height: 1.5;
+}
+
+.narration li + li {
+  margin-top: 3px;
+}
