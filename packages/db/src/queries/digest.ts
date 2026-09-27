@@ -19,6 +19,7 @@
 import {
   DEFAULT_CALIBRATION,
   computeMatch,
+  deriveCandidateProfile,
   evaluate,
   explainMatch,
   scoreAd,
@@ -33,7 +34,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { accounts, adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
 import { getPlatformCapabilities } from './capabilities';
-import { listInterestedDirections } from './discovery';
+import { getActiveProfile, listInterestedDirections } from './discovery';
 import { getActiveRuleset } from './ruleset';
 import { getTopPickHistory, recordTopPicks } from './top-pick-history';
 import type {
@@ -76,8 +77,11 @@ const CITY_GEO: Record<string, string[]> = {
  * True when the ad's raw location string is consistent with the user's city
  * preference. Missing location → passes (we don't filter what we don't know).
  * Remote jobs pass when the user has opted in to remote.
+ *
+ * Exported for the offline ranking eval (worker/scripts/eval-ranking.ts),
+ * which replays this same pre-filter rather than a copy of it.
  */
-function passesLocationFilter(locationRaw: string | null, city: string, remoteOk: boolean): boolean {
+export function passesLocationFilter(locationRaw: string | null, city: string, remoteOk: boolean): boolean {
   if (!locationRaw) return true;
   const loc = locationRaw.toLowerCase();
   if (remoteOk && REMOTE_KEYWORDS.some((kw) => loc.includes(kw))) return true;
@@ -230,6 +234,14 @@ export async function getDigest(
   const capabilities = await getPlatformCapabilities(db);
 
   const interestedDirs = await listInterestedDirections(db, userId);
+  // Who the user is, as their own CV and directions state it — the rungs
+  // they target and the technologies they name. Read once per digest, fed
+  // to every scoreAd call (v3's seniorityFit / stackFit).
+  const profile = await getActiveProfile(db, userId);
+  const candidate = deriveCandidateProfile({
+    skills: profile?.skills ?? [],
+    directions: interestedDirs,
+  });
   const history = await getTopPickHistory(db, userId, now);
   const calibration = DEFAULT_CALIBRATION;
 
@@ -360,6 +372,7 @@ export async function getDigest(
       verdicts: ad.verdicts,
       ruleset: rules,
       directions: interestedDirs,
+      candidate,
       title: ad.title,
       source: ad.source,
       receivedAt: ad.receivedAt,

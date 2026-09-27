@@ -280,3 +280,22 @@ When the curated tiers come up short (< 3 ads total), the digest header now rend
 The claim: on a thin week, the digest is more useful as a diagnosis of the pipeline than as an empty list. `explainDigest` in `packages/core/src/explain-digest.ts` is the pure function; `DigestDiagnostic` renders it. Above the threshold the block collapses to `null` — a healthy digest speaks for itself.
 
 Ad cards also gained an inline score breakdown (five components × their weights = total), rendered in the expanded panel. The user can trace a low match number to a specific component instead of asking why.
+
+### 8.5 v3 calibration — seniority and stack, plus a number to grade it with (Sep 2026)
+
+v2's only signal about *what the user wants* was `directionFit`: a keyword ladder over the title with a handful of discrete values. Every ad matching a direction's full phrase tied at 1.0, and the order among them came from freshness and source — a "Junior Frontend Developer" and a "Senior Frontend Engineer" ranked the same for a senior. The title facts that would separate them (`ads.title_facts`: seniority on ~39% of titles, stack on ~18%) were shown as chips and never scored.
+
+v3 adds two components, read from the title with the same lexicon the chips use (`packages/core/src/title-lexicon.ts`, now shared by ingest and scoring):
+
+| Component | Weight | What it measures |
+| --- | --- | --- |
+| `seniorityFit` | 0.10 | The title's rung against the rungs the user targets: same = 1.0, one up = 0.6, one down = 0.4, further = 0. |
+| `stackFit` | 0.05 | Share of the title's technologies the user's own text names. |
+
+The v2 five are scaled by 0.85 to make room. A component whose comparison has a silent side (the title names no rung, the profile names no stack) returns `null` and hands its weight back proportionally (`effectiveWeights`, generalised from the no-directions case). So **an ad with neither signal scores exactly as under v2** — pinned by a test — the tier thresholds keep their meaning, and only ads that carry the signal move.
+
+The user side (`deriveCandidateProfile`, `packages/core/src/candidate.ts`) comes from the user's own text only: rungs named in direction labels and search terms, else the CV's stated years at the two ends of the ladder (≥ 5 → senior, ≤ 1 → junior; the middle stays unknown rather than guessed); stack from the CV's verified skills and the directions. Saved / applied / dismissed ads are deliberately *not* an input — they are the eval's labels.
+
+**The eval.** `packages/worker/scripts/eval-ranking.ts` replays the last N weeks under each calibration (read-only, no top-pick history written) and grades the order against the user's actions: applied / saved = positive, dismissed = negative, the rest unlabelled. The headline metric is pairwise accuracy (how often a positive ranks above a negative), with nDCG@k, recall@k and the positives / negatives that land in the curated tiers alongside. The metric definitions are pure (`packages/core/src/ranking-eval.ts`). The labels were collected under the live ranking, so the eval favours the incumbent calibration: a challenger that wins anyway is winning against the current.
+
+The v3 weights are hand-set like v2's. The eval is how they get checked against a real account before any further moves — the same "reading the top pick" loop as §2.5, made countable.

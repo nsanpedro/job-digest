@@ -1,8 +1,8 @@
 /**
  * Curated-digest scoring (ADR-003).
  *
- * A pure function of (facts, verdicts, ruleset, directions, title, source,
- * receivedAt, now, calibration) → a five-component ScoreBreakdown. Same
+ * A pure function of (facts, verdicts, ruleset, directions, candidate, title,
+ * source, receivedAt, now, calibration) → a seven-component ScoreBreakdown. Same
  * posture as `evaluate.ts`: no I/O, no persistence, no LLM — the read path
  * recomputes on every digest fetch (I22, extending I6 from verdicts to
  * ranking).
@@ -16,7 +16,10 @@
  */
 import { LEVELS, type Facts, type Ruleset, type Verdict } from './types';
 import type { Distance } from './discovery';
+import { EMPTY_CANDIDATE, type CandidateProfile } from './candidate';
 import { computeMatch, DISTANCE_FACTOR, ROLE_SYNONYMS as MATCHING_ROLE_SYNONYMS } from './matching';
+import { readSeniority, readStack } from './title-lexicon';
+import type { Seniority } from './title-facts';
 
 /**
  * Re-exported from `matching.ts` — kept at the old import path so callers
@@ -39,9 +42,30 @@ export interface ScoreBreakdown {
   freshness: number;
   /** Per-source prior — API-sourced ads over email-alert ads. */
   sourceQuality: number;
-  /** round(100 × Σ (weight × component)). */
+  /**
+   * How the rung the title states compares to the rungs the user targets.
+   * Null when either side is silent — no signal, and its weight is
+   * redistributed rather than scored as a guess (see `effectiveWeights`).
+   */
+  seniorityFit: number | null;
+  /**
+   * Share of the technologies the title names that the user's own text
+   * names too. Null when the title names none or the user named none.
+   */
+  stackFit: number | null;
+  /** round(100 × Σ (weight × component)) over the components with signal. */
   total: number;
+  /**
+   * The weights this total was computed with — the calibration's, after
+   * missing signals handed theirs back (`effectiveWeights`). Carried so the
+   * breakdown table's rows add up to `total` without re-deriving which
+   * signals were missing.
+   */
+  weights: Calibration['weights'];
 }
+
+/** Keys of `Calibration['weights']` — one per score component. */
+export type WeightKey = keyof Calibration['weights'];
 
 /**
  * Only what scoring reads from a direction. The caller (getDigest) hands in
@@ -66,6 +90,8 @@ export interface Calibration {
     signalCompleteness: number;
     freshness: number;
     sourceQuality: number;
+    seniorityFit: number;
+    stackFit: number;
   };
   tierThresholds: {
     /** Top pick eligibility. */
@@ -102,7 +128,7 @@ export interface Calibration {
  * Learning weights over N=1 is astrology; a code change with a bumped
  * `version` is the way to move them.
  */
-export const DEFAULT_CALIBRATION: Calibration = {
+export const CALIBRATION_V2: Calibration = {
   version: 2,
   weights: {
     ruleMargin: 0.25,
@@ -110,6 +136,9 @@ export const DEFAULT_CALIBRATION: Calibration = {
     signalCompleteness: 0.1,
     freshness: 0.2,
     sourceQuality: 0.1,
+    // v2 predates these components; zero weight reproduces v2 exactly.
+    seniorityFit: 0,
+    stackFit: 0,
   },
   tierThresholds: {
     topPick: 70,
@@ -129,6 +158,55 @@ export const DEFAULT_CALIBRATION: Calibration = {
   defaultSourcePrior: 0.6,
   freshnessDecayDays: 7,
   freshnessFloor: 0.4,
+};
+
+/**
+ * Weights the v3 components take off the top. The v2 five are scaled by
+ * `1 - Σ V3_ADDED` so the sum stays 1.0.
+ *
+ * Seniority carries twice stack's weight: 39% of titles state a rung and the
+ * mismatch it catches ("Junior" shown to a senior, "Head of" to an IC) is
+ * the one users name first; only 18% of titles name a technology, and an
+ * ad's stack is a softer requirement than its level.
+ */
+const V3_ADDED = { seniorityFit: 0.1, stackFit: 0.05 } as const;
+
+/**
+ * v3 calibration — the first two components about *who the user is*, not
+ * just which words their directions contain (Sep 2026).
+ *
+ * v2's only intent signal was `directionFit`, a keyword ladder with a handful
+ * of discrete values; every ad matching a direction's full phrase tied at
+ * 1.0 and the order among them came from freshness and source. v3 adds
+ * `seniorityFit` and `stackFit`, read from the title with the same lexicon
+ * the card's chips use.
+ *
+ * Built so that an ad whose title states neither a rung nor a technology —
+ * or a user whose profile names neither — scores exactly as it did under v2:
+ * the v2 weights are scaled proportionally to make room, and a component
+ * without signal hands its weight back the same way (`effectiveWeights`).
+ * The tier thresholds therefore keep their v2 meaning, and the new
+ * components only move the ads that carry the signal — up on a match, down
+ * on a mismatch. Whether that moves the *right* ads is what
+ * `scripts/eval-ranking.ts` answers against the user's own saves, applies
+ * and dismissals.
+ */
+export const DEFAULT_CALIBRATION: Calibration = {
+  ...CALIBRATION_V2,
+  version: 3,
+  weights: (() => {
+    const w = CALIBRATION_V2.weights;
+    const scale = 1 - V3_ADDED.seniorityFit - V3_ADDED.stackFit;
+    return {
+      ruleMargin: w.ruleMargin * scale,
+      directionFit: w.directionFit * scale,
+      signalCompleteness: w.signalCompleteness * scale,
+      freshness: w.freshness * scale,
+      sourceQuality: w.sourceQuality * scale,
+      seniorityFit: V3_ADDED.seniorityFit,
+      stackFit: V3_ADDED.stackFit,
+    };
+  })(),
 };
 
 // ── Component functions (exported so tests can pin each one) ─────────────────
@@ -235,39 +313,103 @@ export function directionFit(title: string, directions: readonly ScoringDirectio
 
 /**
  * The weights `scoreAd` actually uses for a given ad, after accounting for
- * signals the user has not given.
+ * signals that are absent — either never given by the user (no directions,
+ * a profile that names no rung) or not stated by the ad (a title with no
+ * seniority marker).
  *
- * When `hasDirections` is false, `weights.directionFit` is set to 0 and
- * its share is redistributed proportionally across the other four
- * components — so the sum stays 1.0 and an ad without a direction signal
- * is scored on what we DO know (rules, completeness, freshness, source),
- * scaled up to the same [0, 100] range. A component whose base weight is
- * 0 receives no boost.
+ * Every component in `missing` is set to 0 and the remaining weights are
+ * scaled by `1 / Σ remaining`, so the sum stays 1.0 and the ad is scored on
+ * what we DO know, over the same [0, 100] range. A component whose base
+ * weight is 0 receives no boost.
  *
- * Formula: each non-directionFit weight w becomes `w × (1 + df/other)`
- * where `df = base.directionFit` and `other = 1 - df`. Sum is preserved:
- * `Σ w × (1 + df/other) = other × (1 + df/other) = other + df = 1`.
+ * Proportional on purpose: redistributing a missing component's share this
+ * way leaves the *relative* weights of the rest untouched, which is what
+ * makes v3 reduce to v2 exactly when both v3 components are missing.
  *
- * If the base already has `directionFit = 0` or `other = 0` (degenerate
- * calibrations), returns the base unchanged rather than dividing by
- * zero or fabricating weights.
+ * Why not score a missing signal as a constant (the rule engine's neutral
+ * 0.5 for `unknown`, ADR-003 §2.6)? For `directionFit` a constant adds
+ * phantom points to every ad — the old contract scored "no directions" as
+ * 1.0 and a fresh LinkedIn alert with empty facts cleared topPick on
+ * freshness alone. For seniority and stack a constant would shift every
+ * silent title's score relative to v2 and move the tier thresholds with it.
+ *
+ * If nothing with weight remains (degenerate calibrations), returns the base
+ * unchanged rather than dividing by zero or fabricating weights.
  */
 export function effectiveWeights(
   base: Calibration['weights'],
-  hasDirections: boolean,
+  missing: readonly WeightKey[],
 ): Calibration['weights'] {
-  if (hasDirections) return base;
-  const df = base.directionFit;
-  const other = 1 - df;
-  if (df <= 0 || other <= 0) return base;
-  const scale = 1 / other;
-  return {
-    ruleMargin: base.ruleMargin * scale,
-    directionFit: 0,
-    signalCompleteness: base.signalCompleteness * scale,
-    freshness: base.freshness * scale,
-    sourceQuality: base.sourceQuality * scale,
-  };
+  // Dropping a component that already weighs nothing is a no-op, not a
+  // renormalisation — a hand-written calibration keeps its exact weights.
+  const dropped = missing.filter((k) => base[k] > 0);
+  if (dropped.length === 0) return base;
+  const w = { ...base };
+  for (const k of dropped) w[k] = 0;
+  const remaining = Object.values(w).reduce((a, b) => a + b, 0);
+  if (remaining <= 0) return base;
+  const scale = 1 / remaining;
+  for (const k of Object.keys(w) as WeightKey[]) w[k] *= scale;
+  return w;
+}
+
+// ── Seniority fit ────────────────────────────────────────────────────────────
+
+/**
+ * Ladder position per rung. `principal` (IC track) and `head` (management
+ * track) share a rank: equally far from a senior IC, but not the same job —
+ * `seniorityFit` scores them as one step apart, not as a match.
+ */
+const SENIORITY_RANK: Readonly<Record<Seniority, number>> = {
+  junior: 0,
+  senior: 2,
+  lead: 3,
+  principal: 4,
+  head: 4,
+};
+
+/**
+ * Best fit of the ad's stated rung against any rung the user targets:
+ *
+ *   1.0 — the same rung
+ *   0.6 — one step up, or a same-rank sibling (principal ↔ head): a
+ *         reachable stretch
+ *   0.4 — one step down: doable, but a step back
+ *   0.0 — two or more steps either way ("Junior" for a senior, "Head of"
+ *         for a senior IC)
+ *
+ * Asymmetric because a one-rung stretch is a normal next move and a
+ * one-rung step back mostly is not. Null when either side names no rung.
+ */
+export function seniorityFit(
+  adSeniority: Seniority | null,
+  targets: readonly Seniority[],
+): number | null {
+  if (adSeniority === null || targets.length === 0) return null;
+  let best = 0;
+  for (const t of targets) {
+    if (t === adSeniority) return 1;
+    const diff = SENIORITY_RANK[adSeniority] - SENIORITY_RANK[t];
+    const fit = diff === 0 || diff === 1 ? 0.6 : diff === -1 ? 0.4 : 0;
+    if (fit > best) best = fit;
+  }
+  return best;
+}
+
+// ── Stack fit ────────────────────────────────────────────────────────────────
+
+/**
+ * Share of the technologies the title names that the user's own text names:
+ * "React / TypeScript" against a React-only profile is 0.5. The ad's list is
+ * the denominator — the question is "does the user cover what this ad asks
+ * for?", not "does the ad use everything the user knows?".
+ *
+ * Null when the title names no technology or the profile names none.
+ */
+export function stackFit(adStack: readonly string[], candidateStack: readonly string[]): number | null {
+  if (adStack.length === 0 || candidateStack.length === 0) return null;
+  const known = new Set(candidateStack);
+  return adStack.filter((t) => known.has(t)).length / adStack.length;
 }
 
 // ── Signal completeness ──────────────────────────────────────────────────────
@@ -380,6 +522,8 @@ export interface ScoreAdArgs {
   verdicts: readonly Verdict[];
   ruleset: Ruleset;
   directions: readonly ScoringDirection[];
+  /** What the user's own text says about them. Omitted = no signal (v2 behaviour). */
+  candidate?: CandidateProfile;
   title: string;
   source: string;
   receivedAt: Date;
@@ -397,20 +541,34 @@ export interface ScoreAdArgs {
  */
 export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   const { facts, ruleset, directions, title, source, receivedAt, now, calibration } = args;
+  const candidate = args.candidate ?? EMPTY_CANDIDATE;
 
   const rm = ruleMargin(facts, ruleset);
   const df = directionFit(title, directions);
   const sc = signalCompleteness(facts, ruleset);
   const fr = freshness(receivedAt, now, calibration.freshnessDecayDays, calibration.freshnessFloor);
   const sq = sourceQuality(source, calibration);
+  const sf = seniorityFit(readSeniority(title), candidate.seniorities);
+  const kf = stackFit(readStack(title), candidate.stack);
 
-  // Weights honor "signals the user has not given": with zero directions
-  // the directionFit weight is redistributed across the other four
-  // (see `effectiveWeights`), so an unconfigured user isn't given
-  // phantom top-picks from freshness alone.
-  const w = effectiveWeights(calibration.weights, directions.length > 0);
+  // Weights honor "signals nobody gave": with zero directions the
+  // directionFit weight is redistributed (an unconfigured user isn't given
+  // phantom top-picks from freshness alone), and a seniority/stack
+  // comparison with a silent side hands its weight back the same way.
+  const missing: WeightKey[] = [];
+  if (directions.length === 0) missing.push('directionFit');
+  if (sf === null) missing.push('seniorityFit');
+  if (kf === null) missing.push('stackFit');
+  const w = effectiveWeights(calibration.weights, missing);
   const total = Math.round(
-    100 * (w.ruleMargin * rm + w.directionFit * df + w.signalCompleteness * sc + w.freshness * fr + w.sourceQuality * sq),
+    100 *
+      (w.ruleMargin * rm +
+        w.directionFit * df +
+        w.signalCompleteness * sc +
+        w.freshness * fr +
+        w.sourceQuality * sq +
+        w.seniorityFit * (sf ?? 0) +
+        w.stackFit * (kf ?? 0)),
   );
 
   return {
@@ -419,7 +577,10 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
     signalCompleteness: sc,
     freshness: fr,
     sourceQuality: sq,
+    seniorityFit: sf,
+    stackFit: kf,
     total,
+    weights: w,
   };
 }
 

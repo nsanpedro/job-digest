@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  CALIBRATION_V2,
   DEFAULT_CALIBRATION,
   directionFit,
   effectiveWeights,
@@ -14,9 +15,12 @@ import {
   ruleMargin,
   scoreAd,
   selectTiers,
+  seniorityFit,
   signalCompleteness,
   sourceQuality,
+  stackFit,
   type Calibration,
+  type ScoreBreakdown,
   type ScoredAd,
   type ScoringDirection,
 } from '../src/scoring';
@@ -36,6 +40,8 @@ const NO_FACTS: Facts = {
 };
 
 const facts = (p: Partial<Facts>): Facts => ({ ...NO_FACTS, ...p });
+
+const sumOf = (w: Calibration['weights']): number => Object.values(w).reduce((a, b) => a + b, 0);
 
 /** Mirrors DEFAULT_RULESET: Shift and Pay hard, the rest preferences. */
 const defaultRuleset = (): Ruleset => ({
@@ -248,11 +254,11 @@ describe('effectiveWeights', () => {
   const base = DEFAULT_CALIBRATION.weights;
 
   it('returns the base weights unchanged when there ARE directions', () => {
-    expect(effectiveWeights(base, true)).toEqual(base);
+    expect(effectiveWeights(base, [])).toEqual(base);
   });
 
   it('zeroes directionFit and redistributes its share when there are NO directions', () => {
-    const w = effectiveWeights(base, false);
+    const w = effectiveWeights(base, ['directionFit']);
     expect(w.directionFit).toBe(0);
     // Each other component is scaled by 1 / (1 - directionFit).
     const scale = 1 / (1 - base.directionFit);
@@ -263,9 +269,21 @@ describe('effectiveWeights', () => {
   });
 
   it('the redistributed weights still sum to 1.0 (score stays in [0, 100])', () => {
-    const w = effectiveWeights(base, false);
-    const sum = w.ruleMargin + w.directionFit + w.signalCompleteness + w.freshness + w.sourceQuality;
-    expect(sum).toBeCloseTo(1.0);
+    expect(sumOf(effectiveWeights(base, ['directionFit']))).toBeCloseTo(1.0);
+    expect(sumOf(effectiveWeights(base, ['seniorityFit', 'stackFit']))).toBeCloseTo(1.0);
+    expect(sumOf(effectiveWeights(base, ['directionFit', 'seniorityFit', 'stackFit']))).toBeCloseTo(1.0);
+  });
+
+  it('dropping both v3 components from v3 gives back the v2 weights exactly', () => {
+    const w = effectiveWeights(base, ['seniorityFit', 'stackFit']);
+    for (const [k, v] of Object.entries(CALIBRATION_V2.weights)) {
+      expect(w[k as keyof typeof w]).toBeCloseTo(v, 10);
+    }
+  });
+
+  it('dropping a zero-weight component is a no-op, not a renormalisation', () => {
+    const v2 = CALIBRATION_V2.weights;
+    expect(effectiveWeights(v2, ['seniorityFit', 'stackFit'])).toBe(v2);
   });
 
   it('a component with base weight 0 receives no boost', () => {
@@ -273,17 +291,17 @@ describe('effectiveWeights', () => {
     const custom = {
       ...base,
       ruleMargin: 0.35, directionFit: 0.35, signalCompleteness: 0.15, freshness: 0.15, sourceQuality: 0,
+      seniorityFit: 0, stackFit: 0,
     };
-    const w = effectiveWeights(custom, false);
+    const w = effectiveWeights(custom, ['directionFit']);
     expect(w.sourceQuality).toBe(0);
     // The 0.35 directionFit share went to rm/sc/fr proportionally.
-    const sum = w.ruleMargin + w.directionFit + w.signalCompleteness + w.freshness + w.sourceQuality;
-    expect(sum).toBeCloseTo(1.0);
+    expect(sumOf(w)).toBeCloseTo(1.0);
   });
 
   it('a calibration with directionFit=0 base is returned unchanged (no divide-by-zero)', () => {
     const degenerate = { ...base, directionFit: 0, ruleMargin: 0.6 };
-    expect(effectiveWeights(degenerate, false)).toEqual(degenerate);
+    expect(effectiveWeights(degenerate, ['directionFit'])).toEqual(degenerate);
   });
 });
 
@@ -430,10 +448,9 @@ describe('isCertain', () => {
 // ── DEFAULT_CALIBRATION invariants ──────────────────────────────────────────
 
 describe('DEFAULT_CALIBRATION', () => {
-  it('the five weights sum to 1.0', () => {
-    const w = DEFAULT_CALIBRATION.weights;
-    const sum = w.ruleMargin + w.directionFit + w.signalCompleteness + w.freshness + w.sourceQuality;
-    expect(sum).toBeCloseTo(1);
+  it('every calibration\'s weights sum to 1.0', () => {
+    expect(sumOf(DEFAULT_CALIBRATION.weights)).toBeCloseTo(1, 10);
+    expect(sumOf(CALIBRATION_V2.weights)).toBeCloseTo(1, 10);
   });
 
   it('every weight is in [0, 1]', () => {
@@ -543,10 +560,127 @@ describe('scoreAd', () => {
   });
 });
 
+// ── seniorityFit / stackFit ─────────────────────────────────────────────────
+
+describe('seniorityFit', () => {
+  it('null when the ad states no rung, or the user targets none — no signal, not a guess', () => {
+    expect(seniorityFit(null, ['senior'])).toBeNull();
+    expect(seniorityFit('senior', [])).toBeNull();
+  });
+
+  it('same rung is 1.0', () => {
+    expect(seniorityFit('senior', ['senior'])).toBe(1);
+  });
+
+  it('one step up (a normal next move) outranks one step down (a step back)', () => {
+    expect(seniorityFit('lead', ['senior'])).toBeCloseTo(0.6);
+    expect(seniorityFit('senior', ['lead'])).toBeCloseTo(0.4);
+  });
+
+  it('two or more steps apart is 0 — "Junior" for a senior, "Head of" for a senior IC', () => {
+    expect(seniorityFit('junior', ['senior'])).toBe(0);
+    expect(seniorityFit('head', ['senior'])).toBe(0);
+  });
+
+  it('principal and head share a rank but are different jobs — one step, not a match', () => {
+    expect(seniorityFit('head', ['principal'])).toBeCloseTo(0.6);
+  });
+
+  it('takes the best fit across several targeted rungs', () => {
+    expect(seniorityFit('lead', ['senior', 'lead'])).toBe(1);
+    expect(seniorityFit('junior', ['senior', 'lead'])).toBe(0);
+  });
+});
+
+describe('stackFit', () => {
+  it('null when either side names no technology', () => {
+    expect(stackFit([], ['React'])).toBeNull();
+    expect(stackFit(['React'], [])).toBeNull();
+  });
+
+  it('share of the ad\'s technologies the user covers', () => {
+    expect(stackFit(['React', 'TypeScript'], ['React'])).toBeCloseTo(0.5);
+    expect(stackFit(['React'], ['React', 'Node', 'Python'])).toBe(1);
+    expect(stackFit(['Java'], ['React'])).toBe(0);
+  });
+});
+
+describe('scoreAd with a candidate profile (v3)', () => {
+  const now = new Date('2026-08-24T12:00:00Z');
+  const base = {
+    facts: NO_FACTS,
+    verdicts: [],
+    ruleset: defaultRuleset(),
+    directions: [direction({ searchTerms: ['frontend engineer'] })],
+    source: 'LinkedIn',
+    receivedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+    now,
+  };
+  const candidate = { seniorities: ['senior'] as const, stack: ['React', 'TypeScript'] };
+
+  it('a title stating neither rung nor stack scores exactly as under v2', () => {
+    for (const title of ['Frontend Engineer', 'Frontend Developer (m/w/d)', 'Marketing Analyst']) {
+      const v2 = scoreAd({ ...base, title, calibration: CALIBRATION_V2 });
+      const v3 = scoreAd({ ...base, title, candidate, calibration: DEFAULT_CALIBRATION });
+      expect(v3.seniorityFit).toBeNull();
+      expect(v3.stackFit).toBeNull();
+      expect(v3.total).toBe(v2.total);
+    }
+  });
+
+  it('without a candidate, v3 reduces to v2 on every title', () => {
+    for (const title of ['Senior React Engineer', 'Junior Frontend Engineer', 'Frontend Engineer']) {
+      const v2 = scoreAd({ ...base, title, calibration: CALIBRATION_V2 });
+      const v3 = scoreAd({ ...base, title, calibration: DEFAULT_CALIBRATION });
+      expect(v3.total).toBe(v2.total);
+    }
+  });
+
+  it('breaks the directionFit tie: matching rung + stack > silent title > mismatched rung', () => {
+    const score = (title: string) =>
+      scoreAd({ ...base, title, candidate, calibration: DEFAULT_CALIBRATION }).total;
+    const match = score('Senior Frontend Engineer (React)');
+    const silent = score('Frontend Engineer');
+    const mismatch = score('Junior Frontend Engineer');
+    // All three are full-phrase direction matches (directionFit = 1.0) —
+    // under v2 they tie; v3 orders them by who the user is.
+    expect(match).toBeGreaterThan(silent);
+    expect(silent).toBeGreaterThan(mismatch);
+  });
+
+  it('carries the effective weights, and the rows add up to the total', () => {
+    const r = scoreAd({ ...base, title: 'Senior Frontend Engineer', candidate, calibration: DEFAULT_CALIBRATION });
+    // Stack is silent on this title → its weight was handed back.
+    expect(r.weights.stackFit).toBe(0);
+    expect(sumOf(r.weights)).toBeCloseTo(1, 10);
+    const rows =
+      r.weights.ruleMargin * r.ruleMargin +
+      r.weights.directionFit * r.directionFit +
+      r.weights.signalCompleteness * r.signalCompleteness +
+      r.weights.freshness * r.freshness +
+      r.weights.sourceQuality * r.sourceQuality +
+      r.weights.seniorityFit * (r.seniorityFit ?? 0);
+    expect(Math.round(100 * rows)).toBe(r.total);
+  });
+
+  it('reports the components it used, null for the ones without signal', () => {
+    const r = scoreAd({
+      ...base,
+      title: 'Senior Frontend Engineer – React / Vue',
+      candidate,
+      calibration: DEFAULT_CALIBRATION,
+    });
+    expect(r.seniorityFit).toBe(1);
+    expect(r.stackFit).toBeCloseTo(0.5);
+  });
+});
+
 // ── selectTiers ──────────────────────────────────────────────────────────────
 
 describe('selectTiers', () => {
-  const mk = (p: Partial<ScoredAd> & { id: string; total: number }): ScoredAd => ({
+  const mk = (
+    p: Omit<Partial<ScoredAd>, 'score'> & { id: string; total: number; score?: Partial<ScoreBreakdown> },
+  ): ScoredAd => ({
     id: p.id,
     score: {
       ruleMargin: 1,
@@ -554,9 +688,11 @@ describe('selectTiers', () => {
       signalCompleteness: 1,
       freshness: 1,
       sourceQuality: 1,
+      seniorityFit: null,
+      stackFit: null,
       total: p.total,
       ...(p.score ?? {}),
-    },
+    } as ScoreBreakdown,
     verdicts: p.verdicts ?? [
       { key: 'Pay', severity: 'hard', state: 'pass', because: [] },
       { key: 'Onsite', severity: 'preference', state: 'pass', because: [] },
@@ -782,6 +918,8 @@ describe('selectTiers', () => {
         signalCompleteness: 0.15,
         freshness: 0.15,
         sourceQuality: 0,
+        seniorityFit: 0,
+        stackFit: 0,
       },
     };
     const now = new Date('2026-08-24T12:00:00Z');
