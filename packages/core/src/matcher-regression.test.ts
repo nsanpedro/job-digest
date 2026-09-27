@@ -255,3 +255,112 @@ describe('backend developer CV', () => {
     expect(computeMatch('Backend Developer', null, BACKEND_DEVELOPER_TERMS).tier).toBeGreaterThanOrEqual(0.6);
   });
 });
+
+// ── engineering manager (Sep 2026 ranking eval) ─────────────────────────────
+
+describe('engineering manager — full phrase needs role structure, not a bag of words', () => {
+  // From the Sep 2026 ranking eval against a real account. The user had
+  // "Engineering Manager" as a searchTerm. The full-phrase tier used to fire
+  // whenever both words appeared ANYWHERE in the title, so roles the user
+  // had dismissed scored 1.0 next to the ones they applied to / saved.
+  const TERMS = ['Engineering Manager'] as const;
+
+  // Negatives — dismissed by the user. Both fall all the way to 0, not to
+  // the long-word tier: "engineering" is in NON_DISCRIMINATIVE_ROLE_WORDS
+  // and "manager" is 7 chars, so this term has no long-word evidence to
+  // give. (A term with a domain long word would still land 0.6 — the ladder
+  // below full-phrase is unchanged.)
+  test.each([
+    // A different noun ("Category") qualifies the role head; "Engineering"
+    // after the dash is the category, not the role.
+    'Category Manager - Engineering & Professional Services',
+    // Head first with something else in between — no order, no inversion.
+    'Manager Operations Engineering Performance',
+  ])('dismissed "%s" does not reach the full-phrase tier', (title) => {
+    const r = computeMatch(title, null, TERMS);
+    expect(r.viaFullPhrase).toBe(false);
+    expect(r.tier).toBe(0);
+  });
+
+  // Positive controls — the user applied to or saved every one of these.
+  test.each([
+    'Engineering Manager (m/w/d)',
+    'Engineering Manager (f/m/x)',
+    'Senior Engineering Manager',
+    'Engineering Manager, Infrastructure - Infrastructure Platform',
+    'Engineering Manager Software Engineering',
+    // "Role, Qualifier" inversion: the segment before the comma is the bare
+    // role head, the qualifier names the rest of the term.
+    'Manager, Software Engineering - Growth Platform',
+    'Engineering Manager - Fintech',
+    'Engineering Manager, Cloud Infrastructure (all genders)',
+  ])('applied/saved "%s" matches at 1.0', (title) => {
+    const r = computeMatch(title, null, TERMS);
+    expect(r.tier).toBe(1.0);
+    expect(r.viaFullPhrase).toBe(true);
+  });
+
+  test('mirror image of the inversion — "Engineering - Office Manager" — is not a match', () => {
+    // The bare segment must hold the term's head ("manager"), not just any
+    // term word, or a department prefix would invert into a false hit.
+    expect(computeMatch('Engineering - Office Manager', null, TERMS).tier).toBe(0);
+  });
+
+  test('a domain long word still carries 0.6 when the phrase structure fails', () => {
+    // The order rule only gates the full-phrase tiers; the long-word tier
+    // below is untouched. "platform" is 8 chars and not a role suffix.
+    const r = computeMatch('Category Manager - Platform Engineering', null, ['Platform Engineering Manager']);
+    expect(r.viaFullPhrase).toBe(false);
+    expect(r.tier).toBe(0.6);
+    expect(r.viaLongWord).toBe('platform');
+  });
+
+  test('head-first "Director of Engineering" still matches "engineering director"', () => {
+    // "of" is dropped by tokenize, so the two words form a contiguous run.
+    expect(computeMatch('Director of Engineering', null, ['engineering director']).tier).toBe(1.0);
+  });
+
+  test('description tier follows the same rule', () => {
+    expect(
+      computeMatch('Growth Lead', 'Our manager of operations engineering performance reports to the COO.', TERMS).tier,
+    ).toBe(0);
+    expect(
+      computeMatch('Growth Lead', 'You will join as Engineering Manager for the payments team.', TERMS).tier,
+    ).toBe(0.8);
+  });
+});
+
+describe('frontend engineer — synonyms and "Role, Qualifier" titles survive the order rule', () => {
+  const TERMS = ['Frontend Engineer'] as const;
+
+  test.each([
+    'Senior Frontend Developer',
+    'Senior Frontend Entwickler',
+    // Greenhouse/Lever inversion with a generic discipline word ("Software")
+    // before the head — allowed via GENERIC_ROLE_MODIFIERS.
+    'Software Engineer, Frontend (React, NextJS)',
+  ])('"%s" matches at 1.0', (title) => {
+    expect(computeMatch(title, null, TERMS).tier).toBe(1.0);
+  });
+
+  test('"Sales Engineer, Frontend" is not an inversion — "sales" qualifies the head', () => {
+    // Drops out of the full-phrase tier and lands on long-word evidence:
+    // "frontend" is a domain word (8 chars, not a role suffix), so 0.6 —
+    // below the focused threshold, still visible in discovery.
+    const r = computeMatch('Sales Engineer, Frontend', null, TERMS);
+    expect(r.viaFullPhrase).toBe(false);
+    expect(r.tier).toBe(0.6);
+    expect(r.viaLongWord).toBe('frontend');
+  });
+});
+
+describe('team lead software entwicklung — unchanged by the order rule', () => {
+  test('"Team Lead Frontend Development" still misses: "software" is absent', () => {
+    // Not an ordering question: the term's "software" is missing, and
+    // "entwicklung"/"development" are not ROLE_SYNONYMS. Pinned so the
+    // order rule is not mistaken for the reason.
+    const terms = ['Team Lead Software Entwicklung'];
+    expect(computeMatch('Team Lead Frontend Development (m/w/d)', null, terms).tier).toBe(0);
+    expect(computeMatch('Team Lead Software Entwicklung (m/w/d)', null, terms).tier).toBe(1.0);
+  });
+});
