@@ -329,3 +329,15 @@ With the city gate gone, the eval account (targets lead + senior) kept dismissin
 The junior row of the lexicon (`title-lexicon.ts`) grew to the entry-level wording the alerts arrive in, still as a closed list of whole words: intern / internship, trainee, working student, entry level; Werkstudent(in), Werkstudierende, Praktikum / Praktikant(in) (spelled out — the bare `praktik` prefix also read "Praktiker"), Azubi, Ausbildung, Auszubildende; becario/a, pasante / pasantía, prácticas. "Internal", "International" and "Internet" do not read as intern (tested). The gate reads the title live, so it applies to stored ads at once; the stored `title_facts` chip picks up the new words on ingest or via `backfill-title-facts.ts`.
 
 Counted apart from direction misses: `DigestMetrics.explore.belowTargetLevel` next to `preFilterMisses` (still direction-only, so the "didn't match your directions" copy stays true), and the Explore page names it. `metrics.explore` is now non-null when either gate ran. The eval replays it as a separate variant, `v4+level`, beside `v4` without it, and prints how many labelled ads the gate removes — a positive among them is the gate's cost.
+
+### 8.8 Matcher round, measured (27 Sep 2026)
+
+The three matcher changes — spelling pre-pass (`normalizeRoleSpelling`), word-order-aware full phrase, level gate (§8.7) — replayed on the same account and weeks as §8.6. The matcher change applies to every variant's replay, so the "before" column is the eval at `4eb5702`:
+
+| | pairwise | nDCG@10 | recall@10 | dismissed in top 10 | curated (+/−) |
+| --- | --- | --- | --- | --- | --- |
+| v4, matcher before | 0.762 | 0.274 | 0.538 | 10 | 6 / 7 |
+| v4, matcher after | 0.857 | 0.315 | 0.538 | 3 | 6 / 5 |
+| v4 + level gate | 0.857 | 0.315 | 0.538 | 3 | 6 / 3 |
+
+The level gate removed 15 direction-matched ads across the weeks — 8 of them dismissed, none positive — so it only changes the curated tiers (their juniors already ranked below the positives). The one week still weak (0.167) has a single positive, "Staff Engineer - Virtual Assembly Line", that matches none of the user's directions: a direction-coverage gap, not a matcher error.
