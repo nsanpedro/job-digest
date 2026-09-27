@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CALIBRATION_V2,
+  CALIBRATION_V3,
   DEFAULT_CALIBRATION,
   directionFit,
   effectiveWeights,
@@ -275,8 +276,15 @@ describe('effectiveWeights', () => {
   });
 
   it('dropping both v3 components from v3 gives back the v2 weights exactly', () => {
-    const w = effectiveWeights(base, ['seniorityFit', 'stackFit']);
+    const w = effectiveWeights(CALIBRATION_V3.weights, ['seniorityFit', 'stackFit']);
     for (const [k, v] of Object.entries(CALIBRATION_V2.weights)) {
+      expect(w[k as keyof typeof w]).toBeCloseTo(v, 10);
+    }
+  });
+
+  it('dropping locationFit from v4 gives back the v3 weights exactly', () => {
+    const w = effectiveWeights(DEFAULT_CALIBRATION.weights, ['locationFit']);
+    for (const [k, v] of Object.entries(CALIBRATION_V3.weights)) {
       expect(w[k as keyof typeof w]).toBeCloseTo(v, 10);
     }
   });
@@ -451,6 +459,7 @@ describe('DEFAULT_CALIBRATION', () => {
   it('every calibration\'s weights sum to 1.0', () => {
     expect(sumOf(DEFAULT_CALIBRATION.weights)).toBeCloseTo(1, 10);
     expect(sumOf(CALIBRATION_V2.weights)).toBeCloseTo(1, 10);
+    expect(sumOf(CALIBRATION_V3.weights)).toBeCloseTo(1, 10);
   });
 
   it('every weight is in [0, 1]', () => {
@@ -616,7 +625,11 @@ describe('scoreAd with a candidate profile (v3)', () => {
     receivedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
     now,
   };
-  const candidate = { seniorities: ['senior'] as const, stack: ['React', 'TypeScript'] };
+  const candidate = {
+    seniorities: ['senior'] as const,
+    stack: ['React', 'TypeScript'],
+    location: { city: null, remoteOk: false },
+  };
 
   it('a title stating neither rung nor stack scores exactly as under v2', () => {
     for (const title of ['Frontend Engineer', 'Frontend Developer (m/w/d)', 'Marketing Analyst']) {
@@ -683,6 +696,59 @@ describe('scoreAd with a candidate profile (v3)', () => {
     });
     expect(r.seniorityFit).toBe(1);
     expect(r.stackFit).toBeCloseTo(0.5);
+  });
+});
+
+describe('scoreAd with a location (v4)', () => {
+  const now = new Date('2026-08-24T12:00:00Z');
+  const hamburg = {
+    seniorities: [] as const,
+    stack: [] as const,
+    location: { city: 'Hamburg', remoteOk: true },
+  };
+  const score = (locationRaw: string | null) =>
+    scoreAd({
+      facts: NO_FACTS,
+      verdicts: [],
+      ruleset: defaultRuleset(),
+      directions: [direction({ searchTerms: ['engineering manager'] })],
+      candidate: hamburg,
+      title: 'Engineering Manager',
+      locationRaw,
+      source: 'StepStone',
+      receivedAt: now,
+      now,
+      calibration: DEFAULT_CALIBRATION,
+    });
+
+  it('orders an equal role match by distance from home, without dropping any', () => {
+    const home = score('Hamburg').total;
+    const country = score('Köln').total;
+    const europe = score('Zurich').total;
+    const far = score('San Francisco, CA').total;
+    expect(home).toBeGreaterThan(country);
+    expect(country).toBeGreaterThan(europe);
+    expect(europe).toBeGreaterThan(far);
+    // A strong role match abroad still clears Worth-a-read — ranked lower,
+    // not filtered out (the whole point of v4).
+    expect(far).toBeGreaterThanOrEqual(DEFAULT_CALIBRATION.tierThresholds.worthAReading);
+  });
+
+  it('an unplaceable location scores exactly as under v3', () => {
+    const v3 = scoreAd({
+      facts: NO_FACTS,
+      verdicts: [],
+      ruleset: defaultRuleset(),
+      directions: [direction({ searchTerms: ['engineering manager'] })],
+      title: 'Engineering Manager',
+      source: 'StepStone',
+      receivedAt: now,
+      now,
+      calibration: CALIBRATION_V3,
+    });
+    const r = score('N/A');
+    expect(r.locationFit).toBeNull();
+    expect(r.total).toBe(v3.total);
   });
 });
 
@@ -931,6 +997,7 @@ describe('selectTiers', () => {
         sourceQuality: 0,
         seniorityFit: 0,
         stackFit: 0,
+        locationFit: 0,
       },
     };
     const now = new Date('2026-08-24T12:00:00Z');

@@ -124,11 +124,12 @@ export interface DigestMetrics {
    */
   inDigest: number;
   /**
-   * Ads in the explore bucket. Null when no pre-filter was active (no city set,
-   * no directions — the pre-passes didn't run, so everything was scored).
+   * Ads in the explore bucket. Null when no pre-filter was active (no
+   * directions — the pre-pass didn't run, so everything was scored).
    *
-   * `preFilterMisses` — ads that failed location / signal / direction and went
-   * to explore before scoring. `belowThreshold` — ads that were scored but
+   * `preFilterMisses` — ads that matched none of the user's directions and
+   * went to explore before scoring. (Location stopped being a pre-filter in
+   * calibration v4; it is scored as `locationFit`.) `belowThreshold` — ads that were scored but
    * didn't rank high enough to enter a tier.
    */
   explore: { total: number; preFilterMisses: number; belowThreshold: number } | null;

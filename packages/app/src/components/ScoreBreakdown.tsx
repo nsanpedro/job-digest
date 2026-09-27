@@ -16,6 +16,7 @@ const LABELS: Record<keyof Breakdown['weights'], string> = {
   signalCompleteness: 'Signal',
   seniorityFit: 'Seniority',
   stackFit: 'Stack',
+  locationFit: 'Location',
 };
 
 /**
@@ -38,6 +39,8 @@ const TOOLTIPS: Record<keyof Breakdown['weights'], string> = {
     'How the level in the title (Junior, Senior, Lead…) compares to the level your CV and directions aim at. Same level = 1.0, one step up = 0.6, one step down = 0.4. "—" when either side names no level.',
   stackFit:
     'Share of the technologies the title names that your CV or directions name too. "—" when the title names none.',
+  locationFit:
+    'How close the job is to your city (Profile → Location). Your city or remote you accept = 1.0, same country = 0.6, elsewhere in Europe = 0.3, further = 0.1. "—" when the location can\'t be placed.',
 };
 
 /** Ordered top-down by weight — highest contribution first. */
@@ -45,6 +48,7 @@ const ORDER: (keyof typeof LABELS)[] = [
   'directionFit',
   'ruleMargin',
   'freshness',
+  'locationFit',
   'seniorityFit',
   'sourceQuality',
   'signalCompleteness',

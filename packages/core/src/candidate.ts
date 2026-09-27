@@ -18,9 +18,14 @@
  * its own homework. A feedback signal gets its own component, and its own
  * temporal split in the eval, when it lands.
  *
+ * The account's home city and remote preference ride along as
+ * `location` — the input to `locationFit` since the city stopped being a
+ * pre-filter (ADR-003 §8.6).
+ *
  * Pure. Computed once per digest read, not per ad.
  */
 import type { Skill } from './discovery';
+import type { UserLocation } from './location';
 import { readSeniority, readStack } from './title-lexicon';
 import type { Seniority } from './title-facts';
 
@@ -29,9 +34,15 @@ export interface CandidateProfile {
   seniorities: readonly Seniority[];
   /** Technologies the user's own text names. Empty = no signal. */
   stack: readonly string[];
+  /** Home city + remote preference from the account. City null = no signal. */
+  location: UserLocation;
 }
 
-export const EMPTY_CANDIDATE: CandidateProfile = Object.freeze({ seniorities: [], stack: [] });
+export const EMPTY_CANDIDATE: CandidateProfile = Object.freeze({
+  seniorities: [],
+  stack: [],
+  location: Object.freeze({ city: null, remoteOk: false }),
+});
 
 /** Only what the derivation reads from a direction. */
 export interface CandidateDirection {
@@ -71,6 +82,7 @@ export function statedYears(skills: readonly Skill[]): number | null {
 export function deriveCandidateProfile(input: {
   skills: readonly Skill[];
   directions: readonly CandidateDirection[];
+  location?: UserLocation;
 }): CandidateProfile {
   const fromDirections = new Set<Seniority>();
   for (const d of input.directions) {
@@ -94,5 +106,9 @@ export function deriveCandidateProfile(input: {
   ];
   for (const t of texts) for (const tech of readStack(t)) stack.add(tech);
 
-  return { seniorities, stack: [...stack] };
+  return {
+    seniorities,
+    stack: [...stack],
+    location: input.location ?? EMPTY_CANDIDATE.location,
+  };
 }

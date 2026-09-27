@@ -25,7 +25,7 @@ export interface DiagnosticInput {
   adsReceived: number;
   /** Ads scored below the tier thresholds. */
   belowThreshold: number;
-  /** Ads that failed a pre-filter (location / direction) before scoring. */
+  /** Ads that matched none of the user's directions and skipped scoring. */
   preFilterMisses: number;
   /** All rule-blocked ads, so we can attribute counts per rule. */
   ruleBlocked: readonly BlockedAdSummary[];
@@ -98,16 +98,16 @@ export function explainDigest(input: DiagnosticInput): Insight[] {
     });
   }
 
-  // Pre-filter misses (location / direction) usually mean the corpus is
+  // Pre-filter misses (direction) usually mean the corpus is
   // pointed the wrong way — often more actionable via profile than via
   // rules.
   if (input.preFilterMisses > 0 && input.preFilterMisses >= input.adsReceived * 0.5) {
     insights.push({
       kind: 'pre-filter-miss',
-      message: `${input.preFilterMisses} ads didn't match your location or directions.`,
+      message: `${input.preFilterMisses} ads didn't match your directions.`,
       action: {
         label: 'Adjust profile',
-        hint: 'Add a direction or broaden your location to widen the pool.',
+        hint: 'Add a direction or widen its search terms to broaden the pool.',
       },
     });
   }

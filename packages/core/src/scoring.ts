@@ -18,6 +18,7 @@ import { LEVELS, type Facts, type Ruleset, type Verdict } from './types';
 import type { Distance } from './discovery';
 import { EMPTY_CANDIDATE, type CandidateProfile } from './candidate';
 import { computeMatch, DISTANCE_FACTOR, ROLE_SYNONYMS as MATCHING_ROLE_SYNONYMS } from './matching';
+import { locationFit } from './location';
 import { readSeniority, readStack } from './title-lexicon';
 import type { Seniority } from './title-facts';
 
@@ -53,6 +54,12 @@ export interface ScoreBreakdown {
    * names too. Null when the title names none or the user named none.
    */
   stackFit: number | null;
+  /**
+   * How close the ad's location is to the user's home city (city / remote
+   * = 1.0, same country 0.6, Europe 0.3, elsewhere 0.1). Null when the
+   * location can't be placed or the user set no city.
+   */
+  locationFit: number | null;
   /** round(100 × Σ (weight × component)) over the components with signal. */
   total: number;
   /**
@@ -92,6 +99,7 @@ export interface Calibration {
     sourceQuality: number;
     seniorityFit: number;
     stackFit: number;
+    locationFit: number;
   };
   tierThresholds: {
     /** Top pick eligibility. */
@@ -139,6 +147,7 @@ export const CALIBRATION_V2: Calibration = {
     // v2 predates these components; zero weight reproduces v2 exactly.
     seniorityFit: 0,
     stackFit: 0,
+    locationFit: 0,
   },
   tierThresholds: {
     topPick: 70,
@@ -191,7 +200,7 @@ const V3_ADDED = { seniorityFit: 0.1, stackFit: 0.05 } as const;
  * `scripts/eval-ranking.ts` answers against the user's own saves, applies
  * and dismissals.
  */
-export const DEFAULT_CALIBRATION: Calibration = {
+export const CALIBRATION_V3: Calibration = {
   ...CALIBRATION_V2,
   version: 3,
   weights: (() => {
@@ -205,6 +214,52 @@ export const DEFAULT_CALIBRATION: Calibration = {
       sourceQuality: w.sourceQuality * scale,
       seniorityFit: V3_ADDED.seniorityFit,
       stackFit: V3_ADDED.stackFit,
+      locationFit: 0,
+    };
+  })(),
+};
+
+/** Weight `locationFit` takes off the top of v3, which is scaled to make room. */
+const V4_LOCATION_WEIGHT = 0.05;
+
+/**
+ * v4 calibration — location stops being a pre-filter and becomes a score
+ * component (ADR-003 §8.6).
+ *
+ * v1–v3 dropped every ad outside the user's city (unless remote) into
+ * Explore before scoring. On the first real account that gate hid 6 of the
+ * 9 ads the user had applied to; replaying the same weeks without it
+ * tripled recall@10. `locationFit` keeps the preference — the home city and
+ * acceptable remote rank first — without deciding for the user that Köln or
+ * Zurich are out of the question.
+ *
+ * Same construction as v3: the v3 weights are scaled by `1 - 0.05`, and an
+ * ad whose location can't be placed (or a user with no city) scores exactly
+ * as under v3.
+ *
+ * The weight is a tiebreak on purpose. Swept on that account with
+ * `scripts/eval-ranking.ts` (0 / 0.05 / 0.10 / 0.15 / 0.20), every step up
+ * cost ranking quality — pairwise 0.795 → 0.762 → 0.743 → 0.738 → 0.733 —
+ * because the user applies well beyond their stated city. 0.05 keeps the
+ * stated preference as a tiebreak between equal role matches (a user whose
+ * city genuinely matters still sees it first) at a small cost on the one
+ * account we can measure; 0 would make the Location setting decorative.
+ */
+export const DEFAULT_CALIBRATION: Calibration = {
+  ...CALIBRATION_V3,
+  version: 4,
+  weights: (() => {
+    const w = CALIBRATION_V3.weights;
+    const scale = 1 - V4_LOCATION_WEIGHT;
+    return {
+      ruleMargin: w.ruleMargin * scale,
+      directionFit: w.directionFit * scale,
+      signalCompleteness: w.signalCompleteness * scale,
+      freshness: w.freshness * scale,
+      sourceQuality: w.sourceQuality * scale,
+      seniorityFit: w.seniorityFit * scale,
+      stackFit: w.stackFit * scale,
+      locationFit: V4_LOCATION_WEIGHT,
     };
   })(),
 };
@@ -525,6 +580,8 @@ export interface ScoreAdArgs {
   /** What the user's own text says about them. Omitted = no signal (v2 behaviour). */
   candidate?: CandidateProfile;
   title: string;
+  /** The ad's raw location line. Omitted = no location signal. */
+  locationRaw?: string | null;
   source: string;
   receivedAt: Date;
   now: Date;
@@ -539,6 +596,8 @@ export interface ScoreAdArgs {
  * by construction (a test in the suite guards it), so the total lives in
  * `[0, 100]` without further clamping.
  */
+const ROUNDING_EPSILON = 1e-9;
+
 export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   const { facts, ruleset, directions, title, source, receivedAt, now, calibration } = args;
   const candidate = args.candidate ?? EMPTY_CANDIDATE;
@@ -556,6 +615,8 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   const qualifies = df > 0;
   const sf = qualifies ? seniorityFit(readSeniority(title), candidate.seniorities) : null;
   const kf = qualifies ? stackFit(readStack(title), candidate.stack) : null;
+  // Location is about the job, not the role match — it speaks on every ad.
+  const lf = locationFit(args.locationRaw ?? null, candidate.location);
 
   // Weights honor "signals nobody gave": with zero directions the
   // directionFit weight is redistributed (an unconfigured user isn't given
@@ -565,8 +626,13 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   if (directions.length === 0) missing.push('directionFit');
   if (sf === null) missing.push('seniorityFit');
   if (kf === null) missing.push('stackFit');
+  if (lf === null) missing.push('locationFit');
   const w = effectiveWeights(calibration.weights, missing);
+  // The epsilon absorbs float noise from scaling weights down and back up
+  // (v4 → v3 → v2 via effectiveWeights): a true 73.5 must round the same
+  // way under every calibration, not to 73 in one and 74 in the next.
   const total = Math.round(
+    ROUNDING_EPSILON +
     100 *
       (w.ruleMargin * rm +
         w.directionFit * df +
@@ -574,7 +640,8 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
         w.freshness * fr +
         w.sourceQuality * sq +
         w.seniorityFit * (sf ?? 0) +
-        w.stackFit * (kf ?? 0)),
+        w.stackFit * (kf ?? 0) +
+        w.locationFit * (lf ?? 0)),
   );
 
   return {
@@ -585,6 +652,7 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
     sourceQuality: sq,
     seniorityFit: sf,
     stackFit: kf,
+    locationFit: lf,
     total,
     weights: w,
   };

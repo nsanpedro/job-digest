@@ -301,3 +301,21 @@ The user side (`deriveCandidateProfile`, `packages/core/src/candidate.ts`) comes
 The v3 weights are hand-set like v2's. The eval is how they get checked against a real account before any further moves — the same "reading the top pick" loop as §2.5, made countable.
 
 **First real-account run (27 Sep 2026, one account, 11 weeks, 26 positive / 56 negative label-weeks).** v2 vs v3 is a wash on pairwise accuracy (0.686 vs 0.681), with fewer dismissed ads in the top 10 (15 → 12) and in the curated tiers (7 → 5). The run also caught v3 lifting unrelated roles ("Senior Consultant Digitalisierung") on seniority alone, so `seniorityFit` / `stackFit` now only speak when `directionFit > 0`. The run's bigger finding is upstream of scoring: 6 of the 9 ads the user applied to fail the city pre-filter (Köln, Zurich, Amsterdam, …). Replaying without that gate (`--no-location-gate`) moves pairwise 0.69 → 0.80, recall@10 0.19 → 0.58 and nDCG@10 0.10 → 0.30 — an order of magnitude more than any weight change. Treating "software" / "entwicklung" as non-evidence in the long-word tier removes junior/werkstudent false positives but also drops two applied ads, so that fix needs a sharper rule than a blocklist entry.
+
+### 8.6 v4 calibration — location is scored, not gated (Sep 2026)
+
+The city pre-filter in `getDigest` is gone. It sent every ad whose location string didn't contain the user's city (or a hard-coded alias of its country) to Explore before scoring; on the one account with labels, that hid 6 of the 9 ads the user had applied to, and it was inconsistent on its own terms ("Berlin, Germany" passed a Hamburg user, "Köln" didn't).
+
+Location is now `locationFit` (`packages/core/src/location.ts`): home city or acceptable remote = 1.0, same country 0.6, rest of Europe 0.3, elsewhere 0.1, null when the string can't be placed or the user set no city. Countries come from a closed lexicon of names (EN/DE/ES) and major cities; remote tied to a far-away country ("Remote in the US") is not treated as remote the user can take. The only pre-filter left is the direction match.
+
+Weight 0.05, with v3 scaled to make room (so an unplaceable location scores exactly as under v3). The weight is a tiebreak on purpose — swept on that account, every step up cost ranking quality:
+
+| `locationFit` weight | pairwise | nDCG@10 | recall@10 |
+| --- | --- | --- | --- |
+| v2 / v3 (city gate) | 0.686 / 0.681 | 0.108 / 0.103 | 0.192 |
+| 0 (no gate, no signal) | 0.795 | 0.289 | 0.577 |
+| **0.05 (shipped)** | **0.762** | **0.274** | **0.538** |
+| 0.10 | 0.743 | 0.248 | 0.462 |
+| 0.15 | 0.738 | 0.223 | 0.423 |
+
+This user applies well beyond the stated city, so any location preference costs on this account. 0.05 keeps the stated city first among equal matches for a user whose preference is real, rather than making the Location setting decorative. The next measurable lever is the matcher: with the gate gone, its false positives ("Category Manager – Engineering" matching "Engineering Manager", "Junior Software Engineer" matching via the long word "software") are what fills the top of the list.

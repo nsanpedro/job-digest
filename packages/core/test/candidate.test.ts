@@ -57,6 +57,10 @@ describe('deriveCandidateProfile', () => {
   });
 
   it('an empty profile yields no signal at all', () => {
-    expect(deriveCandidateProfile({ skills: [], directions: [] })).toEqual({ seniorities: [], stack: [] });
+    expect(deriveCandidateProfile({ skills: [], directions: [] })).toEqual({
+      seniorities: [],
+      stack: [],
+      location: { city: null, remoteOk: false },
+    });
   });
 });

@@ -5,7 +5,6 @@ export {
   getParseSummary,
   getUnreadEmails,
   matchesAnyDirection,
-  passesLocationFilter,
 } from './queries/digest';
 export { getActiveRuleset, NoActiveRulesetError } from './queries/ruleset';
 export { getDismissedAds, getSavedAds, getSavedCount } from './queries/history';

@@ -18,6 +18,7 @@ export { eur, describeCondition, describePredicate, predicateFactName } from './
 export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked } from './evaluate';
 export {
   CALIBRATION_V2,
+  CALIBRATION_V3,
   DEFAULT_CALIBRATION,
   ROLE_SYNONYMS,
   directionFit,
@@ -49,6 +50,14 @@ export {
   type CandidateDirection,
   type CandidateProfile,
 } from './candidate';
+export {
+  countriesIn,
+  homeCountry,
+  isRemoteLocation,
+  locationFit,
+  type Region,
+  type UserLocation,
+} from './location';
 export { SENIORITY_PATTERNS, STACK_PATTERNS, readSeniority, readStack } from './title-lexicon';
 export {
   LABEL_GAIN,

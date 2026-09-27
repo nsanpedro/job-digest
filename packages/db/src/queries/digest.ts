@@ -51,44 +51,6 @@ import { weekWindow, type Window } from './window';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
 
-// ── Location matching ─────────────────────────────────────────────────────────
-
-const REMOTE_KEYWORDS = ['remote', 'home office', 'homeoffice', 'anywhere', 'distributed'];
-
-// Country/region aliases for common cities — lets "Spain" match a Barcelona user.
-const CITY_GEO: Record<string, string[]> = {
-  barcelona:    ['spain', 'españa', ', es'],
-  madrid:       ['spain', 'españa', ', es'],
-  berlin:       ['germany', 'deutschland', ', de'],
-  munich:       ['germany', 'deutschland', ', de'],
-  münchen:      ['germany', 'deutschland', ', de'],
-  hamburg:      ['germany', 'deutschland', ', de'],
-  frankfurt:    ['germany', 'deutschland', ', de'],
-  cologne:      ['germany', 'deutschland', ', de'],
-  köln:         ['germany', 'deutschland', ', de'],
-  zurich:       ['switzerland', 'schweiz', ', ch'],
-  zürich:       ['switzerland', 'schweiz', ', ch'],
-  vienna:       ['austria', 'österreich', ', at'],
-  wien:         ['austria', 'österreich', ', at'],
-  'buenos aires': ['argentina', ', ar'],
-};
-
-/**
- * True when the ad's raw location string is consistent with the user's city
- * preference. Missing location → passes (we don't filter what we don't know).
- * Remote jobs pass when the user has opted in to remote.
- *
- * Exported for the offline ranking eval (worker/scripts/eval-ranking.ts),
- * which replays this same pre-filter rather than a copy of it.
- */
-export function passesLocationFilter(locationRaw: string | null, city: string, remoteOk: boolean): boolean {
-  if (!locationRaw) return true;
-  const loc = locationRaw.toLowerCase();
-  if (remoteOk && REMOTE_KEYWORDS.some((kw) => loc.includes(kw))) return true;
-  if (loc.includes(city)) return true;
-  return (CITY_GEO[city] ?? []).some((alias) => loc.includes(alias));
-}
-
 // ── Direction matching ────────────────────────────────────────────────────────
 //
 // The match ladder itself (full-phrase / long-word tiers, synonyms,
@@ -192,13 +154,14 @@ export async function getDigest(
   const window = options.window ?? weekWindow(now);
   const { version: rulesetVersion, rules } = await getActiveRuleset(db, userId);
 
-  // User's location preferences — used for location and signal pre-filters.
+  // User's location preferences — a score component (locationFit), not a
+  // pre-filter since v4 (ADR-003 §8.6).
   const acct = await db
     .select({ city: accounts.city, remoteOk: accounts.remoteOk })
     .from(accounts)
     .where(eq(accounts.id, userId))
     .limit(1);
-  const userCity = acct[0]?.city?.toLowerCase() ?? null;
+  const userCity = acct[0]?.city ?? null;
   const remoteOk = acct[0]?.remoteOk ?? false;
 
   // Ads with at least one sighting inside the window, plus the alert name and
@@ -241,6 +204,7 @@ export async function getDigest(
   const candidate = deriveCandidateProfile({
     skills: profile?.skills ?? [],
     directions: interestedDirs,
+    location: { city: userCity, remoteOk },
   });
   const history = await getTopPickHistory(db, userId, now);
   const calibration = DEFAULT_CALIBRATION;
@@ -313,10 +277,12 @@ export async function getDigest(
     return compareAds(a, b);
   });
 
-  // ── Pass 2: two pre-filters (location → direction) → explore ─────────────
+  // ── Pass 2: direction pre-filter → explore ─────────────────────────────────
   //
-  // Only gates where we have a hard user preference — wrong city or wrong
-  // direction. Signal completeness (Pay/Onsite unknown) is NOT a gate: it is
+  // The one gate where we have a hard user preference — wrong direction.
+  // Location used to be a second gate here; it hid most of the ads the first
+  // real account applied to (Köln, Zurich, Amsterdam), so it is now the
+  // `locationFit` score component instead (ADR-003 §8.6). Signal completeness (Pay/Onsite unknown) is NOT a gate: it is
   // captured as a score component (signalCompleteness, 15%) so low-signal ads
   // rank below high-signal ones without being eliminated entirely. Most real
   // ads don't carry salary or remote policy in the alert email; treating that
@@ -326,18 +292,6 @@ export async function getDigest(
 
   const explorePool: DigestAd[] = [];
   let candidates = eligible;
-
-  if (userCity !== null) {
-    const next: typeof eligible = [];
-    for (const entry of candidates) {
-      if (passesLocationFilter(entry.ad.location, userCity, remoteOk)) {
-        next.push(entry);
-      } else {
-        explorePool.push(entry.ad);
-      }
-    }
-    candidates = next;
-  }
 
   if (interestedDirs.length > 0) {
     const next: typeof eligible = [];
@@ -374,6 +328,7 @@ export async function getDigest(
       directions: interestedDirs,
       candidate,
       title: ad.title,
+      locationRaw: ad.location,
       source: ad.source,
       receivedAt: ad.receivedAt,
       now,
@@ -422,7 +377,7 @@ export async function getDigest(
   // Record top picks for I25 (idempotent via unique index).
   await recordTopPicks(db, userId, topPicks.map((a) => a.id), now);
 
-  const anyFilterActive = userCity !== null || interestedDirs.length > 0;
+  const anyFilterActive = interestedDirs.length > 0;
   const metrics: DigestMetrics = {
     adsReceived: rows.length,
     inDigest: topPicks.length + worthAReading.length + stretch.length,

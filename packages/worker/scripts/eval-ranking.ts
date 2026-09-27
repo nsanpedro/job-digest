@@ -8,10 +8,13 @@
 // top-pick history is written, and user-dismissed ads stay IN the ranking
 // (getDigest moves them aside, which would hide every negative label).
 //
-// What is replayed, per week:
-//   evaluate() → drop hard-blocked (unless overridden) → location + direction
-//   pre-filters (the same exported functions getDigest uses) → scoreAd →
+// What is replayed, per week and per variant:
+//   evaluate() → drop hard-blocked (unless overridden) → the variant's
+//   pre-filters (direction, via the same matchesAnyDirection getDigest uses;
+//   plus the pre-v4 city gate for the variants that had it) → scoreAd →
 //   rank: gated ads by score desc, then pre-filter misses by score desc.
+// Each variant is the pipeline as it shipped: v2 and v3 behind the city
+// gate, v4 with location scored instead (ADR-003 §8.6).
 // The curated surface (Top / Read / Stretch via selectTiers) is reported
 // separately — that is what the user actually sees first.
 //
@@ -25,14 +28,12 @@
 //
 // Usage:
 //   DATABASE_URL=... npx tsx packages/worker/scripts/eval-ranking.ts \
-//     --userId <uuid> [--weeks 8] [--k 10] [--movers 10] [--no-location-gate]
-//
-// --no-location-gate replays every week without the city pre-filter — a
-// what-if for "is the location gate hiding ads the user wants?".
+//     --userId <uuid> [--weeks 8] [--k 10] [--movers 10]
 //
 // Exit codes: 0 — report printed; 2 — argument or connection error.
 import {
   CALIBRATION_V2,
+  CALIBRATION_V3,
   DEFAULT_CALIBRATION,
   EMPTY_CANDIDATE,
   aggregateMetrics,
@@ -59,7 +60,6 @@ import {
   getActiveRuleset,
   listInterestedDirections,
   matchesAnyDirection,
-  passesLocationFilter,
   previousWeekWindow,
   type DirectionRow,
   type Window,
@@ -74,11 +74,10 @@ interface Args {
   weeks: number;
   k: number;
   movers: number;
-  locationGate: boolean;
 }
 
 function parseArgs(argv: readonly string[]): Args {
-  const out: Args = { userId: '', weeks: 8, k: 10, movers: 10, locationGate: true };
+  const out: Args = { userId: '', weeks: 8, k: 10, movers: 10 };
   const int = (raw: string | undefined, fallback: number) => {
     const n = Number.parseInt(raw ?? '', 10);
     return Number.isFinite(n) && n > 0 ? n : fallback;
@@ -89,7 +88,6 @@ function parseArgs(argv: readonly string[]): Args {
     else if (a === '--weeks') out.weeks = int(argv[++i], out.weeks);
     else if (a === '--k') out.k = int(argv[++i], out.k);
     else if (a === '--movers') out.movers = int(argv[++i], out.movers);
-    else if (a === '--no-location-gate') out.locationGate = false;
   }
   if (!out.userId) throw new Error('missing --userId <uuid>');
   return out;
@@ -99,6 +97,41 @@ interface Variant {
   name: string;
   calibration: Calibration;
   candidate: CandidateProfile;
+  /** Whether this variant's pipeline dropped ads outside the city before scoring (v1–v3). */
+  locationGate: boolean;
+}
+
+// ── The pre-v4 city gate, frozen for comparison ──────────────────────────────
+//
+// Copied verbatim from getDigest as it stood before location became a score
+// component, so v2/v3 replay the pipeline they actually shipped with. Not
+// used by the product any more.
+
+const LEGACY_REMOTE_KEYWORDS = ['remote', 'home office', 'homeoffice', 'anywhere', 'distributed'];
+const LEGACY_CITY_GEO: Record<string, string[]> = {
+  barcelona: ['spain', 'españa', ', es'],
+  madrid: ['spain', 'españa', ', es'],
+  berlin: ['germany', 'deutschland', ', de'],
+  munich: ['germany', 'deutschland', ', de'],
+  münchen: ['germany', 'deutschland', ', de'],
+  hamburg: ['germany', 'deutschland', ', de'],
+  frankfurt: ['germany', 'deutschland', ', de'],
+  cologne: ['germany', 'deutschland', ', de'],
+  köln: ['germany', 'deutschland', ', de'],
+  zurich: ['switzerland', 'schweiz', ', ch'],
+  zürich: ['switzerland', 'schweiz', ', ch'],
+  vienna: ['austria', 'österreich', ', at'],
+  wien: ['austria', 'österreich', ', at'],
+  'buenos aires': ['argentina', ', ar'],
+};
+
+function legacyPassesLocation(locationRaw: string | null, city: string | null, remoteOk: boolean): boolean {
+  if (city === null || !locationRaw) return true;
+  const c = city.toLowerCase();
+  const loc = locationRaw.toLowerCase();
+  if (remoteOk && LEGACY_REMOTE_KEYWORDS.some((kw) => loc.includes(kw))) return true;
+  if (loc.includes(c)) return true;
+  return (LEGACY_CITY_GEO[c] ?? []).some((alias) => loc.includes(alias));
 }
 
 interface WeekAd {
@@ -107,7 +140,9 @@ interface WeekAd {
   company: string | null;
   source: string;
   label: Label | null;
-  gated: boolean;
+  locationRaw: string | null;
+  directionOk: boolean;
+  legacyLocationOk: boolean;
   repeat: boolean;
   facts: (typeof ads.$inferSelect)['facts'];
   verdicts: ReturnType<typeof evaluate>;
@@ -156,7 +191,6 @@ async function loadWeek(
       blocked++;
       continue;
     }
-    const locationOk = ctx.city === null || passesLocationFilter(row.ad.locationRaw, ctx.city, ctx.remoteOk);
     const directionOk = ctx.dirs.length === 0 || matchesAnyDirection(row.ad.title, ctx.dirs);
     out.push({
       id: row.ad.id,
@@ -168,7 +202,9 @@ async function loadWeek(
         saved: row.state?.saved ?? false,
         dismissed: row.state?.dismissedAt != null,
       }),
-      gated: locationOk && directionOk,
+      locationRaw: row.ad.locationRaw,
+      directionOk,
+      legacyLocationOk: legacyPassesLocation(row.ad.locationRaw, ctx.city, ctx.remoteOk),
       repeat: row.ad.firstSeenAt < window.start,
       facts: row.ad.facts,
       verdicts,
@@ -198,6 +234,7 @@ function runVariant(
         directions: ctx.dirs,
         candidate: variant.candidate,
         title: ad.title,
+        locationRaw: ad.locationRaw,
         source: ad.source,
         receivedAt: ad.receivedAt,
         now,
@@ -206,13 +243,14 @@ function runVariant(
     );
   }
 
+  const isGated = (a: WeekAd) => a.directionOk && (!variant.locationGate || a.legacyLocationOk);
   const byScore = (a: WeekAd, b: WeekAd) =>
     scoreOf.get(b.id)!.total - scoreOf.get(a.id)!.total || a.id.localeCompare(b.id);
-  const ranked = [...week.filter((a) => a.gated).sort(byScore), ...week.filter((a) => !a.gated).sort(byScore)];
+  const ranked = [...week.filter(isGated).sort(byScore), ...week.filter((a) => !isGated(a)).sort(byScore)];
   const rankOf = new Map(ranked.map((a, i) => [a.id, i + 1]));
 
   const pool: ScoredAd[] = week
-    .filter((a) => a.gated)
+    .filter(isGated)
     .map((a) => ({
       id: a.id,
       score: scoreOf.get(a.id)!,
@@ -255,11 +293,15 @@ async function main() {
         .from(accounts)
         .where(eq(accounts.id, args.userId))
         .limit(1);
-      const city = args.locationGate ? (acct[0]?.city?.toLowerCase() ?? null) : null;
+      const city = acct[0]?.city ?? null;
       const remoteOk = acct[0]?.remoteOk ?? false;
       const dirs = await listInterestedDirections(tx, args.userId);
       const profile = await getActiveProfile(tx, args.userId);
-      const candidate = deriveCandidateProfile({ skills: profile?.skills ?? [], directions: dirs });
+      const candidate = deriveCandidateProfile({
+        skills: profile?.skills ?? [],
+        directions: dirs,
+        location: { city, remoteOk },
+      });
       const appliedRows = await tx
         .selectDistinct({ adId: applicationEvents.adId })
         .from(applicationEvents)
@@ -267,8 +309,14 @@ async function main() {
       const applied = new Set(appliedRows.map((r) => r.adId));
 
       const variants: Variant[] = [
-        { name: `v${CALIBRATION_V2.version}`, calibration: CALIBRATION_V2, candidate: EMPTY_CANDIDATE },
-        { name: `v${DEFAULT_CALIBRATION.version}`, calibration: DEFAULT_CALIBRATION, candidate },
+        { name: `v${CALIBRATION_V2.version}`, calibration: CALIBRATION_V2, candidate: EMPTY_CANDIDATE, locationGate: true },
+        {
+          name: `v${CALIBRATION_V3.version}`,
+          calibration: CALIBRATION_V3,
+          candidate: { ...candidate, location: EMPTY_CANDIDATE.location },
+          locationGate: true,
+        },
+        { name: `v${DEFAULT_CALIBRATION.version}`, calibration: DEFAULT_CALIBRATION, candidate, locationGate: false },
       ];
 
       const weeks: Array<{ window: Window; ads: WeekAd[]; blocked: number; results: VariantWeek[] }> = [];
@@ -292,10 +340,7 @@ async function main() {
     const day = (d: Date) => d.toISOString().slice(0, 10);
 
     console.log(`Ranking eval — user ${args.userId}, ${weeks.length} week(s), k=${args.k}`);
-    console.log(
-      `ruleset@v${report.rulesetVersion}, ${report.dirs.length} direction(s)` +
-        (args.locationGate ? '' : ', location gate OFF (what-if)'),
-    );
+    console.log(`ruleset@v${report.rulesetVersion}, ${report.dirs.length} direction(s)`);
     console.log(
       `candidate: seniorities=[${candidate.seniorities.join(', ') || '—'}] stack=[${candidate.stack.join(', ') || '—'}]`,
     );

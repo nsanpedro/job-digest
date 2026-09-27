@@ -55,7 +55,7 @@ export default async function ExplorePage() {
         <>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>
             {preFilterMisses > 0 && (
-              <>{preFilterMisses} removed by location or direction filter. </>
+              <>{preFilterMisses} matched none of your directions. </>
             )}
             {belowThreshold > 0 && (
               <>{belowThreshold} scored below the match threshold.</>
