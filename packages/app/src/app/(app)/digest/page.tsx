@@ -84,13 +84,16 @@ export default async function DigestPage() {
       */}
       <WeekSummary summary={summarizeWeek(digest)} payFloor={eur(rules.Pay.condition.minMonthly)} />
       <DigestList digest={digest} rules={rules} />
-      {digest.explore.length > 0 && (
-        <p style={{ marginTop: 8, fontSize: 13, color: 'var(--text-faint)' }}>
-          <a href="/digest/explore" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>
-            See everything we filtered out ({digest.explore.length} ad{digest.explore.length === 1 ? '' : 's'}) →
-          </a>
-        </p>
-      )}
+      {/*
+        The "See everything we filtered out (N ads) →" link that used to sit
+        here has been removed: the DigestList itself now surfaces the top of
+        explore as "Worth a look" and the rest under a collapsible "Hidden — N
+        more filtered out" disclosure. The dedicated /digest/explore route is
+        still available as a fallback for power users (linked from the
+        empty-state diagnostic), but the main flow no longer requires
+        navigating away to discover the bucket exists — which was the
+        blocker for the graphic-designer test user in AR and the PM in Spain.
+      */}
       <ParseBanner parse={digest.parse} />
     </div>
   );

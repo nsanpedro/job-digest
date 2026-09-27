@@ -24,6 +24,88 @@
   gap: 10px;
 }
 
+/* ── Worth a look (top slice of the explore bucket, always expanded) ────── */
+
+.worthALook {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.sectionGloss {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.sectionRule {
+  flex: 1;
+  opacity: 0.7;
+}
+
+/* ── Hidden (rest of explore, collapsed by default in a native <details>) ── */
+
+.hidden {
+  margin-top: 24px;
+}
+
+.hidden > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font-sans);
+}
+
+.hidden > summary::-webkit-details-marker {
+  display: none;
+}
+
+.hidden > summary::before {
+  content: "▸";
+  font-size: 11px;
+  transition: transform 120ms ease;
+  display: inline-block;
+}
+
+.hidden[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.hidden > summary:hover {
+  color: var(--text);
+}
+
+.hiddenList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+}
+
 /* ── Runners-up (scored-but-below-threshold, collapsed) ──────────────────── */
 
 .runnersUp {
