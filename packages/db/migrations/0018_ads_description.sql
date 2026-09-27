@@ -1,5 +1,5 @@
 -- The posting's description as plain text, for the direction matcher's
--- description window (ADR-003 §8.x "Descriptions in matching"). Before this
+-- description window (ADR-003 §8.11 "Descriptions in matching"). Before this
 -- column every matcher call passed `null` for the description: generic
 -- titles ("Software Engineer (m/w/d)") whose lede names the real role
 -- ("Engineering Manager for our frontend team") never matched.

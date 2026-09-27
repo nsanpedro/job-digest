@@ -24,6 +24,8 @@ import {
   explainMatch,
   isBelowTargetLevel,
   isDirectionHit,
+  isMutedCompany,
+  mutedCompanyKeys,
   scoreAd,
   selectTiers,
   targetsSeniorOnly,
@@ -39,6 +41,7 @@ import { accounts, adNarratives, adSightings, ads, adUserState, emailParses, raw
 import { getLatestApplicationStatuses } from './applications';
 import { getPlatformCapabilities } from './capabilities';
 import { getActiveProfile, listInterestedDirections } from './discovery';
+import { listFeedbackEffects } from './feedback';
 import { getActiveRuleset } from './ruleset';
 import { getTopPickHistory, recordTopPicks } from './top-pick-history';
 import type {
@@ -137,6 +140,8 @@ export function matchesAnyDirection(
 export interface PreFilterSplit<T> {
   /** Passed every active gate — scored into the tiers. */
   passed: T[];
+  /** From a company the user muted from a dismissal (ADR-003 §8.11) → explore, unscored. */
+  mutedCompany: T[];
   /** Matched none of the user's directions → explore, unscored. */
   directionMisses: T[];
   /**
@@ -144,33 +149,41 @@ export interface PreFilterSplit<T> {
    * targets only senior-or-above rungs (ADR-003 §8.7) → explore, unscored.
    */
   belowTargetLevel: T[];
-  /** False when neither gate had signal to run on (no directions, no senior target). */
+  /** False when no gate had signal to run on (no mutes, no directions, no senior target). */
   active: boolean;
 }
 
 /**
  * Pass 2 of `getDigest`, pure: the hard user preferences, applied in order.
- * The direction gate runs first, so an off-direction entry-level ad counts
- * as a direction miss and never as a level miss — the three buckets are
+ * A muted company goes first — it is the most explicit of the three, the
+ * user named it — then the direction gate, so an off-direction entry-level
+ * ad counts as a direction miss and never as a level miss. The buckets are
  * disjoint and each count means one thing.
  *
  * Exported for tests: the rest of `getDigest` needs a database, this doesn't.
  */
-export function applyPreFilters<T extends { ad: { title: string }; description?: string | null }>(
+export function applyPreFilters<
+  T extends { ad: { title: string; company?: string | null }; description?: string | null },
+>(
   entries: readonly T[],
   dirs: readonly DirectionRow[],
   candidate: Pick<CandidateProfile, 'seniorities'>,
+  mutedCompanies: ReadonlySet<string> = new Set(),
 ): PreFilterSplit<T> {
+  const muteGate = mutedCompanies.size > 0;
   const directionGate = dirs.length > 0;
   const levelGate = targetsSeniorOnly(candidate);
   const out: PreFilterSplit<T> = {
     passed: [],
+    mutedCompany: [],
     directionMisses: [],
     belowTargetLevel: [],
-    active: directionGate || levelGate,
+    active: muteGate || directionGate || levelGate,
   };
   for (const entry of entries) {
-    if (directionGate && !matchesAnyDirection(entry.ad.title, dirs, entry.description ?? null)) {
+    if (muteGate && isMutedCompany(entry.ad.company, mutedCompanies)) {
+      out.mutedCompany.push(entry);
+    } else if (directionGate && !matchesAnyDirection(entry.ad.title, dirs, entry.description ?? null)) {
       out.directionMisses.push(entry);
     } else if (levelGate && isBelowTargetLevel(entry.ad.title, candidate)) {
       out.belowTargetLevel.push(entry);
@@ -268,6 +281,8 @@ export async function getDigest(
     location: { city: userCity, remoteOk },
   });
   const history = await getTopPickHistory(db, userId, now);
+  // Companies muted from a dismissal (ADR-003 §8.11) — explicit, reversible.
+  const mutedCompanies = mutedCompanyKeys(await listFeedbackEffects(db, userId));
   const calibration = DEFAULT_CALIBRATION;
 
   // ── Pass 1: split into dismissed vs. eligible ──────────────────────────────
@@ -323,7 +338,7 @@ export async function getDigest(
     // I10: three distinct outcomes, checked in the order the UI presents them.
     if (row.state?.dismissedAt) {
       dismissedByUser++;
-      dismissed.push({ ...base, reason: { kind: 'user' } });
+      dismissed.push({ ...base, reason: { kind: 'user', why: row.state.dismissReason } });
       continue;
     }
     const blockers = verdicts.filter((v) => v.state === 'block');
@@ -368,9 +383,12 @@ export async function getDigest(
   // gate is counted there and never reaches the level check), so each
   // number in the explore header says what it claims.
 
-  const gated = applyPreFilters(eligible, interestedDirs, candidate);
+  const gated = applyPreFilters(eligible, interestedDirs, candidate, mutedCompanies);
   const candidates = gated.passed;
-  const explorePool: DigestAd[] = [...gated.directionMisses, ...gated.belowTargetLevel].map((e) => e.ad);
+  const explorePool: DigestAd[] = [
+    ...gated.mutedCompany.map((e) => ({ ...e.ad, mutedCompany: true })),
+    ...[...gated.directionMisses, ...gated.belowTargetLevel].map((e) => e.ad),
+  ];
 
   // ── Pass 3: score + select tiers ──────────────────────────────────────────
 
@@ -452,6 +470,7 @@ export async function getDigest(
           preFilterMisses: gated.directionMisses.length,
           belowTargetLevel: gated.belowTargetLevel.length,
           belowThreshold: tiered.explore.length,
+          mutedCompany: gated.mutedCompany.length,
         }
       : null,
     filteredByRule,

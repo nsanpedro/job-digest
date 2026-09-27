@@ -24,6 +24,21 @@
 // v4's scores unchanged, Top pick asking only for the hard Pay / Onsite
 // facts (ADR-003 §8.9) — so it differs from v4+level in the Top pick block
 // and the curated column, never in the ranking metrics.
+// v5+level+fb adds the dismiss-reason feedback (ADR-003 §8.11): companies
+// the user muted go to Explore, and exclude terms confirmed from a
+// dismissal apply to their direction — each only from its `created_at`
+// onward, i.e. only effects saved strictly before the replayed week's
+// start (`effectsBefore`). Every other variant runs with those exclude
+// terms taken back out of the stored directions (`withoutExcludeEffects`),
+// so the feature's effect reads as its own row and never leaks into the
+// baseline.
+//
+// Labels and the temporal split: a dismissal is a label for the weeks the
+// ad was seen up to the one it was dismissed in. An ad already dismissed
+// before a week started is left unlabelled in that week, for every variant
+// — the product had already moved it aside, and with feedback on, the
+// dismissal that created a mute would otherwise grade that same mute in
+// every later week.
 // The curated surface (Top / Read / Stretch via selectTiers) is reported
 // separately — that is what the user actually sees first — and the Top pick
 // tier on its own: weeks it came up empty, its size, and the labels in it.
@@ -49,9 +64,13 @@ import {
   EMPTY_CANDIDATE,
   aggregateMetrics,
   deriveCandidateProfile,
+  dismissedBefore,
+  effectsBefore,
   evaluate,
   isBelowTargetLevel,
+  isMutedCompany,
   labelFromState,
+  mutedCompanyKeys,
   rankingMetrics,
   scoreAd,
   selectTiers,
@@ -61,6 +80,8 @@ import {
   type RankingMetrics,
   type ScoreBreakdown,
   type ScoredAd,
+  withExcludeEffects,
+  withoutExcludeEffects,
 } from '@job-digest/core';
 import {
   accounts,
@@ -70,10 +91,12 @@ import {
   applicationEvents,
   getActiveProfile,
   getActiveRuleset,
+  listFeedbackEffects,
   listInterestedDirections,
   matchesAnyDirection,
   previousWeekWindow,
   type DirectionRow,
+  type FeedbackEffectRow,
   type Window,
 } from '@job-digest/db';
 import { and, desc, eq, gte, lt } from 'drizzle-orm';
@@ -113,6 +136,8 @@ interface Variant {
   locationGate: boolean;
   /** Whether entry-level titles go to Explore for a senior-or-above target (ADR-003 §8.7). */
   levelGate: boolean;
+  /** Whether dismiss-reason effects saved before the week apply (ADR-003 §8.11). */
+  feedback: boolean;
 }
 
 // ── The pre-v4 city gate, frozen for comparison ──────────────────────────────
@@ -163,6 +188,7 @@ interface WeekAd {
   facts: (typeof ads.$inferSelect)['facts'];
   verdicts: ReturnType<typeof evaluate>;
   receivedAt: Date;
+  dismissReason: (typeof adUserState.$inferSelect)['dismissReason'];
 }
 
 interface VariantWeek {
@@ -212,17 +238,22 @@ async function loadWeek(
       continue;
     }
     const directionOk = ctx.dirs.length === 0 || matchesAnyDirection(row.ad.title, ctx.dirs, row.ad.description);
+    const label = labelFromState({
+      applied: ctx.applied.has(row.ad.id),
+      saved: row.state?.saved ?? false,
+      dismissed: row.state?.dismissedAt != null,
+    });
+    // Dismissed before this week began: already out of the product's view, and
+    // possibly the source of a feedback effect this week replays — so not a
+    // negative for this week.
+    const priorDismissal = label === 'dismissed' && dismissedBefore(row.state?.dismissedAt, window.start);
     out.push({
       id: row.ad.id,
       title: row.ad.title,
       description: row.ad.description,
       company: row.ad.company,
       source: row.ad.source,
-      label: labelFromState({
-        applied: ctx.applied.has(row.ad.id),
-        saved: row.state?.saved ?? false,
-        dismissed: row.state?.dismissedAt != null,
-      }),
+      label: priorDismissal ? null : label,
       locationRaw: row.ad.locationRaw,
       directionOk,
       legacyLocationOk: legacyPassesLocation(row.ad.locationRaw, ctx.city, ctx.remoteOk),
@@ -230,6 +261,7 @@ async function loadWeek(
       facts: row.ad.facts,
       verdicts,
       receivedAt: row.receivedAt,
+      dismissReason: row.state?.dismissReason ?? null,
     });
   }
   return { ads: out, blocked };
@@ -239,11 +271,22 @@ function runVariant(
   week: readonly WeekAd[],
   window: Window,
   variant: Variant,
-  ctx: { rules: Awaited<ReturnType<typeof getActiveRuleset>>['rules']; dirs: DirectionRow[] },
+  ctx: {
+    rules: Awaited<ReturnType<typeof getActiveRuleset>>['rules'];
+    dirs: DirectionRow[];
+    effects: readonly FeedbackEffectRow[];
+  },
   k: number,
 ): VariantWeek {
   // `now` = end of the week: freshness as it stood when the week closed.
   const now = window.end;
+  // Feedback as it stood when the week began — never an effect saved during it.
+  const fx = variant.feedback ? effectsBefore(ctx.effects, window.start) : [];
+  const dirs = variant.feedback ? withExcludeEffects(ctx.dirs, fx) : ctx.dirs;
+  const muted = mutedCompanyKeys(fx);
+  const directionOk = new Map(
+    week.map((a) => [a.id, variant.feedback ? dirs.length === 0 || matchesAnyDirection(a.title, dirs, a.description) : a.directionOk]),
+  );
   const scoreOf = new Map<string, ScoreBreakdown>();
   for (const ad of week) {
     scoreOf.set(
@@ -252,7 +295,7 @@ function runVariant(
         facts: ad.facts,
         verdicts: ad.verdicts,
         ruleset: ctx.rules,
-        directions: ctx.dirs,
+        directions: dirs,
         candidate: variant.candidate,
         title: ad.title,
         description: ad.description,
@@ -266,7 +309,8 @@ function runVariant(
   }
 
   const isGated = (a: WeekAd) =>
-    a.directionOk &&
+    !isMutedCompany(a.company, muted) &&
+    directionOk.get(a.id)! &&
     (!variant.locationGate || a.legacyLocationOk) &&
     (!variant.levelGate || !isBelowTargetLevel(a.title, variant.candidate));
   const byScore = (a: WeekAd, b: WeekAd) =>
@@ -324,7 +368,11 @@ async function main() {
         .limit(1);
       const city = acct[0]?.city ?? null;
       const remoteOk = acct[0]?.remoteOk ?? false;
-      const dirs = await listInterestedDirections(tx, args.userId);
+      const effects = await listFeedbackEffects(tx, args.userId);
+      // The stored directions already carry every exclude confirmed from a
+      // dismissal; the baseline runs without them, the +fb variant re-adds
+      // each one from its created_at (see runVariant).
+      const dirs = withoutExcludeEffects(await listInterestedDirections(tx, args.userId), effects);
       const profile = await getActiveProfile(tx, args.userId);
       const candidate = deriveCandidateProfile({
         skills: profile?.skills ?? [],
@@ -344,6 +392,7 @@ async function main() {
           candidate: EMPTY_CANDIDATE,
           locationGate: true,
           levelGate: false,
+          feedback: false,
         },
         {
           name: `v${CALIBRATION_V3.version}`,
@@ -351,6 +400,7 @@ async function main() {
           candidate: { ...candidate, location: EMPTY_CANDIDATE.location },
           locationGate: true,
           levelGate: false,
+          feedback: false,
         },
         {
           name: `v${CALIBRATION_V4.version}`,
@@ -358,6 +408,7 @@ async function main() {
           candidate,
           locationGate: false,
           levelGate: false,
+          feedback: false,
         },
         {
           name: `v${CALIBRATION_V4.version}+level`,
@@ -365,6 +416,7 @@ async function main() {
           candidate,
           locationGate: false,
           levelGate: true,
+          feedback: false,
         },
         {
           name: `v${DEFAULT_CALIBRATION.version}+level`,
@@ -372,6 +424,15 @@ async function main() {
           candidate,
           locationGate: false,
           levelGate: true,
+          feedback: false,
+        },
+        {
+          name: `v${DEFAULT_CALIBRATION.version}+level+fb`,
+          calibration: DEFAULT_CALIBRATION,
+          candidate,
+          locationGate: false,
+          levelGate: true,
+          feedback: true,
         },
       ];
 
@@ -386,13 +447,13 @@ async function main() {
           dirs,
           applied,
         });
-        const results = variants.map((v) => runVariant(weekAds, window, v, { rules, dirs }, args.k));
+        const results = variants.map((v) => runVariant(weekAds, window, v, { rules, dirs, effects }, args.k));
         weeks.push({ window, ads: weekAds, blocked, results });
       }
-      return { rulesetVersion, dirs, candidate, variants, weeks };
+      return { rulesetVersion, dirs, candidate, variants, weeks, effects };
     });
 
-    const { variants, weeks, candidate } = report;
+    const { variants, weeks, candidate, effects } = report;
     const day = (d: Date) => d.toISOString().slice(0, 10);
 
     console.log(`Ranking eval — user ${args.userId}, ${weeks.length} week(s), k=${args.k}`);
@@ -418,16 +479,43 @@ async function main() {
         `${levelGated.filter((a) => a.label === 'applied' || a.label === 'saved').length} positive, ` +
         `${levelGated.filter((a) => a.label === 'dismissed').length} dismissed`,
     );
+    // Dismiss reasons and the effects saved from them (ADR-003 §8.11).
+    const reasons = new Map<string, number>();
+    for (const a of weeks.flatMap((w) => w.ads)) {
+      if (a.label === 'dismissed') reasons.set(a.dismissReason ?? 'none', (reasons.get(a.dismissReason ?? 'none') ?? 0) + 1);
+    }
+    console.log(
+      `dismiss reasons: ${[...reasons].map(([r, n]) => `${r}=${n}`).join(' ') || '—'}; ` +
+        `effects: ${effects.filter((e) => e.kind === 'mute_company').length} muted compan(ies), ` +
+        `${effects.filter((e) => e.kind === 'exclude_term').length} exclude term(s)`,
+    );
+    // Ads +fb sends to Explore that the baseline scored, each week under the
+    // effects that existed before it — a positive here is a cost of the feedback.
+    const fbGated = weeks.flatMap((w) => {
+      const fx = effectsBefore(effects, w.window.start);
+      const muted = mutedCompanyKeys(fx);
+      const fbDirs = withExcludeEffects(report.dirs, fx);
+      return w.ads.filter(
+        (a) =>
+          a.directionOk &&
+          (isMutedCompany(a.company, muted) || (fbDirs.length > 0 && !matchesAnyDirection(a.title, fbDirs, a.description))),
+      );
+    });
+    console.log(
+      `feedback gate: ${fbGated.length} direction-matched ad(s) sent to Explore by prior effects — ` +
+        `${fbGated.filter((a) => a.label === 'applied' || a.label === 'saved').length} positive, ` +
+        `${fbGated.filter((a) => a.label === 'dismissed').length} dismissed`,
+    );
     console.log('');
 
-    console.log('variant   pairwise  nDCG@k  recall@k  pos@k  neg@k  curated(+/−/size)');
+    console.log('variant       pairwise  nDCG@k  recall@k  pos@k  neg@k  curated(+/−/size)');
     for (let v = 0; v < variants.length; v++) {
       const agg = aggregateMetrics(weeks.map((w) => w.results[v]!.metrics));
       const cp = weeks.reduce((n, w) => n + w.results[v]!.curatedPositives, 0);
       const cn = weeks.reduce((n, w) => n + w.results[v]!.curatedNegatives, 0);
       const cs = weeks.reduce((n, w) => n + w.results[v]!.curatedSize, 0);
       console.log(
-        `${variants[v]!.name.padEnd(8)}  ${fmt(agg.pairwiseAccuracy)}     ${fmt(agg.ndcgAtK)}   ` +
+        `${variants[v]!.name.padEnd(12)}  ${fmt(agg.pairwiseAccuracy)}     ${fmt(agg.ndcgAtK)}   ` +
           `${fmt(agg.recallAtK)}     ${String(agg.positivesAtK).padStart(3)}    ${String(agg.negativesAtK).padStart(3)}    ` +
           `${cp}/${cn}/${cs}`,
       );

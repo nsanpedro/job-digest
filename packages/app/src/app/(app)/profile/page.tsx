@@ -5,11 +5,13 @@ import {
   getActiveRuleset,
   getDirectionCoverage,
   listDirections,
+  listFeedbackEffects,
   NoActiveRulesetError,
 } from '@job-digest/db';
 import { signIn } from '@/auth';
 import { CvIntake } from '@/components/CvIntake';
 import { DirectionCard } from '@/components/DirectionCard';
+import { FeedbackEffects } from '@/components/FeedbackEffects';
 import { ForwardingConnect } from '@/components/ForwardingConnect';
 import { LocationEditor } from '@/components/LocationEditor';
 import { ModePicker } from '@/components/ModePicker';
@@ -50,7 +52,7 @@ export default async function ProfilePage({
   // incident recorded in memory). Serialised, this page holds one
   // connection at a time; the latency cost is the sum-vs-max of a handful
   // of small tx, which /profile is not perf-critical enough to pay for.
-  const [ruleset, account, profile, directions, coverage] = await withTenant(user.id, async (tx) => {
+  const [ruleset, account, profile, directions, coverage, feedback] = await withTenant(user.id, async (tx) => {
     let rs: { version: number; savedRules: typeof DEFAULT_RULESET; mode: Mode };
     try {
       rs = await getActiveRuleset(tx, user.id);
@@ -68,7 +70,8 @@ export default async function ProfilePage({
     // cheap (one query for the user's ad titles, matched in memory) and
     // simpler than threading a second conditional query through.
     const cov = await getDirectionCoverage(tx, user.id, dirs);
-    return [rs, acct, prof, dirs, cov] as const;
+    const fx = await listFeedbackEffects(tx, user.id);
+    return [rs, acct, prof, dirs, cov, fx] as const;
   });
   const userSources = await getSources();
   const suggestedSources = await getSuggestedSources();
@@ -100,6 +103,11 @@ export default async function ProfilePage({
               ))}
             </div>
           )}
+        </div>
+
+        <div className={styles.section} id="feedback">
+          <p className={styles.sectionLabel}>From your dismissals</p>
+          <FeedbackEffects effects={feedback} />
         </div>
 
         <div className={styles.section}>

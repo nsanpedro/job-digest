@@ -144,6 +144,6 @@ export async function getDismissedAds(db: Db, userId: string): Promise<Dismissed
       applicationStatus: applied.get(row.ad.id) ?? null,
       platformFields: capabilities[row.ad.source as Platform] ?? {},
     }),
-    reason: { kind: 'user' as const },
+    reason: { kind: 'user' as const, why: row.state.dismissReason },
   }));
 }

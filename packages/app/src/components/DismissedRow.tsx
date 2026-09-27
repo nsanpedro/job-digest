@@ -1,7 +1,7 @@
 'use client';
 
 import { useOptimistic, useTransition } from 'react';
-import { describeCondition, type Ruleset } from '@job-digest/core';
+import { DISMISS_REASON_LABEL, describeCondition, type Ruleset } from '@job-digest/core';
 import type { DismissedAd } from '@job-digest/db';
 import { overrideRule, undoDismiss } from '@/lib/actions';
 import { STATE_VISUALS } from './rule-visuals';
@@ -14,7 +14,11 @@ import styles from './DismissedRow.module.css';
  * engine would give anywhere else — not copied prose.
  */
 function reasonText(ad: DismissedAd, rules: Ruleset): string {
-  if (ad.reason.kind === 'user') return 'Dismissed by you — no rule triggered this';
+  if (ad.reason.kind === 'user') {
+    return ad.reason.why
+      ? `Dismissed by you — ${DISMISS_REASON_LABEL[ad.reason.why].toLowerCase()}`
+      : 'Dismissed by you — no rule triggered this';
+  }
   return ad.reason.blockers
     .map((b) => {
       const value = ad.wording[b.key]?.value ?? b.because.find((s) => s.kind === 'compared')?.fact ?? '';
