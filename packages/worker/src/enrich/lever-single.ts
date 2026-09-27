@@ -3,7 +3,7 @@
  * Same salary + commitment parsing as providers/lever.ts.
  *
  * Also returns plain-text description for LLM extraction (ADR-003 Tier 1.5)
- * and for `ads.description` (ADR-003 §8.x "Descriptions in matching") —
+ * and for `ads.description` (ADR-003 §8.10 "Descriptions in matching") —
  * same sections, order and text shape as the batch provider (providers/lever.ts).
  */
 import { normalizePay } from '@job-digest/ingest';

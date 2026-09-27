@@ -9,7 +9,7 @@
  *   - Ranking      (`directionFit` in scoring.ts)  — graduated.
  *
  * All three pass the ad's stored description (`ads.description`, null for
- * email-alert ads) since ADR-003 §8.x "Descriptions in matching".
+ * email-alert ads) since ADR-003 §8.10 "Descriptions in matching".
  *
  * Before this file existed the same logic — tokenizer + synonyms +
  * role-suffix blocklist + tier ladder — lived independently in each of the
@@ -506,7 +506,7 @@ function inTermOrderNear(seg: readonly string[], words: readonly string[], maxGa
 
 /**
  * Full-phrase test for the description window (tier 0.8). Stricter than
- * `phraseMatches`, because prose is not a title (ADR-003 §8.x
+ * `phraseMatches`, because prose is not a title (ADR-003 §8.10
  * "Descriptions in matching"):
  *
  *   - Multi-word terms only. A one-word "phrase" in prose is word

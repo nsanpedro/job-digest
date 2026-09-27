@@ -1,5 +1,5 @@
 /**
- * Descriptions in matching (ADR-003 §8.x). Every caller of the match ladder
+ * Descriptions in matching (ADR-003 §8.10). Every caller of the match ladder
  * now passes `ads.description`: the ingest gate (`directionFitStrength`),
  * the digest read gate (`explainMatch` → `isDirectionHit`) and ranking
  * (`directionFit` / `scoreAd`). These tests pin:

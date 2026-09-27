@@ -32,7 +32,7 @@ export interface NormalizedJob {
    * The posting's description as plain text (HTML stripped, block
    * boundaries kept as newlines, capped at DESCRIPTION_MAX_CHARS — see
    * `toStoredDescription` in ./description.ts). Maps to `ads.description`
-   * and feeds the direction matcher's description window (ADR-003 §8.x
+   * and feeds the direction matcher's description window (ADR-003 §8.10
    * "Descriptions in matching"). Null when the response we already fetch
    * carries no description — never fetched with an extra call per job.
    */

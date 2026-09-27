@@ -5,7 +5,7 @@
  *
  * Also returns the plain-text job description so the caller can run
  * LLM extraction for shift/German/onsite/contract (ADR-003 Tier 1.5) and
- * fill `ads.description` (ADR-003 §8.x "Descriptions in matching"). Same
+ * fill `ads.description` (ADR-003 §8.10 "Descriptions in matching"). Same
  * text shape as the batch provider (`toStoredDescription`): Greenhouse's
  * `content` is entity-escaped HTML, which the old local tag-stripper
  * turned into "p We are…" fragments.

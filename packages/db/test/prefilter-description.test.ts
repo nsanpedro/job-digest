@@ -1,5 +1,5 @@
 /**
- * The digest read gate with a stored description (ADR-003 §8.x
+ * The digest read gate with a stored description (ADR-003 §8.10
  * "Descriptions in matching"). Pure — `applyPreFilters` and
  * `matchesAnyDirection` need no database.
  */

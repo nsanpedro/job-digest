@@ -419,7 +419,7 @@ export const ads = pgTable(
      * boundaries as newlines), capped at 4 000 chars by the writer
      * (`DESCRIPTION_MAX_CHARS` in worker/src/providers/description.ts).
      * Feeds the direction matcher's description window — only its first
-     * DESCRIPTION_MATCH_CHARS (400) are read for matching (ADR-003 §8.x
+     * DESCRIPTION_MATCH_CHARS (400) are read for matching (ADR-003 §8.10
      * "Descriptions in matching").
      *
      * Written by API ingest (every provider whose list response carries a

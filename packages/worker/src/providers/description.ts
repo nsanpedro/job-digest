@@ -1,5 +1,5 @@
 /**
- * Job-description text for `ads.description` (ADR-003 §8.x "Descriptions in
+ * Job-description text for `ads.description` (ADR-003 §8.10 "Descriptions in
  * matching"). One place that turns whatever a provider hands us — HTML,
  * HTML-entity-escaped HTML (Greenhouse `content`), CDATA-wrapped HTML
  * (Personio), or already-plain text (Lever `descriptionPlain`, Ashby

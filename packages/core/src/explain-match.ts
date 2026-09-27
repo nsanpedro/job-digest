@@ -185,7 +185,7 @@ export function explainMatch(
  * here it sends the ad to Explore instead of the tiers. The explanation
  * itself stays `matched` — it is a true statement about the text, and
  * `directionFit` still scores it when the ad got in on other evidence.
- * ADR-003 §8.x "Descriptions in matching".
+ * ADR-003 §8.10 "Descriptions in matching".
  */
 export function isDirectionHit(exp: MatchExplanation): boolean {
   if (exp.kind !== 'matched') return false;

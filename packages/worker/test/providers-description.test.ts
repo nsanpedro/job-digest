@@ -1,5 +1,5 @@
 /**
- * Descriptions from the job-board providers (ADR-003 §8.x "Descriptions in
+ * Descriptions from the job-board providers (ADR-003 §8.10 "Descriptions in
  * matching"): the HTML → text pass every provider shares, and each
  * adapter's mapping from its real response shape to
  * `NormalizedJob.description`. `fetch` is stubbed — no network, no

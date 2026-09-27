@@ -116,7 +116,19 @@ export interface Calibration {
   freshnessDecayDays: number;
   /** Floor freshness reaches at freshnessDecayDays (linear from 1.0). */
   freshnessFloor: number;
+  /**
+   * Which of the Top-pick facts (Pay, Onsite — I23) must have been read for
+   * an ad to be Top-pick eligible. See `isCertain`.
+   *   'all'  — both, whatever their severity (v1–v4: I23 as first written).
+   *   'hard' — only those the user's ruleset makes hard (v5, ADR-003 §8.9).
+   * A selection rule, not a weight — but it decides which ads reach the Top
+   * tier, so it is versioned with the thresholds it sits beside.
+   */
+  topPickCertainty: TopPickCertainty;
 }
+
+/** See `Calibration.topPickCertainty`. */
+export type TopPickCertainty = 'all' | 'hard';
 
 /**
  * v2 calibration — rebalanced after real-usage feedback (Aug 2026).
@@ -167,6 +179,7 @@ export const CALIBRATION_V2: Calibration = {
   defaultSourcePrior: 0.6,
   freshnessDecayDays: 7,
   freshnessFloor: 0.4,
+  topPickCertainty: 'all',
 };
 
 /**
@@ -245,7 +258,7 @@ const V4_LOCATION_WEIGHT = 0.05;
  * city genuinely matters still sees it first) at a small cost on the one
  * account we can measure; 0 would make the Location setting decorative.
  */
-export const DEFAULT_CALIBRATION: Calibration = {
+export const CALIBRATION_V4: Calibration = {
   ...CALIBRATION_V3,
   version: 4,
   weights: (() => {
@@ -263,6 +276,31 @@ export const DEFAULT_CALIBRATION: Calibration = {
     };
   })(),
 };
+
+/**
+ * v5 calibration — Top pick requires the facts the user made hard, not
+ * every fact I23 named (ADR-003 §8.9). Weights and thresholds are v4's
+ * unchanged, so every score is identical; only which ads may take the Top
+ * slots moves.
+ *
+ * Under v4, Top pick needed both Pay and Onsite read. Replayed over the
+ * real alert fixtures, that left the tier empty in 61–84% of synthetic weeks
+ * (packages/ingest/test/top-pick-eligibility.test.ts) — and the
+ * missing fact was not the one expected: Xing and StepStone quote a salary
+ * band on ~90% of cards, but almost never a home-office day count
+ * ("Hybrid", "Homeoffice möglich" read as null), and Onsite is a preference
+ * in every default ruleset. v5 asks for the facts whose absence could hide a
+ * dealbreaker — the hard ones — and lets an unread preference through, since
+ * a preference can only ever cost a warning (I4). See `isCertain`.
+ */
+export const CALIBRATION_V5: Calibration = {
+  ...CALIBRATION_V4,
+  version: 5,
+  topPickCertainty: 'hard',
+};
+
+/** The calibration the digest runs under. */
+export const DEFAULT_CALIBRATION: Calibration = CALIBRATION_V5;
 
 // ── Component functions (exported so tests can pin each one) ─────────────────
 
@@ -339,7 +377,7 @@ function contractMargin(f: Facts, c: Ruleset['Contract']['condition']): number {
  * The match ladder itself (full-phrase / long-word tiers, role-suffix
  * blocklist, synonyms) lives in `matching.ts` and is shared with the
  * ingest gate and the digest read gate. `description` is the ad's stored
- * `ads.description` (ADR-003 §8.x "Descriptions in matching"); omitted or
+ * `ads.description` (ADR-003 §8.10 "Descriptions in matching"); omitted or
  * null, this is the title-only function it always was — same number for
  * every ad without one.
  *
@@ -557,22 +595,48 @@ export function sourceQuality(source: string, calibration: Calibration): number 
 
 // ── Certainty (Top-pick gate, I23) ───────────────────────────────────────────
 
+/** The rules whose facts decide Top-pick certainty (I23): salary and home office. */
+const TOP_PICK_FACTS = ['Pay', 'Onsite'] as const;
+
 /**
- * True when no rule that decides Top-pick eligibility is `unknown`. Pay and
- * Onsite are the two — an ad we couldn't read the salary of, or the home-
- * office policy of, cannot carry the product's strongest recommendation.
+ * True when no rule that decides Top-pick eligibility is `unknown` — the
+ * product's strongest recommendation cannot rest on facts we didn't read
+ * (I23). Pay and Onsite are the rules in question.
+ *
+ * `mode` says which of the two have to be read:
+ *
+ *   'all'  — both, whatever their severity. I23 as first written (v1–v4).
+ *   'hard' — only those the user's ruleset makes hard (v5, ADR-003 §8.9).
+ *
+ * Why severity is the line: an unread *hard* rule could be hiding a
+ * dealbreaker — had we read the salary, the ad might be blocked — so the
+ * Top tier cannot vouch for it. An unread *preference* cannot hide one: a
+ * preference never blocks (I4), the worst the missing fact could turn out
+ * to be is a `warn` — the "one gap" an ad may carry into Worth a read or
+ * Stretch. The user's own ruleset says which facts are dealbreakers; the
+ * gate asks for exactly those. The unread preference stays visible on the
+ * card as "not read".
+ *
+ * The `unknown` of an undecidable exception (I12 — the base condition was
+ * read and failed, the escape hatch could not be checked) only arises on a
+ * hard rule, so it keeps an ad out of Top pick under both modes.
+ *
+ * Not widened to the other hard rules (Shift is hard by default): I23 never
+ * covered them, and no alert or board states shift facts, so requiring them
+ * would empty the tier for every user rather than make it more honest.
  *
  * A rule whose condition is inactive (Onsite.minHomeDays === 0) does not
  * count against certainty even if the fact is null: we didn't need to know.
  * That check is folded into the verdict — an inactive Onsite condition
  * returns `pass`, not `unknown`.
  */
-export function isCertain(verdicts: readonly Verdict[]): boolean {
-  const pay = verdicts.find((v) => v.key === 'Pay');
-  const onsite = verdicts.find((v) => v.key === 'Onsite');
-  if (pay?.state === 'unknown') return false;
-  if (onsite?.state === 'unknown') return false;
-  return true;
+export function isCertain(verdicts: readonly Verdict[], mode: TopPickCertainty = 'all'): boolean {
+  return !verdicts.some(
+    (v) =>
+      (TOP_PICK_FACTS as readonly string[]).includes(v.key) &&
+      v.state === 'unknown' &&
+      (mode === 'all' || v.severity === 'hard'),
+  );
 }
 
 // ── Composed score ───────────────────────────────────────────────────────────
@@ -838,11 +902,12 @@ export function selectTiers<T extends ScoredAd>(
   const newSorted = sorted.filter((a) => !a.repeat);
   const repeatSorted = sorted.filter((a) => a.repeat === true);
 
-  // Top-pick candidates: score >= threshold, certain (I23), not repeated (I25).
+  // Top-pick candidates: score >= threshold, certain on the facts the
+  // calibration asks for (I23, §8.9), not repeated (I25).
   const topEligible = newSorted.filter(
     (ad) =>
       ad.score.total >= calibration.tierThresholds.topPick &&
-      isCertain(ad.verdicts) &&
+      isCertain(ad.verdicts, calibration.topPickCertainty) &&
       !history.has(ad.id),
   );
   const topPicked = pickWithCaps(topEligible, TIER_CAPS.topPicks, {

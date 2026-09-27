@@ -6,7 +6,7 @@
 //
 // Title-only, description=null: written when the digest read path was
 // title-only, and the complaint it audits was about title matches. Since
-// ADR-003 §8.x "Descriptions in matching" the digest and ranking also read
+// ADR-003 §8.10 "Descriptions in matching" the digest and ranking also read
 // `ads.description` (null for email-alert ads); this one-off audit still
 // answers the title-only question.
 //

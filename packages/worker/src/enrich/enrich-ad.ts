@@ -9,7 +9,7 @@
  * a re-run upsert the row; the facts patch is a merge (fills nulls only).
  *
  * Also fills `ads.description` from the fetched description when the ad has
- * none yet (ADR-003 §8.x "Descriptions in matching"): an email alert carries
+ * none yet (ADR-003 §8.10 "Descriptions in matching"): an email alert carries
  * only a title, so this is the one way an email-sourced ad gets a lede for
  * the matcher's description window. Fill-if-null, like the facts merge — a
  * description already on the row (e.g. from an API source with the same

@@ -240,7 +240,7 @@ export async function fetchApiSources(
       // are read, so a generic title whose lede names the role reaches the
       // 0.8/0.4 description tiers while EEO/benefits boilerplate further
       // down cannot. A null description degrades to title-only
-      // (ADR-003 §8.x "Descriptions in matching").
+      // (ADR-003 §8.10 "Descriptions in matching").
       const jobs = interestedDirs.length > 0
         ? (() => {
             const curationDirs = interestedDirs.map(toCurationDirection);

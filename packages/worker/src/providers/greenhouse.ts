@@ -12,7 +12,7 @@
  * call. The cost is payload: descriptions are ~5–15 KB of escaped HTML per
  * job, so a 500-job board grows from a few hundred KB to several MB per
  * fetch (onboarding-cache refresh pays it too). Accepted: the ingest gate
- * and the digest need the lede to match generic titles (ADR-003 §8.x
+ * and the digest need the lede to match generic titles (ADR-003 §8.10
  * "Descriptions in matching"), and the alternative — one extra request per
  * job — is strictly worse on every axis.
  *

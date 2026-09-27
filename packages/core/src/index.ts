@@ -19,6 +19,8 @@ export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked 
 export {
   CALIBRATION_V2,
   CALIBRATION_V3,
+  CALIBRATION_V4,
+  CALIBRATION_V5,
   DEFAULT_CALIBRATION,
   ROLE_SYNONYMS,
   directionFit,
@@ -38,6 +40,7 @@ export {
   type ScoredAd,
   type ScoringDirection,
   type Tiered,
+  type TopPickCertainty,
   type TopPickHistory,
   type WeightKey,
 } from './scoring';

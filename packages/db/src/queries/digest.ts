@@ -86,7 +86,7 @@ type Db = PostgresJsDatabase<Record<string, unknown>>;
  * `description` is the ad's stored `ads.description` (null for email-alert
  * ads → title-only). A direction counts when `isDirectionHit` says so:
  * any title match or a full phrase in the description lede, not a lone
- * description long-word (ADR-003 §8.x "Descriptions in matching").
+ * description long-word (ADR-003 §8.10 "Descriptions in matching").
  */
 function classifyDirections(
   title: string,
