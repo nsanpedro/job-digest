@@ -341,3 +341,39 @@ The three matcher changes — spelling pre-pass (`normalizeRoleSpelling`), word-
 | v4 + level gate | 0.857 | 0.315 | 0.538 | 3 | 6 / 3 |
 
 The level gate removed 15 direction-matched ads across the weeks — 8 of them dismissed, none positive — so it only changes the curated tiers (their juniors already ranked below the positives). The one week still weak (0.167) has a single positive, "Staff Engineer - Virtual Assembly Line", that matches none of the user's directions: a direction-coverage gap, not a matcher error.
+
+### 8.9 Top pick eligibility — v5 calibration (Sep 2026)
+
+I23 asked for Pay **and** Onsite to be read before an ad could be a Top pick. In practice the tier came up empty in most weeks. When the tier is empty the digest holds at most 8 ads (Read 6 + Stretch 2), not 10, and the week's two strongest ads compete for Read slots.
+
+**Measured without production data.** `packages/ingest/test/top-pick-eligibility.test.ts` runs the real alert fixtures through the real pipeline (extractor → `normalizeAd` → facts). Board ads are synthesised the way the providers build them: no salary except on about half of Ashby postings, and home office read from the location string. It then replays 200 seeded weeks of 20–49 new ads each through evaluate → gates → `scoreAd` → `selectTiers`, under the Engineering ruleset (Pay hard at 3500 €, Onsite a preference at 3 days):
+
+| scenario | empty Top weeks, v4 | empty Top weeks, v5 | Top size v4 → v5 | curated size v4 → v5 |
+| --- | --- | --- | --- | --- |
+| fixture mix (LinkedIn 25 / Xing 55 / StepStone 10 / boards 10 %) | 67 % | **0 %** | 0.38 → 1.99 | 7.3 → 8.7 |
+| LinkedIn-heavy (70 % LinkedIn) | 84 % | **10 %** | 0.16 → 1.57 | 7.3 → 8.4 |
+| board-heavy (40 % boards) | 61 % | **3 %** | 0.49 → 1.88 | 7.5 → 8.8 |
+| no pay-bearing source (LinkedIn + Greenhouse/Lever/Personio) | 100 % | 100 % | 0 → 0 | 7.6 → 7.6 |
+
+The fixtures showed that the missing fact was usually not Pay. Xing and StepStone cards quote a salary band on more than 80 % of cards (90 % in the fixtures). They almost never give a home-office day count: "Hybrid" and "Homeoffice möglich" both read as `null`, on purpose (`normalizeWorkplace`). Pay is missing on every LinkedIn alert, on Greenhouse, Lever and Personio, and on about half of Ashby postings. LinkedIn gives a usable home-office value on about a third of its cards ("Presencial", "En remoto"). So under I23 as written, the fact that emptied the tier on the pay-bearing platforms was Onsite. Onsite is a preference in `DEFAULT_RULESET` and in every `rulesetForCategory` ruleset.
+
+**The rule.** An ad is Top-pick eligible when it scores at least `tierThresholds.topPick`, is new this week, was not a Top pick last week (I25), and has no `unknown` verdict on a Pay or Onsite rule **that the user's ruleset makes hard**. An unread preference is allowed through.
+
+Why severity is the line:
+
+- An unread hard rule could hide a dealbreaker. Had we read the salary, the ad might be blocked. The Top tier cannot vouch for that ad.
+- An unread preference cannot hide a dealbreaker. A preference never blocks (I4), so the worst the missing fact could turn out to be is a `warn`. That is the "one gap" an ad may carry into Worth a read or Stretch anyway.
+- The user's own ruleset says which facts are dealbreakers, and the gate asks for exactly those. The unread preference stays on the card as "not read".
+- An `unknown` from an undecidable exception (I12) means the base condition was read and failed, and only the escape hatch could not be checked. That only happens on hard rules, so such an ad stays out of Top pick.
+
+**I23, as amended:** *a Top pick cannot rest on an unread dealbreaker.* An ad whose Pay or Onsite rule is hard and whose verdict on it is `unknown` is ineligible for the Top tier regardless of score. An unread Pay or Onsite *preference* does not disqualify the ad, and is shown on the card as not read.
+
+Deliberately not changed:
+
+- **The set of facts stays Pay and Onsite.** Widening I23 to every hard rule would empty the tier for everyone: Shift is hard by default, and no alert or board states shift facts.
+- **No role-strength clause.** A second clause was considered: a full-phrase direction match, `directionFit ≥ 1`. It changed no week in the simulation, because at `topPick = 70` every eligible ad there already had a full-phrase match. It would only add a second reason to explain.
+- **The honest limit stays.** For a user whose sources never state pay and whose Pay rule is hard, the tier stays empty (last row above). Relaxing the rule further would mean recommending an ad whose dealbreaker we never read. The levers for that user are the ruleset (Pay as a preference: 0 % empty weeks in the same scenario) or a pay-bearing source, not the tier rule.
+
+**Versioned as calibration v5.** The rule lives in `Calibration.topPickCertainty` (`'all'` for v1–v4, `'hard'` for v5). It is not a weight, but it changes which ads reach the Top slots, and those slots are recorded in `ads_top_pick_history`. So it gets the same treatment as the tier thresholds it sits beside (§2.7): a screenshot that says `calibration@v4` should mean the v4 Top-pick rule. Weights and thresholds are v4's unchanged, so every score is identical and a test pins that. `CALIBRATION_V4` stays exported for the replay.
+
+**The eval.** `eval-ranking.ts` now prints a Top pick block for each variant: weeks with an empty tier, mean tier size, and positives / negatives in the tier. It also has a `v5+level` row next to `v4+level`. The two rows share every ranking metric, since the scores are the same, and differ only in the Top pick block and the curated column. That block is where a real account will show whether the relaxed gate lets dismissed ads into the strongest tier.
