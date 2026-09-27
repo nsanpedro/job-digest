@@ -28,6 +28,7 @@ import type { Distance } from './discovery';
 import {
   DESCRIPTION_MATCH_CHARS,
   computeMatch,
+  normalizeRoleSpelling,
   type MatchSurface,
   type MatchTier,
 } from './matching';
@@ -97,17 +98,26 @@ const REGEX_META = /[.*+?^${}()|[\]\\]/g;
  * `curation.ts`. Duplicated intentionally: this file returns the WITNESS
  * (term + surface), the gate returns just the boolean. Keeping them apart
  * means one can evolve without the other silently drifting.
+ *
+ * Same spelling pre-pass as the gate (`normalizeRoleSpelling`, Sep 2026
+ * ranking eval) on the title, the description window and each term, so
+ * the explanation can never say "no exclude hit" for an ad the gate
+ * dropped. The witness `term` is the user's own wording (trimmed,
+ * lowercased), not the canonical form — it is what the UI shows back.
  */
 function findExcludeHit(
-  title: string,
+  rawTitle: string,
   description: string | null,
   excludeTerms: readonly string[],
 ): { term: string; where: 'title' | 'description' } | null {
-  const descWindow = description ? description.slice(0, DESCRIPTION_MATCH_CHARS) : null;
+  const title = normalizeRoleSpelling(rawTitle.toLowerCase());
+  const descWindow = description
+    ? normalizeRoleSpelling(description.slice(0, DESCRIPTION_MATCH_CHARS).toLowerCase())
+    : null;
   for (const raw of excludeTerms) {
     const term = raw.trim().toLowerCase();
     if (!term) continue;
-    const escaped = term.replace(REGEX_META, '\\$&');
+    const escaped = normalizeRoleSpelling(term).replace(REGEX_META, '\\$&');
     const re = new RegExp(`\\b${escaped}\\b`, 'iu');
     if (re.test(title)) return { term, where: 'title' };
     if (descWindow && re.test(descWindow)) return { term, where: 'description' };

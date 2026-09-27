@@ -7,7 +7,7 @@
  * UI can be built on it without surprises.
  */
 import { describe, expect, it } from 'vitest';
-import { computeMatch, containsWord, tokenize } from '../src/matching';
+import { computeMatch, containsWord, normalizeRoleSpelling, tokenize } from '../src/matching';
 
 describe('computeMatch — return shape', () => {
   it('empty searchTerms returns the null-match sentinel', () => {
@@ -182,5 +182,67 @@ describe('tokenize + containsWord (helpers)', () => {
     expect(containsWord('senior frontend developer', 'engineer')).toBe(true);
     expect(containsWord('senior product manager', 'managerin')).toBe(true);
     expect(containsWord('senior sales director', 'designer')).toBe(false);
+  });
+
+  it('tokenize applies the spelling pass, so search terms come out canonical', () => {
+    expect(tokenize('Front-End Engineer')).toEqual(['frontend', 'engineer']);
+    expect(tokenize('Full Stack Developer')).toEqual(['fullstack', 'developer']);
+    expect(tokenize('Softwareentwickler')).toEqual(['software', 'entwickler']);
+  });
+});
+
+describe('normalizeRoleSpelling (Sep 2026 ranking eval)', () => {
+  it('joins the English compounds whatever the separator', () => {
+    for (const s of ['front end', 'front-end', 'front - end', 'front‑end', 'front–end', 'frontend']) {
+      expect(normalizeRoleSpelling(s)).toBe('frontend');
+    }
+    for (const s of ['back end', 'back-end', 'backend']) expect(normalizeRoleSpelling(s)).toBe('backend');
+    for (const s of ['full stack', 'full-stack', 'fullstack']) expect(normalizeRoleSpelling(s)).toBe('fullstack');
+  });
+
+  it('splits the German "<domain>entwickler" compounds, including feminine forms', () => {
+    expect(normalizeRoleSpelling('softwareentwickler')).toBe('software entwickler');
+    expect(normalizeRoleSpelling('webentwicklerin')).toBe('web entwicklerin');
+    // English join first, then the German split — both roads meet.
+    expect(normalizeRoleSpelling('front-end-entwickler')).toBe('frontend-entwickler');
+    expect(normalizeRoleSpelling('frontendentwickler')).toBe('frontend entwickler');
+    expect(normalizeRoleSpelling('fullstackentwickler')).toBe('fullstack entwickler');
+  });
+
+  it('leaves look-alikes alone — the table is closed', () => {
+    for (const s of [
+      'front desk engineer',
+      'end user support',
+      'back office manager',
+      'full-time',
+      'front endpoint',
+      'backend', // already canonical
+      'anwendungsentwickler', // a distinct trade title, deliberately not split
+      'entwickler',
+    ]) {
+      expect(normalizeRoleSpelling(s)).toBe(s);
+    }
+  });
+
+  it('is idempotent', () => {
+    const once = normalizeRoleSpelling('senior front-end / full stack softwareentwickler');
+    expect(once).toBe('senior frontend / fullstack software entwickler');
+    expect(normalizeRoleSpelling(once)).toBe(once);
+  });
+
+  it('long-word provenance names the canonical token', () => {
+    // "frontend" (8 chars, a domain word) now carries the long-word tier
+    // for a term written split — the same evidence the joined spelling
+    // always had.
+    const r = computeMatch('Frontend Platform Lead', null, ['front end engineer']);
+    expect(r.tier).toBe(0.6);
+    expect(r.viaLongWord).toBe('frontend');
+    expect(r.matchedTerm).toBe('front end engineer');
+  });
+
+  it('description window gets the same pass', () => {
+    const r = computeMatch('Engineer II', 'Join our Front-End team as an engineer on checkout.', ['frontend engineer']);
+    expect(r.tier).toBe(0.8);
+    expect(r.surface).toBe('description');
   });
 });

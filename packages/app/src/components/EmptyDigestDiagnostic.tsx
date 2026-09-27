@@ -41,7 +41,7 @@ export function EmptyDigestDiagnostic({
     digest.stillOpen.length +
     digest.explore.length;
 
-  // metrics.explore is null when no pre-filter ran (no city, no directions) —
+  // metrics.explore is null when no pre-filter ran (no directions, no senior-or-above target rung) —
   // in that case every explore entry is a below-threshold miss by construction,
   // so fall back to the raw length.
   const belowThreshold =

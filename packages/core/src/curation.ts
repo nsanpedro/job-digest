@@ -22,7 +22,7 @@
  * explore has variety).
  */
 import type { Distance } from './discovery';
-import { computeMatch, DESCRIPTION_MATCH_CHARS, DISTANCE_FACTOR } from './matching';
+import { computeMatch, DESCRIPTION_MATCH_CHARS, DISTANCE_FACTOR, normalizeRoleSpelling } from './matching';
 
 export type CurationMode = 'focused' | 'discovery';
 
@@ -77,10 +77,17 @@ const REGEX_META = /[.*+?^${}()|[\]\\]/g;
  * directionFitStrength), so a false-positive exclude silently drops a
  * real match — that is the failure mode a substring match invites and
  * this rewrite closes.
+ *
+ * Both sides go through `normalizeRoleSpelling` first — the same pre-pass
+ * `computeMatch` applies (Sep 2026 ranking eval). Without it an exclude
+ * "frontend" would miss "Front-End Engineer" while the positive match
+ * catches it, and an exclude "entwickler" would miss "Softwareentwickler".
+ * An exclude and a match must agree on what a word is.
  */
-function hasExcludeHit(text: string, excludeTerms: readonly string[]): boolean {
+function hasExcludeHit(rawText: string, excludeTerms: readonly string[]): boolean {
+  const text = normalizeRoleSpelling(rawText.toLowerCase());
   for (const raw of excludeTerms) {
-    const term = raw.trim().toLowerCase();
+    const term = normalizeRoleSpelling(raw.trim().toLowerCase());
     if (!term) continue;
     const escaped = term.replace(REGEX_META, '\\$&');
     if (new RegExp(`\\b${escaped}\\b`, 'iu').test(text)) return true;

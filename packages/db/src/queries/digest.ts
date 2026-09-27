@@ -19,10 +19,14 @@
 import {
   DEFAULT_CALIBRATION,
   computeMatch,
+  deriveCandidateProfile,
   evaluate,
   explainMatch,
+  isBelowTargetLevel,
   scoreAd,
   selectTiers,
+  targetsSeniorOnly,
+  type CandidateProfile,
   type MatchExplanation,
   type ScoreBreakdown,
   type ScoredAd,
@@ -33,7 +37,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { accounts, adNarratives, adSightings, ads, adUserState, emailParses, rawEmails, runs } from '../schema';
 import { getLatestApplicationStatuses } from './applications';
 import { getPlatformCapabilities } from './capabilities';
-import { listInterestedDirections } from './discovery';
+import { getActiveProfile, listInterestedDirections } from './discovery';
 import { getActiveRuleset } from './ruleset';
 import { getTopPickHistory, recordTopPicks } from './top-pick-history';
 import type {
@@ -49,41 +53,6 @@ import type {
 import { weekWindow, type Window } from './window';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
-
-// ── Location matching ─────────────────────────────────────────────────────────
-
-const REMOTE_KEYWORDS = ['remote', 'home office', 'homeoffice', 'anywhere', 'distributed'];
-
-// Country/region aliases for common cities — lets "Spain" match a Barcelona user.
-const CITY_GEO: Record<string, string[]> = {
-  barcelona:    ['spain', 'españa', ', es'],
-  madrid:       ['spain', 'españa', ', es'],
-  berlin:       ['germany', 'deutschland', ', de'],
-  munich:       ['germany', 'deutschland', ', de'],
-  münchen:      ['germany', 'deutschland', ', de'],
-  hamburg:      ['germany', 'deutschland', ', de'],
-  frankfurt:    ['germany', 'deutschland', ', de'],
-  cologne:      ['germany', 'deutschland', ', de'],
-  köln:         ['germany', 'deutschland', ', de'],
-  zurich:       ['switzerland', 'schweiz', ', ch'],
-  zürich:       ['switzerland', 'schweiz', ', ch'],
-  vienna:       ['austria', 'österreich', ', at'],
-  wien:         ['austria', 'österreich', ', at'],
-  'buenos aires': ['argentina', ', ar'],
-};
-
-/**
- * True when the ad's raw location string is consistent with the user's city
- * preference. Missing location → passes (we don't filter what we don't know).
- * Remote jobs pass when the user has opted in to remote.
- */
-function passesLocationFilter(locationRaw: string | null, city: string, remoteOk: boolean): boolean {
-  if (!locationRaw) return true;
-  const loc = locationRaw.toLowerCase();
-  if (remoteOk && REMOTE_KEYWORDS.some((kw) => loc.includes(kw))) return true;
-  if (loc.includes(city)) return true;
-  return (CITY_GEO[city] ?? []).some((alias) => loc.includes(alias));
-}
 
 // ── Direction matching ────────────────────────────────────────────────────────
 //
@@ -143,7 +112,7 @@ function classifyDirections(
 
 /**
  * True when this job title is relevant to at least one of the user's
- * interested directions. Used as the gate in Pass 3 — ads that fail this
+ * interested directions. Used as the gate in Pass 2 — ads that fail this
  * gate go straight to explore without scoring.
  *
  * Exported so the worker can apply the same gate at ingest time (before
@@ -152,6 +121,56 @@ function classifyDirections(
 export function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
   if (dirs.length === 0) return true;
   return classifyDirections(title, dirs).any;
+}
+
+// ── Pre-filters (pass 2) ─────────────────────────────────────────────────────
+
+/** Where each eligible ad goes before scoring, and whether any gate ran. */
+export interface PreFilterSplit<T> {
+  /** Passed every active gate — scored into the tiers. */
+  passed: T[];
+  /** Matched none of the user's directions → explore, unscored. */
+  directionMisses: T[];
+  /**
+   * Matched a direction, but the title states the junior rung while the user
+   * targets only senior-or-above rungs (ADR-003 §8.7) → explore, unscored.
+   */
+  belowTargetLevel: T[];
+  /** False when neither gate had signal to run on (no directions, no senior target). */
+  active: boolean;
+}
+
+/**
+ * Pass 2 of `getDigest`, pure: the hard user preferences, applied in order.
+ * The direction gate runs first, so an off-direction entry-level ad counts
+ * as a direction miss and never as a level miss — the three buckets are
+ * disjoint and each count means one thing.
+ *
+ * Exported for tests: the rest of `getDigest` needs a database, this doesn't.
+ */
+export function applyPreFilters<T extends { ad: { title: string } }>(
+  entries: readonly T[],
+  dirs: readonly DirectionRow[],
+  candidate: Pick<CandidateProfile, 'seniorities'>,
+): PreFilterSplit<T> {
+  const directionGate = dirs.length > 0;
+  const levelGate = targetsSeniorOnly(candidate);
+  const out: PreFilterSplit<T> = {
+    passed: [],
+    directionMisses: [],
+    belowTargetLevel: [],
+    active: directionGate || levelGate,
+  };
+  for (const entry of entries) {
+    if (directionGate && !matchesAnyDirection(entry.ad.title, dirs)) {
+      out.directionMisses.push(entry);
+    } else if (levelGate && isBelowTargetLevel(entry.ad.title, candidate)) {
+      out.belowTargetLevel.push(entry);
+    } else {
+      out.passed.push(entry);
+    }
+  }
+  return out;
 }
 
 // ── Ordering (explore bucket) ─────────────────────────────────────────────────
@@ -188,13 +207,14 @@ export async function getDigest(
   const window = options.window ?? weekWindow(now);
   const { version: rulesetVersion, rules } = await getActiveRuleset(db, userId);
 
-  // User's location preferences — used for location and signal pre-filters.
+  // User's location preferences — a score component (locationFit), not a
+  // pre-filter since v4 (ADR-003 §8.6).
   const acct = await db
     .select({ city: accounts.city, remoteOk: accounts.remoteOk })
     .from(accounts)
     .where(eq(accounts.id, userId))
     .limit(1);
-  const userCity = acct[0]?.city?.toLowerCase() ?? null;
+  const userCity = acct[0]?.city ?? null;
   const remoteOk = acct[0]?.remoteOk ?? false;
 
   // Ads with at least one sighting inside the window, plus the alert name and
@@ -230,6 +250,15 @@ export async function getDigest(
   const capabilities = await getPlatformCapabilities(db);
 
   const interestedDirs = await listInterestedDirections(db, userId);
+  // Who the user is, as their own CV and directions state it — the rungs
+  // they target and the technologies they name. Read once per digest, fed
+  // to every scoreAd call (v3's seniorityFit / stackFit).
+  const profile = await getActiveProfile(db, userId);
+  const candidate = deriveCandidateProfile({
+    skills: profile?.skills ?? [],
+    directions: interestedDirs,
+    location: { city: userCity, remoteOk },
+  });
   const history = await getTopPickHistory(db, userId, now);
   const calibration = DEFAULT_CALIBRATION;
 
@@ -301,45 +330,35 @@ export async function getDigest(
     return compareAds(a, b);
   });
 
-  // ── Pass 2: two pre-filters (location → direction) → explore ─────────────
+  // ── Pass 2: pre-filters → explore ──────────────────────────────────────────
   //
-  // Only gates where we have a hard user preference — wrong city or wrong
-  // direction. Signal completeness (Pay/Onsite unknown) is NOT a gate: it is
+  // The two gates where we have a hard user preference:
+  //
+  //   - wrong direction — the title matches none of the user's directions;
+  //   - below the target level — the title states the junior rung
+  //     (Junior / Werkstudent / Intern / Praktikum / …) and every rung the
+  //     user targets is senior or above (ADR-003 §8.7). `seniorityFit`
+  //     already scores that gap 0, but a long-word direction match
+  //     ("software" out of "Team Lead Software Entwicklung") still carried
+  //     these ads into the tiers, where they were dismissed every time.
+  //
+  // Location used to be a gate here; it hid most of the ads the first
+  // real account applied to (Köln, Zurich, Amsterdam), so it is now the
+  // `locationFit` score component instead (ADR-003 §8.6). Signal completeness (Pay/Onsite unknown) is NOT a gate: it is
   // captured as a score component (signalCompleteness, 15%) so low-signal ads
   // rank below high-signal ones without being eliminated entirely. Most real
   // ads don't carry salary or remote policy in the alert email; treating that
   // as a disqualifier removes the majority of the corpus before scoring runs.
   //
-  // A pass only activates when the user has given us signal to filter against.
+  // A gate only activates when the user has given us signal to filter
+  // against: directions for the first, a stated senior-or-above rung for
+  // the second. The two are counted apart (an ad that fails the direction
+  // gate is counted there and never reaches the level check), so each
+  // number in the explore header says what it claims.
 
-  const explorePool: DigestAd[] = [];
-  let candidates = eligible;
-
-  if (userCity !== null) {
-    const next: typeof eligible = [];
-    for (const entry of candidates) {
-      if (passesLocationFilter(entry.ad.location, userCity, remoteOk)) {
-        next.push(entry);
-      } else {
-        explorePool.push(entry.ad);
-      }
-    }
-    candidates = next;
-  }
-
-  if (interestedDirs.length > 0) {
-    const next: typeof eligible = [];
-    for (const entry of candidates) {
-      if (matchesAnyDirection(entry.ad.title, interestedDirs)) {
-        next.push(entry);
-      } else {
-        explorePool.push(entry.ad);
-      }
-    }
-    candidates = next;
-  }
-
-
+  const gated = applyPreFilters(eligible, interestedDirs, candidate);
+  const candidates = gated.passed;
+  const explorePool: DigestAd[] = [...gated.directionMisses, ...gated.belowTargetLevel].map((e) => e.ad);
 
   // ── Pass 3: score + select tiers ──────────────────────────────────────────
 
@@ -360,7 +379,9 @@ export async function getDigest(
       verdicts: ad.verdicts,
       ruleset: rules,
       directions: interestedDirs,
+      candidate,
       title: ad.title,
+      locationRaw: ad.location,
       source: ad.source,
       receivedAt: ad.receivedAt,
       now,
@@ -402,19 +423,23 @@ export async function getDigest(
   const worthAReading = toDigestAds(tiered.worthAReading);
   const stretch = toDigestAds(tiered.stretch);
   const stillOpen = toDigestAds(tiered.stillOpen);
-  // Explore = pre-filter misses + everything selectTiers left over (new ads
+  // Explore = pre-filter misses (direction or level) + everything selectTiers left over (new ads
   // below threshold, and repeats that didn't fit under the stillOpen cap).
   const explore = [...explorePool, ...toDigestAds(tiered.explore)].sort(compareAds);
 
   // Record top picks for I25 (idempotent via unique index).
   await recordTopPicks(db, userId, topPicks.map((a) => a.id), now);
 
-  const anyFilterActive = userCity !== null || interestedDirs.length > 0;
   const metrics: DigestMetrics = {
     adsReceived: rows.length,
     inDigest: topPicks.length + worthAReading.length + stretch.length,
-    explore: anyFilterActive
-      ? { total: explore.length, preFilterMisses: explorePool.length, belowThreshold: tiered.explore.length }
+    explore: gated.active
+      ? {
+          total: explore.length,
+          preFilterMisses: gated.directionMisses.length,
+          belowTargetLevel: gated.belowTargetLevel.length,
+          belowThreshold: tiered.explore.length,
+        }
       : null,
     filteredByRule,
     dismissedByUser,

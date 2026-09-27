@@ -35,6 +35,25 @@ describe('seniority', () => {
   it('is null when nothing in the title marks a level', () => {
     expect(extractTitleFacts('Frontend Developer').seniority).toBeNull();
   });
+
+  it('reads entry-level wording as junior and cites the word (ADR-003 §8.7)', () => {
+    expect(extractTitleFacts('Intern - Front-End Developer (all gender)').seniority).toEqual({
+      value: 'junior',
+      matched: 'Intern',
+    });
+    expect(extractTitleFacts('Praktikant:in UX Engineering').seniority).toEqual({
+      value: 'junior',
+      matched: 'Praktikant',
+    });
+    expect(extractTitleFacts('Becario/a Desarrollo Frontend').seniority).toMatchObject({ value: 'junior' });
+    expect(extractTitleFacts('Working Student Frontend (f/m/d)').seniority).toMatchObject({ value: 'junior' });
+  });
+
+  it('"Internal", "International" and "Internet" are not "Intern"', () => {
+    expect(extractTitleFacts('Internal Tools Engineer').seniority).toBeNull();
+    expect(extractTitleFacts('International Frontend Developer (m/w/d)').seniority).toBeNull();
+    expect(extractTitleFacts('Internet Software Developer').seniority).toBeNull();
+  });
 });
 
 describe('discipline', () => {

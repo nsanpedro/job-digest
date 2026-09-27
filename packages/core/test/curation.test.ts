@@ -169,6 +169,20 @@ describe('directionFitStrength — exclude terms (ad-level)', () => {
       ),
     ).toBe(0);
   });
+
+  it('excludes see the same spelling pre-pass as the match (Sep 2026 ranking eval)', () => {
+    // Term and text are both canonicalised, in either direction.
+    const noFrontend = [adjacent(['Software Engineer'], ['frontend'])];
+    expect(directionFitStrength('Front-End Software Engineer', null, noFrontend)).toBe(0);
+    const noFullStack = [adjacent(['Software Developer'], ['full stack'])];
+    expect(directionFitStrength('Fullstack Software Developer', null, noFullStack)).toBe(0);
+    // A head-noun exclude reaches a German compound once it is split.
+    const noEntwickler = [adjacent(['Softwarearchitekt'], ['entwickler'])];
+    expect(directionFitStrength('Softwareentwickler (m/w/d)', null, noEntwickler)).toBe(0);
+    // …and a look-alike stays untouched: "front end" is not "Front Desk".
+    const noFrontEnd = [adjacent(['Engineer'], ['front end'])];
+    expect(directionFitStrength('Front Desk Engineer', null, noFrontEnd)).toBe(1.0);
+  });
 });
 
 describe('directionFitStrength — distance factor', () => {

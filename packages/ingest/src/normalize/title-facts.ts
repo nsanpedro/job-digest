@@ -33,7 +33,8 @@
  * in a JSONB column and `@job-digest/db` doesn't depend on `ingest`, the same
  * reason `Ruleset` lives in `core` for `rulesets.rules`.
  */
-import type { Cited, Discipline, EmploymentType, Seniority, TitleFacts, Workplace } from '@job-digest/core';
+import type { Cited, Discipline, EmploymentType, TitleFacts, Workplace } from '@job-digest/core';
+import { SENIORITY_PATTERNS, STACK_PATTERNS } from '@job-digest/core/title-lexicon';
 
 function firstMatch<T>(text: string, table: ReadonlyArray<readonly [RegExp, T]>): Cited<T> | null {
   for (const [re, value] of table) {
@@ -46,24 +47,13 @@ function firstMatch<T>(text: string, table: ReadonlyArray<readonly [RegExp, T]>)
 // ── Seniority ───────────────────────────────────────────────────────────────
 
 /*
- * Ordered most-specific first, and the first match wins. "Team Lead" and
- * "Head of" must be tried before a bare "Lead", or "Team Lead Frontend
- * Development" reads as plain lead and "Head of Frontend" never matches at
- * all. Where a title stacks two markers ("Staff/Lead Front-end Engineer"),
- * the higher one is what the employer is advertising, which is why the table
- * runs top-down from the most senior.
- *
- * "Manager" is absent on purpose: in this corpus it marks the discipline
- * (Engineering Manager) rather than a rung, and it is handled there.
+ * The seniority and stack tables live in `@job-digest/core/title-lexicon` —
+ * the ranking layer reads the same vocabulary at digest time, so the chip on
+ * the card and the number in the score cannot disagree. Imported through the
+ * subpath (not the barrel) so raw `node --experimental-strip-types` scripts
+ * that load this file keep resolving.
  */
-const SENIORITY: ReadonlyArray<readonly [RegExp, Seniority]> = [
-  [/\bhead\s+of\b|\bleiter(?:in)?\b/i, 'head'],
-  [/\bprincipal\b/i, 'principal'],
-  [/\bstaff\b/i, 'lead'],
-  [/\b(?:team\s*)?lead\b|\blead\b/i, 'lead'],
-  [/\(senior\)|\bsenior\b|\bsenior-/i, 'senior'],
-  [/\bjunior\b|\bwerkstudent(?:in)?\b|\bpraktik/i, 'junior'],
-];
+const SENIORITY = SENIORITY_PATTERNS;
 
 // ── Discipline ──────────────────────────────────────────────────────────────
 
@@ -86,33 +76,7 @@ const DISCIPLINE: ReadonlyArray<readonly [RegExp, Discipline]> = [
 
 // ── Stack ───────────────────────────────────────────────────────────────────
 
-/*
- * A closed list, on purpose. An open "capitalised word near a slash" heuristic
- * would harvest company names and marketing nouns; a closed list either
- * matches a technology we can name or stays silent.
- */
-const STACK: ReadonlyArray<readonly [RegExp, string]> = [
-  [/\btypescript\b/i, 'TypeScript'],
-  [/\bjavascript\b/i, 'JavaScript'],
-  [/\breact\s+native\b/i, 'React Native'],
-  [/\breact\b/i, 'React'],
-  [/\bangular\b/i, 'Angular'],
-  [/\bvue(?:\.js)?\b/i, 'Vue'],
-  [/\bnext\.?js\b/i, 'Next.js'],
-  [/\bnode(?:\.js)?\b/i, 'Node'],
-  [/\btanstack\b/i, 'TanStack'],
-  [/\bjava\s*\d{1,2}\b|\bjava\b(?!script)/i, 'Java'],
-  [/\bkotlin\b/i, 'Kotlin'],
-  [/\bswift\b/i, 'Swift'],
-  [/\bpython\b/i, 'Python'],
-  [/\bgolang\b|\bgo\b(?=\s|$|\/)/i, 'Go'],
-  [/\bphp\b/i, 'PHP'],
-  [/\.net\b|\bc#/i, '.NET'],
-  [/\bsap\b/i, 'SAP'],
-  [/\bcoremedia\b/i, 'CoreMedia'],
-  [/\bgoogle\s+cloud\b/i, 'Google Cloud'],
-  [/\baws\b/i, 'AWS'],
-];
+const STACK = STACK_PATTERNS;
 
 // ── Workplace ───────────────────────────────────────────────────────────────
 

@@ -1,6 +1,13 @@
 export * from './schema';
 export type { OnboardingJob } from './queries/onboarding';
-export { getDigest, getParseSummary, getUnreadEmails, matchesAnyDirection } from './queries/digest';
+export {
+  applyPreFilters,
+  getDigest,
+  getParseSummary,
+  getUnreadEmails,
+  matchesAnyDirection,
+  type PreFilterSplit,
+} from './queries/digest';
 export { getActiveRuleset, NoActiveRulesetError } from './queries/ruleset';
 export { getDismissedAds, getSavedAds, getSavedCount } from './queries/history';
 export {

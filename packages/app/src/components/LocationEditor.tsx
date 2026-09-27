@@ -44,18 +44,18 @@ export function LocationEditor({ city, remoteOk }: { city: string | null; remote
           className={styles.checkbox}
           defaultChecked={remoteOk}
         />
-        Also show remote jobs
+        Remote jobs count as local
       </label>
 
       <div className={styles.footer}>
         <button type="button" className={styles.saveBtn} onClick={handleSave}>
           {saved ? 'Saved' : 'Save'}
         </button>
-        {!city && !remoteOk && (
-          <p className={styles.hint}>
-            No location set — all jobs pass the location filter regardless of where they are.
-          </p>
-        )}
+        <p className={styles.hint}>
+          {city
+            ? `Jobs in ${city}${remoteOk ? ' or remote' : ''} rank first; the rest of the country, then Europe, then further away rank lower. Nothing is hidden for its location.`
+            : 'No city set — jobs are not ranked by location.'}
+        </p>
       </div>
     </div>
   );

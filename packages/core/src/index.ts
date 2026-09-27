@@ -17,6 +17,8 @@ export {
 export { eur, describeCondition, describePredicate, predicateFactName } from './describe';
 export { evaluate, evaluateRule, evalPredicate, worstState, blockers, isBlocked } from './evaluate';
 export {
+  CALIBRATION_V2,
+  CALIBRATION_V3,
   DEFAULT_CALIBRATION,
   ROLE_SYNONYMS,
   directionFit,
@@ -26,8 +28,10 @@ export {
   ruleMargin,
   scoreAd,
   selectTiers,
+  seniorityFit,
   signalCompleteness,
   sourceQuality,
+  stackFit,
   type Calibration,
   type ScoreAdArgs,
   type ScoreBreakdown,
@@ -35,7 +39,39 @@ export {
   type ScoringDirection,
   type Tiered,
   type TopPickHistory,
+  type WeightKey,
 } from './scoring';
+export {
+  EMPTY_CANDIDATE,
+  JUNIOR_MAX_YEARS,
+  SENIOR_MIN_YEARS,
+  deriveCandidateProfile,
+  isBelowTargetLevel,
+  statedYears,
+  targetsSeniorOnly,
+  type CandidateDirection,
+  type CandidateProfile,
+} from './candidate';
+export {
+  countriesIn,
+  homeCountry,
+  isRemoteLocation,
+  locationFit,
+  type Region,
+  type UserLocation,
+} from './location';
+export { SENIORITY_PATTERNS, STACK_PATTERNS, readSeniority, readStack } from './title-lexicon';
+export {
+  LABEL_GAIN,
+  aggregateMetrics,
+  isPositive,
+  labelFromState,
+  rankingMetrics,
+  type AggregateMetrics,
+  type Label,
+  type RankedItem,
+  type RankingMetrics,
+} from './ranking-eval';
 export {
   CURATION_THRESHOLDS,
   DESCRIPTION_MATCH_CHARS,
@@ -47,8 +83,10 @@ export {
 export {
   DISTANCE_FACTOR,
   NON_DISCRIMINATIVE_ROLE_WORDS,
+  ROLE_SPELLING_PATTERNS,
   computeMatch,
   containsWord,
+  normalizeRoleSpelling,
   tokenize,
   type MatchResult,
   type MatchSurface,

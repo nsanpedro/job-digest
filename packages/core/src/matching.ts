@@ -220,12 +220,90 @@ export const DISTANCE_FACTOR: Readonly<Record<Distance, number>> = {
   stretch: 0.5,
 };
 
+// ── Spelling normalisation ───────────────────────────────────────────────────
+
+/**
+ * Closed table of role-word spelling variants, rewritten to one canonical
+ * form before any matching happens. Applied identically to titles,
+ * description windows, search terms (via `tokenize`) and exclude terms, so
+ * every side of every comparison speaks the same spelling.
+ *
+ * Why it exists (Sep 2026 ranking eval): recall misses that were pure
+ * spelling. "frontend engineer" did not match "Senior Front End Engineer"
+ * (the title tokenizes to "front" + "end", neither of which is
+ * "frontend"), nor "Front-End Developer"; the same for full stack /
+ * full-stack / fullstack and back end / back-end / backend. German
+ * compounds had the mirror problem: a searchTerm "web entwickler" never
+ * reached "Webentwickler" ("web" is short, so it needs a word boundary the
+ * compound does not have), and a searchTerm "Softwareentwickler" never
+ * reached "Software Entwickler".
+ *
+ * Canonical forms, and why they point in opposite directions:
+ *
+ *   - English JOINS: "front end" → "frontend", "back end" → "backend",
+ *     "full stack" → "fullstack". The halves are generic words — "Front
+ *     Desk", "End User", "Back Office", "Full-time", "Stack Overflow" — so
+ *     as separate tokens they are evidence of nothing, and a split
+ *     canonical form would let "End User Support Engineer" at a front desk
+ *     assemble "front" + "end" from unrelated words. Joined, the evidence
+ *     stays one discriminative token.
+ *   - German SPLITS: "Softwareentwickler" → "software entwickler",
+ *     "Webentwickler" → "web entwickler". Here the head is a role word the
+ *     matcher already knows: "entwickler" is keyed in ROLE_SYNONYMS (so
+ *     "Softwareentwickler" can reach "Software Engineer") and in
+ *     NON_DISCRIMINATIVE_ROLE_WORDS (so it cannot carry a long-word match
+ *     alone). A joined compound hides the head from both tables. Split is
+ *     also what the hyphenated form "Software-Entwickler" already
+ *     tokenizes to, so the compound joins the form the tokenizer produces
+ *     anyway, and a short modifier ("web") gets the word boundary its
+ *     boundary-match needs.
+ *
+ * Order matters: the English joins run first so "Front-End-Entwickler" and
+ * "Frontendentwickler" both land on "frontend entwickler".
+ *
+ * Closed on purpose, like the lexicons in title-lexicon.ts: an open
+ * "split any word ending in -entwickler" rule would also split
+ * "Anwendungsentwickler" (a distinct trade title) and every future
+ * compound nobody has looked at. Extend the table when a real miss names
+ * a form. Separators cover whitespace, ASCII hyphen, and the Unicode
+ * hyphen, non-breaking hyphen and en dash that pasted titles carry.
+ *
+ * `\b` on both ends of the English patterns keeps "front endpoint" and
+ * "backend" itself untouched; the German pattern has no trailing `\b` so
+ * the feminine and plural forms ("Webentwicklerin", "Softwareentwickler:in")
+ * split the same way.
+ */
+export const ROLE_SPELLING_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  // English — join to the one-word form.
+  [/\bfront[\s\-‐‑–]+end\b/giu, 'frontend'],
+  [/\bback[\s\-‐‑–]+end\b/giu, 'backend'],
+  [/\bfull[\s\-‐‑–]+stack\b/giu, 'fullstack'],
+  // German — split "<domain>entwickler" so the head noun is its own token.
+  [/\b(software|web|frontend|backend|fullstack)(entwickler)/giu, '$1 $2'],
+];
+
+/**
+ * Rewrite role-word spelling variants to their canonical form (see
+ * ROLE_SPELLING_PATTERNS). Case is otherwise preserved, but callers pass
+ * lowercased text in practice. Idempotent: every canonical form is a fixed
+ * point of the table, so normalising twice is harmless.
+ */
+export function normalizeRoleSpelling(text: string): string {
+  let out = text;
+  for (const [re, replacement] of ROLE_SPELLING_PATTERNS) out = out.replace(re, replacement);
+  return out;
+}
+
 // ── Tokenization + word match ────────────────────────────────────────────────
 
-/** Split, lowercase, drop short/stop words. Same rule for titles and search terms so tokens compare like-with-like. */
+/**
+ * Lowercase, normalise role spelling, split, drop short/stop words. Same
+ * rule for titles and search terms so tokens compare like-with-like — the
+ * spelling pass lives here (not at each caller) so every searchTerm
+ * tokenized anywhere in the ladder is already canonical.
+ */
 export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
+  return normalizeRoleSpelling(text.toLowerCase())
     .split(/[\s/,\-()+]+/)
     .filter((w) => w.length >= MIN_TOKEN_LEN && !STOP_WORDS.has(w));
 }
@@ -263,13 +341,151 @@ export function containsWord(haystack: string, word: string): boolean {
   });
 }
 
+// ── Full-phrase structure ────────────────────────────────────────────────────
+
+/**
+ * Where a title (or a description window) breaks into separate phrases:
+ * commas, semicolons, pipes, colons, brackets, newlines, en/em dashes,
+ * sentence ends, and an ASCII hyphen or slash only when it has whitespace
+ * on both sides. "Engineering Manager - Fintech" and "Manager, Software
+ * Engineering" split; "Web-Entwicklung", "Front-End" and "UX/UI Designer"
+ * stay whole, because a bare hyphen or slash joins a compound rather than
+ * separating a role from its qualifier. "." only splits before whitespace
+ * so "node.js" survives.
+ */
+const SEGMENT_SEPARATORS = /\s+[-/]\s+|[–—,;|:()[\]\n]|[.!?](?=\s|$)/;
+
+/**
+ * Words allowed next to the role head in a "Role, Qualifier" title without
+ * counting as a *different* qualifier of that role — see
+ * `roleQualifierInversion`. Seniority/level markers (EN + the ES forms the
+ * AR market posts: "Ssr", "Semi Senior") plus "software", the one
+ * discipline word that is a generic umbrella rather than a competing
+ * specialization: "Software Engineer, Frontend" is a frontend engineer,
+ * whereas "Category Manager - Engineering" is a category manager. Only
+ * tokens ≥ MIN_TOKEN_LEN matter ("Sr", "II" are dropped by `tokenize`).
+ * Extend when a real title names a form; do NOT add domain words here —
+ * every entry is a hole in the "Category Manager" guard.
+ */
+const GENERIC_ROLE_MODIFIERS: ReadonlySet<string> = new Set([
+  'senior',
+  'sénior',
+  'junior',
+  'staff',
+  'principal',
+  'lead',
+  'mid',
+  'level',
+  'iii',
+  'semi',
+  'semisenior',
+  'ssr',
+  'software',
+]);
+
+/**
+ * A title or description window as its phrase segments, each tokenized.
+ * Empty segments dropped. The structure checks below then ask
+ * `containsWord(token, word)` of single tokens, so synonyms and the
+ * per-alt substring/word-boundary rule apply exactly as they did when the
+ * whole title was the haystack.
+ */
+function segmentTokens(text: string): string[][] {
+  return text
+    .split(SEGMENT_SEPARATORS)
+    .map(tokenize)
+    .filter((seg) => seg.length > 0);
+}
+
+/** Every word appears in `seg` in the term's order; other words may sit between them. */
+function inTermOrder(seg: readonly string[], words: readonly string[]): boolean {
+  let i = 0;
+  for (const w of words) {
+    while (i < seg.length && !containsWord(seg[i]!, w)) i++;
+    if (i === seg.length) return false;
+    i++;
+  }
+  return true;
+}
+
+/** Every word appears in one contiguous run of `seg` of exactly `words.length` tokens, any order. */
+function contiguousRun(seg: readonly string[], words: readonly string[]): boolean {
+  for (let start = 0; start + words.length <= seg.length; start++) {
+    const run = seg.slice(start, start + words.length);
+    if (words.every((w) => run.some((tok) => containsWord(tok, w)))) return true;
+  }
+  return false;
+}
+
+/**
+ * "Role, Qualifier" titles (common on Greenhouse/Lever): "Software
+ * Engineer, Frontend", "Manager, Software Engineering - Growth Platform".
+ * Fires when the segment holding the term's head (its LAST word — English
+ * role nouns are head-final) contains nothing but term words and
+ * GENERIC_ROLE_MODIFIERS, and every other term word appears anywhere in
+ * the text. A bare head segment says "this is the role"; the rest of the
+ * term may qualify it from another segment.
+ *
+ * The bare-head requirement is what blocks "Category Manager -
+ * Engineering & Professional Services": "category" is a different noun
+ * directly qualifying "manager", so the role is Category Manager and
+ * "Engineering" is just the category. Requiring the head (not the first
+ * word) blocks the mirror image, "Engineering - Office Manager".
+ *
+ * Head-first term orders (Spanish "ingeniero backend") get no inversion —
+ * their title matches go through the contiguous-run rule instead; an
+ * inverted English title against a Spanish-ordered term ("Software
+ * Engineer, Backend" vs "ingeniero backend") falls through to the lower
+ * tiers. Accepted: we have not seen that pairing in real data.
+ */
+function roleQualifierInversion(segs: readonly (readonly string[])[], words: readonly string[]): boolean {
+  if (words.length < 2) return false;
+  const head = words[words.length - 1]!;
+  const headSegIsBare = segs.some(
+    (seg) =>
+      seg.some((tok) => containsWord(tok, head)) &&
+      seg.every((tok) => GENERIC_ROLE_MODIFIERS.has(tok) || words.some((w) => containsWord(tok, w))),
+  );
+  if (!headSegIsBare) return false;
+  return words.every((w) => segs.some((seg) => seg.some((tok) => containsWord(tok, w))));
+}
+
+/**
+ * Full-phrase test for one search term against pre-segmented text — the
+ * rule behind tiers 1.0 and 0.8. A term's words match when either:
+ *
+ *   (a) they all sit in ONE segment, either in the term's order (extra
+ *       words allowed between: "senior manager" ↔ "Senior Product
+ *       Manager") or as one contiguous run in any order (cross-language
+ *       head-first forms: "backend engineer" ↔ "Desarrollador Backend",
+ *       "engineering director" ↔ "Director of Engineering"); or
+ *   (b) the title is a "Role, Qualifier" inversion — see
+ *       `roleQualifierInversion`.
+ *
+ * Before Sep 2026 this was a bag of words: every term word anywhere in the
+ * title. The Sep 2026 ranking eval against a real account found that
+ * letting through roles the user had dismissed — "Category Manager -
+ * Engineering & Professional Services" and "Manager Operations Engineering
+ * Performance" both scored 1.0 for "Engineering Manager". Word order is
+ * the cheapest structural signal that separates "Engineering Manager"
+ * from "a manager of something, with engineering nearby"; segments keep
+ * a department name after a dash from being read as part of the role.
+ */
+function phraseMatches(segs: readonly (readonly string[])[], words: readonly string[]): boolean {
+  if (segs.some((seg) => inTermOrder(seg, words) || contiguousRun(seg, words))) return true;
+  return roleQualifierInversion(segs, words);
+}
+
 // ── The one match function ───────────────────────────────────────────────────
 
 /**
  * Tier ladder, highest wins:
  *
- *   1.0 — full phrase in the title (every tokenized word of some searchTerm)
- *   0.8 — full phrase in the first DESCRIPTION_MATCH_CHARS of the description
+ *   1.0 — full phrase in the title: some searchTerm's tokenized words sit
+ *         in the title in role order or as a "Role, Qualifier" inversion
+ *         (see `phraseMatches` — word order matters since the Sep 2026
+ *         ranking eval; a bag of words is not a phrase)
+ *   0.8 — same, in the first DESCRIPTION_MATCH_CHARS of the description
  *   0.6 — a ≥8-char non-role-suffix word from any searchTerm appears in title
  *   0.4 — same, but in the description window
  *   0.0 — no match
@@ -294,24 +510,33 @@ export function computeMatch(
 ): MatchResult {
   if (searchTerms.length === 0) return NULL_MATCH;
 
-  const t = title.toLowerCase();
-  const d = description ? description.slice(0, DESCRIPTION_MATCH_CHARS).toLowerCase() : '';
+  // Spelling pre-pass (see ROLE_SPELLING_PATTERNS). Search terms get the
+  // same pass inside `tokenize`, so `matchedTerm` still reports the term as
+  // the user wrote it.
+  const t = normalizeRoleSpelling(title.toLowerCase());
+  const d = description
+    ? normalizeRoleSpelling(description.slice(0, DESCRIPTION_MATCH_CHARS).toLowerCase())
+    : '';
 
-  // Tier 1.0 — full phrase in title.
+  // Tier 1.0 — full phrase in title. A phrase that fails the structure
+  // check (e.g. "Category Manager - Engineering") simply falls through to
+  // the lower tiers like any other miss.
+  const titleSegs = segmentTokens(t);
   for (const term of searchTerms) {
     const words = tokenize(term);
     if (words.length === 0) continue;
-    if (words.every((w) => containsWord(t, w))) {
+    if (phraseMatches(titleSegs, words)) {
       return { tier: 1.0, matchedTerm: term, viaFullPhrase: true, viaLongWord: null, surface: 'title' };
     }
   }
 
   // Tier 0.8 — full phrase in description.
   if (d.length > 0) {
+    const descSegs = segmentTokens(d);
     for (const term of searchTerms) {
       const words = tokenize(term);
       if (words.length === 0) continue;
-      if (words.every((w) => containsWord(d, w))) {
+      if (phraseMatches(descSegs, words)) {
         return { tier: 0.8, matchedTerm: term, viaFullPhrase: true, viaLongWord: null, surface: 'description' };
       }
     }

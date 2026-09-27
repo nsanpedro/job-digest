@@ -280,3 +280,64 @@ When the curated tiers come up short (< 3 ads total), the digest header now rend
 The claim: on a thin week, the digest is more useful as a diagnosis of the pipeline than as an empty list. `explainDigest` in `packages/core/src/explain-digest.ts` is the pure function; `DigestDiagnostic` renders it. Above the threshold the block collapses to `null` — a healthy digest speaks for itself.
 
 Ad cards also gained an inline score breakdown (five components × their weights = total), rendered in the expanded panel. The user can trace a low match number to a specific component instead of asking why.
+
+### 8.5 v3 calibration — seniority and stack, plus a number to grade it with (Sep 2026)
+
+v2's only signal about *what the user wants* was `directionFit`: a keyword ladder over the title with a handful of discrete values. Every ad matching a direction's full phrase tied at 1.0, and the order among them came from freshness and source — a "Junior Frontend Developer" and a "Senior Frontend Engineer" ranked the same for a senior. The title facts that would separate them (`ads.title_facts`: seniority on ~39% of titles, stack on ~18%) were shown as chips and never scored.
+
+v3 adds two components, read from the title with the same lexicon the chips use (`packages/core/src/title-lexicon.ts`, now shared by ingest and scoring):
+
+| Component | Weight | What it measures |
+| --- | --- | --- |
+| `seniorityFit` | 0.10 | The title's rung against the rungs the user targets: same = 1.0, one up = 0.6, one down = 0.4, further = 0. |
+| `stackFit` | 0.05 | Share of the title's technologies the user's own text names. |
+
+The v2 five are scaled by 0.85 to make room. A component whose comparison has a silent side (the title names no rung, the profile names no stack) returns `null` and hands its weight back proportionally (`effectiveWeights`, generalised from the no-directions case). So **an ad with neither signal scores exactly as under v2** — pinned by a test — the tier thresholds keep their meaning, and only ads that carry the signal move.
+
+The user side (`deriveCandidateProfile`, `packages/core/src/candidate.ts`) comes from the user's own text only: rungs named in direction labels and search terms, else the CV's stated years at the two ends of the ladder (≥ 5 → senior, ≤ 1 → junior; the middle stays unknown rather than guessed); stack from the CV's verified skills and the directions. Saved / applied / dismissed ads are deliberately *not* an input — they are the eval's labels.
+
+**The eval.** `packages/worker/scripts/eval-ranking.ts` replays the last N weeks under each calibration (read-only, no top-pick history written) and grades the order against the user's actions: applied / saved = positive, dismissed = negative, the rest unlabelled. The headline metric is pairwise accuracy (how often a positive ranks above a negative), with nDCG@k, recall@k and the positives / negatives that land in the curated tiers alongside. The metric definitions are pure (`packages/core/src/ranking-eval.ts`). The labels were collected under the live ranking, so the eval favours the incumbent calibration: a challenger that wins anyway is winning against the current.
+
+The v3 weights are hand-set like v2's. The eval is how they get checked against a real account before any further moves — the same "reading the top pick" loop as §2.5, made countable.
+
+**First real-account run (27 Sep 2026, one account, 11 weeks, 26 positive / 56 negative label-weeks).** v2 vs v3 is a wash on pairwise accuracy (0.686 vs 0.681), with fewer dismissed ads in the top 10 (15 → 12) and in the curated tiers (7 → 5). The run also caught v3 lifting unrelated roles ("Senior Consultant Digitalisierung") on seniority alone, so `seniorityFit` / `stackFit` now only speak when `directionFit > 0`. The run's bigger finding is upstream of scoring: 6 of the 9 ads the user applied to fail the city pre-filter (Köln, Zurich, Amsterdam, …). Replaying without that gate (`--no-location-gate`) moves pairwise 0.69 → 0.80, recall@10 0.19 → 0.58 and nDCG@10 0.10 → 0.30 — an order of magnitude more than any weight change. Treating "software" / "entwicklung" as non-evidence in the long-word tier removes junior/werkstudent false positives but also drops two applied ads, so that fix needs a sharper rule than a blocklist entry.
+
+### 8.6 v4 calibration — location is scored, not gated (Sep 2026)
+
+The city pre-filter in `getDigest` is gone. It sent every ad whose location string didn't contain the user's city (or a hard-coded alias of its country) to Explore before scoring; on the one account with labels, that hid 6 of the 9 ads the user had applied to, and it was inconsistent on its own terms ("Berlin, Germany" passed a Hamburg user, "Köln" didn't).
+
+Location is now `locationFit` (`packages/core/src/location.ts`): home city or acceptable remote = 1.0, same country 0.6, rest of Europe 0.3, elsewhere 0.1, null when the string can't be placed or the user set no city. Countries come from a closed lexicon of names (EN/DE/ES) and major cities; remote tied to a far-away country ("Remote in the US") is not treated as remote the user can take. The only pre-filter left is the direction match.
+
+Weight 0.05, with v3 scaled to make room (so an unplaceable location scores exactly as under v3). The weight is a tiebreak on purpose — swept on that account, every step up cost ranking quality:
+
+| `locationFit` weight | pairwise | nDCG@10 | recall@10 |
+| --- | --- | --- | --- |
+| v2 / v3 (city gate) | 0.686 / 0.681 | 0.108 / 0.103 | 0.192 |
+| 0 (no gate, no signal) | 0.795 | 0.289 | 0.577 |
+| **0.05 (shipped)** | **0.762** | **0.274** | **0.538** |
+| 0.10 | 0.743 | 0.248 | 0.462 |
+| 0.15 | 0.738 | 0.223 | 0.423 |
+
+This user applies well beyond the stated city, so any location preference costs on this account. 0.05 keeps the stated city first among equal matches for a user whose preference is real, rather than making the Location setting decorative. The next measurable lever is the matcher: with the gate gone, its false positives ("Category Manager – Engineering" matching "Engineering Manager", "Junior Software Engineer" matching via the long word "software") are what fills the top of the list.
+
+### 8.7 Level gate — entry-level titles go to Explore for a senior target (Sep 2026)
+
+With the city gate gone, the eval account (targets lead + senior) kept dismissing entry-level ads that reached the tiers: "Junior Software Engineer", "Werkstudent Softwareentwicklung", "Intern - Front-End Developer", "(Junior) Software Entwickler:in". They pass the direction gate on a long word ("software" out of the search term "Team Lead Software Entwicklung"), and `seniorityFit` = 0 only costs them that component's weight (≈ 0.1) — not enough to keep them below ads the user wants.
+
+`getDigest` pass 2 now has a second gate after the direction match: `isBelowTargetLevel(title, candidate)` (`packages/core/src/candidate.ts`) is true when the title states the junior rung and every rung the user targets is senior or above. Those ads go to Explore unscored. It stays off when the user targets junior (alone or alongside a senior rung), targets nothing, or the title states no rung — "Frontend Developer (m/w/d)" is not junior for lack of a "Senior". Only the entry-level end is gated: a "Senior" ad for a lead is one rung down, a reachable step that `seniorityFit` already scores.
+
+The junior row of the lexicon (`title-lexicon.ts`) grew to the entry-level wording the alerts arrive in, still as a closed list of whole words: intern / internship, trainee, working student, entry level; Werkstudent(in), Werkstudierende, Praktikum / Praktikant(in) (spelled out — the bare `praktik` prefix also read "Praktiker"), Azubi, Ausbildung, Auszubildende; becario/a, pasante / pasantía, prácticas. "Internal", "International" and "Internet" do not read as intern (tested). The gate reads the title live, so it applies to stored ads at once; the stored `title_facts` chip picks up the new words on ingest or via `backfill-title-facts.ts`.
+
+Counted apart from direction misses: `DigestMetrics.explore.belowTargetLevel` next to `preFilterMisses` (still direction-only, so the "didn't match your directions" copy stays true), and the Explore page names it. `metrics.explore` is now non-null when either gate ran. The eval replays it as a separate variant, `v4+level`, beside `v4` without it, and prints how many labelled ads the gate removes — a positive among them is the gate's cost.
+
+### 8.8 Matcher round, measured (27 Sep 2026)
+
+The three matcher changes — spelling pre-pass (`normalizeRoleSpelling`), word-order-aware full phrase, level gate (§8.7) — replayed on the same account and weeks as §8.6. The matcher change applies to every variant's replay, so the "before" column is the eval at `4eb5702`:
+
+| | pairwise | nDCG@10 | recall@10 | dismissed in top 10 | curated (+/−) |
+| --- | --- | --- | --- | --- | --- |
+| v4, matcher before | 0.762 | 0.274 | 0.538 | 10 | 6 / 7 |
+| v4, matcher after | 0.857 | 0.315 | 0.538 | 3 | 6 / 5 |
+| v4 + level gate | 0.857 | 0.315 | 0.538 | 3 | 6 / 3 |
+
+The level gate removed 15 direction-matched ads across the weeks — 8 of them dismissed, none positive — so it only changes the curated tiers (their juniors already ranked below the positives). The one week still weak (0.167) has a single positive, "Staff Engineer - Virtual Assembly Line", that matches none of the user's directions: a direction-coverage gap, not a matcher error.

@@ -10,6 +10,7 @@ import {
   type ExplainableDirection,
   type MatchExplanation,
 } from '../src/explain-match';
+import { directionFitStrength } from '../src/curation';
 import type { Distance } from '../src/discovery';
 
 const dir = (
@@ -124,6 +125,55 @@ describe('explainMatch — outcomes', () => {
       ]),
     );
     expect(exp.kind).toBe('matched');
+  });
+});
+
+describe('explainMatch — spelling variants (Sep 2026 ranking eval)', () => {
+  it('a split-spelled title matches and names the term as the user wrote it', () => {
+    const exp = only(
+      explainMatch('Senior Front End Engineer', null, [dir('Frontend', ['frontend engineer'])]),
+    );
+    expect(exp).toMatchObject({
+      kind: 'matched',
+      tier: 1.0,
+      matchedTerm: 'frontend engineer',
+      via: 'full-phrase',
+      surface: 'title',
+    });
+    expect(describeMatch(exp)).toBe('Matched “Frontend” — full phrase “frontend engineer” in title.');
+  });
+
+  it('an exclude spelled one way fires against a title spelled another, witness in the user’s wording', () => {
+    const exp = only(
+      explainMatch('Senior Frontend Engineer', null, [
+        dir('Software Engineer', ['software engineer', 'frontend engineer'], ['front end']),
+      ]),
+    );
+    expect(exp).toEqual({
+      kind: 'excluded',
+      label: 'Software Engineer',
+      distance: 'adjacent',
+      term: 'front end',
+      where: 'title',
+    });
+  });
+
+  it('an exclude on the head noun reaches a German compound, in the description too', () => {
+    const exp = only(
+      explainMatch('Product Owner', 'Du arbeitest eng mit unseren Webentwicklern zusammen.', [
+        dir('Product', ['product owner'], ['web']),
+      ]),
+    );
+    expect(exp).toMatchObject({ kind: 'excluded', term: 'web', where: 'description' });
+  });
+
+  it('the explainer and the gate agree on spelling-variant excludes', () => {
+    // Guards the intentional duplication between findExcludeHit and
+    // curation.ts's hasExcludeHit: both must run the same pre-pass.
+    const title = 'Full-Stack Developer (m/w/d)';
+    const d = dir('Software', ['software developer', 'fullstack developer'], ['fullstack']);
+    expect(only(explainMatch(title, null, [d])).kind).toBe('excluded');
+    expect(directionFitStrength(title, null, [d])).toBe(0);
   });
 });
 
