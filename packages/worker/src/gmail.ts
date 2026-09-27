@@ -29,26 +29,12 @@ import { decryptSecret } from '@job-digest/core/credentials';
 import { mailboxes, runs } from '@job-digest/db';
 import { eq, sql } from 'drizzle-orm';
 import { SENDER_ALLOWLIST } from '@job-digest/ingest';
+// mapWithConcurrency lived here originally; now shared in concurrency.ts
+// so refresh-onboarding.ts and discover-sources.ts can hit the same cap.
+import { mapWithConcurrency } from './concurrency';
 import { ingestEmail, type IngestResult } from './ingest-email';
 import { enrichAd } from './enrich/enrich-ad';
 import { withTenant, type Db } from './tenant';
-
-/**
- * Runs `fn` over `items` with at most `limit` in flight at once, preserving
- * neither order nor short-circuiting on the first rejection — each item's
- * own try/catch (in the caller) decides what a failure means, the same
- * tolerance the previous sequential loop had.
- */
-async function mapWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < items.length) {
-      const item = items[next++]!;
-      await fn(item);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-}
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';

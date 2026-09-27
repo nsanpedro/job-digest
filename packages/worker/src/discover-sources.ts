@@ -13,9 +13,18 @@
 import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { ads, sources } from '@job-digest/db';
 import { discoverBoard, normalizeToSlugs } from './providers/discover-board';
+import { mapWithConcurrency } from './concurrency';
 import { withTenant, type Db } from './tenant';
 
 const MAX_PER_RUN = 5;
+/**
+ * In-flight probe cap. MAX_PER_RUN already limits how many companies get
+ * probed at all, so this only trims the concurrency of the DB inserts
+ * that follow a successful probe. 3 leaves margin against the shared pool
+ * (max: 4 in the app pool, capped again in the worker), same rationale
+ * as REFRESH_CONCURRENCY in refresh-onboarding.ts.
+ */
+const PROBE_CONCURRENCY = 3;
 
 export async function discoverSources(db: Db, userId: string, since: Date): Promise<void> {
   // Ads created this run from email ingestion (sourceId IS NULL = email path).
@@ -64,9 +73,14 @@ export async function discoverSources(db: Db, userId: string, since: Date): Prom
 
   if (toProbe.length === 0) return;
 
-  // Probe in parallel (discoverBoard already races internally per company).
-  await Promise.allSettled(
-    toProbe.map(async (company) => {
+  // Probe in bounded parallel (discoverBoard already races internally per
+  // company). mapWithConcurrency caps in-flight DB inserts to PROBE_CONCURRENCY
+  // instead of opening one withTenant per hit at once — same class of pool
+  // pressure the /profile hotfix (2026-09-18) addressed on the app side.
+  // Errors are swallowed per company to preserve the old Promise.allSettled
+  // semantics: one probe failing does not stop the rest.
+  await mapWithConcurrency(toProbe, PROBE_CONCURRENCY, async (company) => {
+    try {
       const found = await discoverBoard(company);
       if (!found) return;
 
@@ -93,6 +107,8 @@ export async function discoverSources(db: Db, userId: string, since: Date): Prom
           status: 'suggested',
         });
       });
-    }),
-  );
+    } catch (err) {
+      console.warn(`[discover-sources] skip ${company}: ${err instanceof Error ? err.message : err}`);
+    }
+  });
 }

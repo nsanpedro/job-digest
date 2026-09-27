@@ -138,16 +138,17 @@ as-is; the cap is doing its job.
 
 | Site | Branches | All DB? | Action |
 |---|---|---|---|
-| `layout.tsx:22` | 5 | yes | already fixed in `fix/pool-serialise-remaining` |
-| `digest/page.tsx:37` | 3 | 2 of 3 | already fixed in `fix/pool-serialise-remaining` |
+| `layout.tsx:22` | 5 | yes | fixed in commit `c68a6f6` (serialised) |
+| `digest/page.tsx:37` | 3 | 2 of 3 | fixed in commit `c68a6f6` (serialised) |
 | `GmailStatusBanner.tsx:30` | 2 | 1 of 2 | leave as-is |
 | `profile/page.tsx:44,46` | — | — | comments, N/A |
-| `refresh-onboarding.ts:69` | 28+ | yes | wrap in `mapWithConcurrency` with cap 3–5 |
-| `discover-sources.ts:68` | up to `toProbe.length` | yes | consolidate to one `withTenant`, or cap concurrency |
+| `refresh-onboarding.ts:69` | 28+ | yes | fixed in `fix/pool-worker-fanout` (mapWithConcurrency, cap 3) |
+| `discover-sources.ts:68` | up to `MAX_PER_RUN` (5) | yes | fixed in `fix/pool-worker-fanout` (mapWithConcurrency, cap 3) |
 | `gmail.ts:50`, `fetch-apis.ts:62` | ≤3 | — | already bounded by `FETCH_CONCURRENCY` |
 
-Two remaining risks (`refresh-onboarding.ts:69` and `discover-sources.ts:68`)
-worth scheduling as follow-up branches when the pool budget matters — both
-sit in worker paths off the request thread, so they're less urgent than
-`/profile`/`/digest`/layout were, but they are the same class of bug and
-would surface as `EMAXCONNSESSION` under coincident load.
+All Promise.all sites whose branches all touched the pool are now either
+serialised (request path) or capped through `mapWithConcurrency` from
+`packages/worker/src/concurrency.ts` (worker path). The two mixed
+sites (`GmailStatusBanner.tsx:30`, `digest/page.tsx:37`'s `cookies()`)
+carry non-DB branches; leaving them at Promise.all still holds only one
+connection at a time and is intentional.
