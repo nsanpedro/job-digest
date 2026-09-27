@@ -11,10 +11,15 @@
 // What is replayed, per week and per variant:
 //   evaluate() → drop hard-blocked (unless overridden) → the variant's
 //   pre-filters (direction, via the same matchesAnyDirection getDigest uses;
-//   plus the pre-v4 city gate for the variants that had it) → scoreAd →
+//   plus the pre-v4 city gate for the variants that had it, and the level
+//   gate for the variant that has it) → scoreAd →
 //   rank: gated ads by score desc, then pre-filter misses by score desc.
 // Each variant is the pipeline as it shipped: v2 and v3 behind the city
-// gate, v4 with location scored instead (ADR-003 §8.6).
+// gate, v4 with location scored instead (ADR-003 §8.6), and v4+level —
+// v4 plus the level gate that sends entry-level titles to Explore when the
+// user targets only senior-or-above rungs (ADR-003 §8.7), via the same
+// isBelowTargetLevel getDigest uses. v4 stays in the report without it so
+// the gate's effect reads as its own row.
 // The curated surface (Top / Read / Stretch via selectTiers) is reported
 // separately — that is what the user actually sees first.
 //
@@ -39,6 +44,7 @@ import {
   aggregateMetrics,
   deriveCandidateProfile,
   evaluate,
+  isBelowTargetLevel,
   labelFromState,
   rankingMetrics,
   scoreAd,
@@ -99,6 +105,8 @@ interface Variant {
   candidate: CandidateProfile;
   /** Whether this variant's pipeline dropped ads outside the city before scoring (v1–v3). */
   locationGate: boolean;
+  /** Whether entry-level titles go to Explore for a senior-or-above target (ADR-003 §8.7). */
+  levelGate: boolean;
 }
 
 // ── The pre-v4 city gate, frozen for comparison ──────────────────────────────
@@ -243,7 +251,10 @@ function runVariant(
     );
   }
 
-  const isGated = (a: WeekAd) => a.directionOk && (!variant.locationGate || a.legacyLocationOk);
+  const isGated = (a: WeekAd) =>
+    a.directionOk &&
+    (!variant.locationGate || a.legacyLocationOk) &&
+    (!variant.levelGate || !isBelowTargetLevel(a.title, variant.candidate));
   const byScore = (a: WeekAd, b: WeekAd) =>
     scoreOf.get(b.id)!.total - scoreOf.get(a.id)!.total || a.id.localeCompare(b.id);
   const ranked = [...week.filter(isGated).sort(byScore), ...week.filter((a) => !isGated(a)).sort(byScore)];
@@ -309,14 +320,34 @@ async function main() {
       const applied = new Set(appliedRows.map((r) => r.adId));
 
       const variants: Variant[] = [
-        { name: `v${CALIBRATION_V2.version}`, calibration: CALIBRATION_V2, candidate: EMPTY_CANDIDATE, locationGate: true },
+        {
+          name: `v${CALIBRATION_V2.version}`,
+          calibration: CALIBRATION_V2,
+          candidate: EMPTY_CANDIDATE,
+          locationGate: true,
+          levelGate: false,
+        },
         {
           name: `v${CALIBRATION_V3.version}`,
           calibration: CALIBRATION_V3,
           candidate: { ...candidate, location: EMPTY_CANDIDATE.location },
           locationGate: true,
+          levelGate: false,
         },
-        { name: `v${DEFAULT_CALIBRATION.version}`, calibration: DEFAULT_CALIBRATION, candidate, locationGate: false },
+        {
+          name: `v${DEFAULT_CALIBRATION.version}`,
+          calibration: DEFAULT_CALIBRATION,
+          candidate,
+          locationGate: false,
+          levelGate: false,
+        },
+        {
+          name: `v${DEFAULT_CALIBRATION.version}+level`,
+          calibration: DEFAULT_CALIBRATION,
+          candidate,
+          locationGate: false,
+          levelGate: true,
+        },
       ];
 
       const weeks: Array<{ window: Window; ads: WeekAd[]; blocked: number; results: VariantWeek[] }> = [];
@@ -352,16 +383,26 @@ async function main() {
         `(over ${weeks.reduce((n, w) => n + w.ads.length, 0)} rankable ads, ` +
         `${weeks.reduce((n, w) => n + w.blocked, 0)} hard-blocked left out)`,
     );
+    // What the level gate (v4+level) takes out of the direction-gated pool,
+    // and which labels go with it — a positive here is a cost of the gate.
+    const levelGated = weeks
+      .flatMap((w) => w.ads)
+      .filter((a) => a.directionOk && isBelowTargetLevel(a.title, candidate));
+    console.log(
+      `level gate: ${levelGated.length} direction-matched ad(s) below the target level — ` +
+        `${levelGated.filter((a) => a.label === 'applied' || a.label === 'saved').length} positive, ` +
+        `${levelGated.filter((a) => a.label === 'dismissed').length} dismissed`,
+    );
     console.log('');
 
-    console.log('variant  pairwise  nDCG@k  recall@k  pos@k  neg@k  curated(+/−/size)');
+    console.log('variant   pairwise  nDCG@k  recall@k  pos@k  neg@k  curated(+/−/size)');
     for (let v = 0; v < variants.length; v++) {
       const agg = aggregateMetrics(weeks.map((w) => w.results[v]!.metrics));
       const cp = weeks.reduce((n, w) => n + w.results[v]!.curatedPositives, 0);
       const cn = weeks.reduce((n, w) => n + w.results[v]!.curatedNegatives, 0);
       const cs = weeks.reduce((n, w) => n + w.results[v]!.curatedSize, 0);
       console.log(
-        `${variants[v]!.name.padEnd(7)}  ${fmt(agg.pairwiseAccuracy)}     ${fmt(agg.ndcgAtK)}   ` +
+        `${variants[v]!.name.padEnd(8)}  ${fmt(agg.pairwiseAccuracy)}     ${fmt(agg.ndcgAtK)}   ` +
           `${fmt(agg.recallAtK)}     ${String(agg.positivesAtK).padStart(3)}    ${String(agg.negativesAtK).padStart(3)}    ` +
           `${cp}/${cn}/${cs}`,
       );

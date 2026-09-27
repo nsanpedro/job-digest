@@ -29,6 +29,14 @@ import type { Seniority } from './title-facts';
  * (Engineering Manager) rather than a rung, and it is handled there.
  * "Associate" is absent too: it reads junior at one employer and senior at
  * the next, and a coin flip dressed as a fact is worse than an honest blank.
+ *
+ * The junior row is every entry-level wording the alerts arrive in (EN / DE /
+ * ES), as whole words only — still a closed list. "Intern" must not catch
+ * "Internal", "International" or "Internet", and the German programme words
+ * are spelled out ("Praktikum", "Praktikant:in") rather than left as a bare
+ * `praktik` prefix that would also read "Praktiker" or "praktikabel".
+ * Graduate / Absolvent stay out: a graduate scheme is entry-level at one
+ * employer and a post-doc track at the next.
  */
 export const SENIORITY_PATTERNS: ReadonlyArray<readonly [RegExp, Seniority]> = [
   [/\bhead\s+of\b|\bleiter(?:in)?\b/i, 'head'],
@@ -36,7 +44,28 @@ export const SENIORITY_PATTERNS: ReadonlyArray<readonly [RegExp, Seniority]> = [
   [/\bstaff\b/i, 'lead'],
   [/\b(?:team\s*)?lead\b|\blead\b/i, 'lead'],
   [/\(senior\)|\bsenior\b|\bsenior-/i, 'senior'],
-  [/\bjunior\b|\bwerkstudent(?:in)?\b|\bpraktik/i, 'junior'],
+  [
+    new RegExp(
+      [
+        String.raw`\bjunior\b`,
+        String.raw`\bentry[\s-]?level\b`,
+        String.raw`\bintern(?:ship)?s?\b`,
+        String.raw`\btrainees?\b`,
+        String.raw`\bworking\s+students?\b`,
+        String.raw`\bwerkstudent(?:in|en|innen)?\b`,
+        String.raw`\bwerkstudierende[rn]?\b`,
+        String.raw`\b(?:pflicht)?praktik(?:um|ums|ant(?:in|en|innen)?)\b`,
+        String.raw`\bazubis?\b`,
+        String.raw`\bausbildung\b`,
+        String.raw`\bauszubildende[rn]?\b`,
+        String.raw`\bbecari[oa]s?\b`,
+        String.raw`\bpasant(?:e|es|[íi]a)\b`,
+        String.raw`\bpr[áa]cticas\b`,
+      ].join('|'),
+      'i',
+    ),
+    'junior',
+  ],
 ];
 
 /*
