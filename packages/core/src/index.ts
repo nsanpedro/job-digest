@@ -81,8 +81,10 @@ export {
 export {
   DISTANCE_FACTOR,
   NON_DISCRIMINATIVE_ROLE_WORDS,
+  ROLE_SPELLING_PATTERNS,
   computeMatch,
   containsWord,
+  normalizeRoleSpelling,
   tokenize,
   type MatchResult,
   type MatchSurface,

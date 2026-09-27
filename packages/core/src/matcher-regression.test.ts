@@ -255,3 +255,68 @@ describe('backend developer CV', () => {
     expect(computeMatch('Backend Developer', null, BACKEND_DEVELOPER_TERMS).tier).toBeGreaterThanOrEqual(0.6);
   });
 });
+
+// ── spelling variants of the same role word ─────────────────────────────────
+
+describe('spelling variants (Sep 2026 ranking eval)', () => {
+  // Recall misses the ranking eval surfaced: the same role word spelled
+  // joined, hyphenated or spaced ("frontend" / "Front-End" / "Front End"),
+  // and German compounds vs their split forms ("Softwareentwickler" vs
+  // "Software Entwickler"). `normalizeRoleSpelling` rewrites both sides to
+  // one canonical form before the ladder runs. Every positive here is a
+  // title-side full phrase, so it must land on tier 1.0 — not merely
+  // squeak through the long-word tier.
+
+  test.each([
+    ['frontend engineer', 'Senior Front End Engineer'],
+    ['frontend engineer', 'Senior Front-end Engineer (Libra - Legal AI Assistant) (m/f/d)'],
+    ['frontend engineer', 'Frontend Engineer'],
+    ['frontend engineer', 'Intern - Front-End Developer'],
+    ['Senior Frontend Entwickler React', 'Senior Front-End Entwickler (React)'],
+    ['fullstack developer', 'Full Stack Developer (m/w/d)'],
+    ['fullstack developer', 'Full-Stack Developer'],
+    ['fullstack developer', 'Fullstack Developer'],
+    ['fullstack developer', 'Fullstack-Entwickler (m/w/d)'],
+    ['full stack engineer', 'Fullstack Engineer (m/f/d) - Berlin / Vienna'],
+    ['backend engineer', 'Back End Engineer'],
+    ['backend engineer', 'Back-End Engineer'],
+    ['back-end engineer', 'Backend Engineer'],
+    ['software entwickler', 'Softwareentwickler (m/w/d) React'],
+    ['software entwickler', 'Software-Entwickler'],
+    ['Softwareentwickler', 'Software Entwickler'],
+    ['Softwareentwickler', 'Software Engineer'],
+    ['web entwickler', 'Webentwickler (m/w/d)'],
+    ['webentwickler', 'Web-Entwickler'],
+    ['webentwickler', 'Web Entwickler'],
+  ])('term "%s" matches "%s" at the full-phrase tier', (term, title) => {
+    const r = computeMatch(title, null, [term]);
+    expect(r.tier).toBe(1.0);
+    // Provenance stays the user's own wording, not the canonical form.
+    expect(r.matchedTerm).toBe(term);
+  });
+
+  // Negatives — the halves of a joined English compound are generic words.
+  // Canonicalising to the joined form (not the split one) is what keeps
+  // "front" + "end" or "back" from being assembled out of unrelated words.
+  test.each([
+    ['frontend engineer', 'Front Desk Engineer'],
+    ['frontend engineer', 'End User Support Engineer'],
+    ['frontend engineer', 'Front Office Engineer, End-of-Line Testing'],
+    ['backend engineer', 'Back Office Manager'],
+    ['fullstack developer', 'Full-time Stack Operations Clerk'],
+  ])('term "%s" does NOT match "%s"', (term, title) => {
+    expect(computeMatch(title, null, [term]).tier).toBe(0);
+  });
+
+  test('the spelling pass reaches ad-level excludes too', () => {
+    // A user who excludes "front end" must not see "Frontend Engineer" slip
+    // through the gate just because the positive match spells it joined.
+    const dir: CurationDirection = {
+      distance: 'adjacent',
+      searchTerms: ['software engineer'],
+      excludeTerms: ['front end'],
+    };
+    expect(directionFitStrength('Senior Frontend Software Engineer', null, [dir])).toBe(0);
+    expect(directionFitStrength('Senior Backend Software Engineer', null, [dir])).toBe(1);
+  });
+});

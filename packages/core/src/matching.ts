@@ -220,12 +220,90 @@ export const DISTANCE_FACTOR: Readonly<Record<Distance, number>> = {
   stretch: 0.5,
 };
 
+// ── Spelling normalisation ───────────────────────────────────────────────────
+
+/**
+ * Closed table of role-word spelling variants, rewritten to one canonical
+ * form before any matching happens. Applied identically to titles,
+ * description windows, search terms (via `tokenize`) and exclude terms, so
+ * every side of every comparison speaks the same spelling.
+ *
+ * Why it exists (Sep 2026 ranking eval): recall misses that were pure
+ * spelling. "frontend engineer" did not match "Senior Front End Engineer"
+ * (the title tokenizes to "front" + "end", neither of which is
+ * "frontend"), nor "Front-End Developer"; the same for full stack /
+ * full-stack / fullstack and back end / back-end / backend. German
+ * compounds had the mirror problem: a searchTerm "web entwickler" never
+ * reached "Webentwickler" ("web" is short, so it needs a word boundary the
+ * compound does not have), and a searchTerm "Softwareentwickler" never
+ * reached "Software Entwickler".
+ *
+ * Canonical forms, and why they point in opposite directions:
+ *
+ *   - English JOINS: "front end" → "frontend", "back end" → "backend",
+ *     "full stack" → "fullstack". The halves are generic words — "Front
+ *     Desk", "End User", "Back Office", "Full-time", "Stack Overflow" — so
+ *     as separate tokens they are evidence of nothing, and a split
+ *     canonical form would let "End User Support Engineer" at a front desk
+ *     assemble "front" + "end" from unrelated words. Joined, the evidence
+ *     stays one discriminative token.
+ *   - German SPLITS: "Softwareentwickler" → "software entwickler",
+ *     "Webentwickler" → "web entwickler". Here the head is a role word the
+ *     matcher already knows: "entwickler" is keyed in ROLE_SYNONYMS (so
+ *     "Softwareentwickler" can reach "Software Engineer") and in
+ *     NON_DISCRIMINATIVE_ROLE_WORDS (so it cannot carry a long-word match
+ *     alone). A joined compound hides the head from both tables. Split is
+ *     also what the hyphenated form "Software-Entwickler" already
+ *     tokenizes to, so the compound joins the form the tokenizer produces
+ *     anyway, and a short modifier ("web") gets the word boundary its
+ *     boundary-match needs.
+ *
+ * Order matters: the English joins run first so "Front-End-Entwickler" and
+ * "Frontendentwickler" both land on "frontend entwickler".
+ *
+ * Closed on purpose, like the lexicons in title-lexicon.ts: an open
+ * "split any word ending in -entwickler" rule would also split
+ * "Anwendungsentwickler" (a distinct trade title) and every future
+ * compound nobody has looked at. Extend the table when a real miss names
+ * a form. Separators cover whitespace, ASCII hyphen, and the Unicode
+ * hyphen, non-breaking hyphen and en dash that pasted titles carry.
+ *
+ * `\b` on both ends of the English patterns keeps "front endpoint" and
+ * "backend" itself untouched; the German pattern has no trailing `\b` so
+ * the feminine and plural forms ("Webentwicklerin", "Softwareentwickler:in")
+ * split the same way.
+ */
+export const ROLE_SPELLING_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  // English — join to the one-word form.
+  [/\bfront[\s\-‐‑–]+end\b/giu, 'frontend'],
+  [/\bback[\s\-‐‑–]+end\b/giu, 'backend'],
+  [/\bfull[\s\-‐‑–]+stack\b/giu, 'fullstack'],
+  // German — split "<domain>entwickler" so the head noun is its own token.
+  [/\b(software|web|frontend|backend|fullstack)(entwickler)/giu, '$1 $2'],
+];
+
+/**
+ * Rewrite role-word spelling variants to their canonical form (see
+ * ROLE_SPELLING_PATTERNS). Case is otherwise preserved, but callers pass
+ * lowercased text in practice. Idempotent: every canonical form is a fixed
+ * point of the table, so normalising twice is harmless.
+ */
+export function normalizeRoleSpelling(text: string): string {
+  let out = text;
+  for (const [re, replacement] of ROLE_SPELLING_PATTERNS) out = out.replace(re, replacement);
+  return out;
+}
+
 // ── Tokenization + word match ────────────────────────────────────────────────
 
-/** Split, lowercase, drop short/stop words. Same rule for titles and search terms so tokens compare like-with-like. */
+/**
+ * Lowercase, normalise role spelling, split, drop short/stop words. Same
+ * rule for titles and search terms so tokens compare like-with-like — the
+ * spelling pass lives here (not at each caller) so every searchTerm
+ * tokenized anywhere in the ladder is already canonical.
+ */
 export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
+  return normalizeRoleSpelling(text.toLowerCase())
     .split(/[\s/,\-()+]+/)
     .filter((w) => w.length >= MIN_TOKEN_LEN && !STOP_WORDS.has(w));
 }
@@ -294,8 +372,13 @@ export function computeMatch(
 ): MatchResult {
   if (searchTerms.length === 0) return NULL_MATCH;
 
-  const t = title.toLowerCase();
-  const d = description ? description.slice(0, DESCRIPTION_MATCH_CHARS).toLowerCase() : '';
+  // Spelling pre-pass (see ROLE_SPELLING_PATTERNS). Search terms get the
+  // same pass inside `tokenize`, so `matchedTerm` still reports the term as
+  // the user wrote it.
+  const t = normalizeRoleSpelling(title.toLowerCase());
+  const d = description
+    ? normalizeRoleSpelling(description.slice(0, DESCRIPTION_MATCH_CHARS).toLowerCase())
+    : '';
 
   // Tier 1.0 — full phrase in title.
   for (const term of searchTerms) {
