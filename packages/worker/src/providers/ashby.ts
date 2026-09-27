@@ -10,6 +10,8 @@
  *   - isRemote (boolean), workplaceType ("Remote", "OnSite", "Hybrid")
  *   - compensation.scrapeableCompensationSalarySummary: "€110K – €185K" ready to parse
  *   - compensation.compensationTiers[].components[]: typed breakdown with minValue/maxValue
+ *   - descriptionPlain / descriptionHtml: the full description, already in
+ *     the board response (no extra call). Plain preferred, HTML fallback.
  *
  * What Ashby does NOT give us:
  *   - Shift, German level, Contract type — left null (I4).
@@ -17,6 +19,7 @@
 import { normalizeWorkplace } from '@job-digest/ingest';
 import { eur } from '@job-digest/core';
 import type { Facts } from '@job-digest/core';
+import { toStoredDescription } from './description';
 import type { JobBoardProvider, NormalizedJob } from './types';
 
 const BASE = 'https://api.ashbyhq.com/posting-api/job-board';
@@ -39,6 +42,8 @@ interface AshbyPosting {
   workplaceType: string;  // 'Remote', 'OnSite', 'Hybrid'
   jobUrl: string;
   publishedAt: string | null;
+  descriptionPlain?: string | null;
+  descriptionHtml?: string | null;
   compensation?: {
     scrapeableCompensationSalarySummary?: string;
     compensationTiers?: Array<{
@@ -149,6 +154,7 @@ function mapPosting(posting: AshbyPosting, slug: string): NormalizedJob {
     facts,
     wording,
     postedAt: posting.publishedAt ? new Date(posting.publishedAt) : null,
+    description: toStoredDescription(posting.descriptionPlain || posting.descriptionHtml),
   };
 }
 

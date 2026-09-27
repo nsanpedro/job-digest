@@ -7,8 +7,15 @@
  *
  * Idempotent: the unique index on (user_id, ad_id) in ad_enrichments makes
  * a re-run upsert the row; the facts patch is a merge (fills nulls only).
+ *
+ * Also fills `ads.description` from the fetched description when the ad has
+ * none yet (ADR-003 §8.10 "Descriptions in matching"): an email alert carries
+ * only a title, so this is the one way an email-sourced ad gets a lede for
+ * the matcher's description window. Fill-if-null, like the facts merge — a
+ * description already on the row (e.g. from an API source with the same
+ * dedupe key) is not overwritten.
  */
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { adEnrichments, ads } from '@job-digest/db';
 import { mergeEnrichedFacts } from '@job-digest/core';
 import { withTenant, type Db } from '../tenant';
@@ -29,10 +36,10 @@ export async function enrichAd(
 
   let extractedFacts: Partial<Facts> | null = null;
   let rawExcerpt: string | null = null;
+  let descriptionText: string | null = null;
   let status: 'fetched' | 'fetch_failed' = 'fetch_failed';
 
   try {
-    let descriptionText: string | null = null;
     if (match.platform === 'greenhouse') {
       ({ facts: extractedFacts, descriptionText } = await fetchGreenhouseJob(match.slug, match.jobId));
     } else {
@@ -75,6 +82,13 @@ export async function enrichAd(
           checkedAt: new Date(),
         },
       });
+
+    if (status === 'fetched' && descriptionText) {
+      await tx
+        .update(ads)
+        .set({ description: descriptionText })
+        .where(and(eq(ads.id, adId), isNull(ads.description)));
+    }
 
     if (!extractedFacts || status !== 'fetched') {
       // Fetch failed — mark provenance so the UI can show "couldn't check"

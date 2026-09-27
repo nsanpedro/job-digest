@@ -9,6 +9,18 @@ export {
   type PreFilterSplit,
 } from './queries/digest';
 export { getActiveRuleset, NoActiveRulesetError } from './queries/ruleset';
+export {
+  addExcludeFromDismissal,
+  listFeedbackEffects,
+  muteCompany,
+  recordDismissReason,
+  removeEffectsFromAd,
+  removeFeedbackEffect,
+  unmuteCompany,
+  type DismissedAdFacts,
+  type FeedbackEffectRow,
+} from './queries/feedback';
+
 export { getDismissedAds, getSavedAds, getSavedCount } from './queries/history';
 export {
   getApplications,

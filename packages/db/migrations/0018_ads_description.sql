@@ -1,0 +1,27 @@
+-- The posting's description as plain text, for the direction matcher's
+-- description window (ADR-003 §8.11 "Descriptions in matching"). Before this
+-- column every matcher call passed `null` for the description: generic
+-- titles ("Software Engineer (m/w/d)") whose lede names the real role
+-- ("Engineering Manager for our frontend team") never matched.
+--
+-- Plain text, HTML already stripped by the writer, capped at 4 000 chars by
+-- the writer (DESCRIPTION_MAX_CHARS in
+-- packages/worker/src/providers/description.ts: covers the 3 500-char LLM
+-- extraction window with slack and bounds row growth to ~4 KB, TOAST-
+-- compressed). No CHECK constraint on length: the cap is a writer policy,
+-- and a constraint would turn a future cap change into a migration.
+--
+-- Nullable, no default, no backfill: null means "no description known" (I4)
+-- — email-alert ads, and ads that predate this column until an API source
+-- re-fetches them (fetch-apis.ts refreshes it on every sighting) or
+-- enrichment fills it. The matcher degrades to title-only on null, so
+-- existing rows behave exactly as before.
+--
+-- No grant statement needed: `ads` gets table-level grants from migration
+-- 0001 (GRANT … ON ALL TABLES + ALTER DEFAULT PRIVILEGES), unlike
+-- `mailboxes`, which grants column-by-column for I13. Same as 0009's
+-- `title_facts`. RLS is row-level (tenant policy on user_id) and covers new
+-- columns automatically.
+--
+-- Idempotent (IF NOT EXISTS) so a re-apply by hand is harmless.
+ALTER TABLE "ads" ADD COLUMN IF NOT EXISTS "description" text;

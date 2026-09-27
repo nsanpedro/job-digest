@@ -4,10 +4,15 @@
  * — kept in sync by sharing the same parse logic via normalizePay.
  *
  * Also returns the plain-text job description so the caller can run
- * LLM extraction for shift/German/onsite/contract (ADR-003 Tier 1.5).
+ * LLM extraction for shift/German/onsite/contract (ADR-003 Tier 1.5) and
+ * fill `ads.description` (ADR-003 §8.10 "Descriptions in matching"). Same
+ * text shape as the batch provider (`toStoredDescription`): Greenhouse's
+ * `content` is entity-escaped HTML, which the old local tag-stripper
+ * turned into "p We are…" fragments.
  */
 import { normalizePay } from '@job-digest/ingest';
 import type { Facts } from '@job-digest/core';
+import { toStoredDescription } from '../providers/description';
 
 const BASE = 'https://boards-api.greenhouse.io/v1/boards';
 
@@ -55,10 +60,6 @@ export async function fetchGreenhouseJob(
     }
   }
 
-  const descriptionText = job.content ? stripHtml(job.content) : null;
+  const descriptionText = toStoredDescription(job.content);
   return { facts, descriptionText };
-}
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
 }

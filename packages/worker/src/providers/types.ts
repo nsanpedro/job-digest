@@ -28,6 +28,15 @@ export interface NormalizedJob {
   facts: Facts;
   wording: Partial<Wording>;
   postedAt: Date | null;
+  /**
+   * The posting's description as plain text (HTML stripped, block
+   * boundaries kept as newlines, capped at DESCRIPTION_MAX_CHARS — see
+   * `toStoredDescription` in ./description.ts). Maps to `ads.description`
+   * and feeds the direction matcher's description window (ADR-003 §8.10
+   * "Descriptions in matching"). Null when the response we already fetch
+   * carries no description — never fetched with an extra call per job.
+   */
+  description: string | null;
 }
 
 export interface JobBoardProvider {

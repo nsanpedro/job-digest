@@ -9,14 +9,19 @@
  *   - name (title), office (location), subcompany (company display name)
  *   - employmentType: "permanent" | "temporary" → maps to facts.permanent
  *   - createdAt: ISO date string
+ *   - jobDescriptions: <jobDescription><name>section</name><value>HTML
+ *     (usually CDATA)</value></jobDescription>… — the description, already
+ *     in the feed (no extra call). Stored as "section\ntext" per entry.
  *
  * What Personio does NOT give us:
  *   - Salary — not exposed in the public XML feed (I4)
  *   - Shift, German level — left null (I4)
  *
  * XML parsing: regex over flat <position>…</position> blocks.
- * Personio's schema is stable and flat — no nested elements we need except
- * the primary <office>. This avoids adding an XML-parser dependency for one
+ * Personio's schema is stable and flat — the one nested element we read is
+ * <jobDescriptions>, whose entries carry their own <name>; it is cut out of
+ * the block before the position-level tags are read so a section name can
+ * never be taken for the job title. This avoids adding an XML-parser dependency for one
  * provider; if the schema grows we add fast-xml-parser then.
  *
  * TLD strategy: always try .de first (DACH focus), fall back to .com. The
@@ -25,6 +30,7 @@
  */
 import { normalizeWorkplace } from '@job-digest/ingest';
 import type { Facts } from '@job-digest/core';
+import { toStoredDescription } from './description';
 import type { JobBoardProvider, NormalizedJob } from './types';
 
 // ── XML helpers ───────────────────────────────────────────────────────────────
@@ -38,10 +44,39 @@ function decodeEntities(s: string): string {
     .replace(/&apos;/g, "'");
 }
 
-/** Extract the text content of the first matching tag. */
+/**
+ * Extract the text content of the first matching tag. A CDATA section is
+ * returned verbatim (its content is not entity-encoded by definition).
+ */
 function tag(xml: string, name: string): string | null {
   const m = xml.match(new RegExp(`<${name}>([\\s\\S]*?)<\\/${name}>`));
-  return m && m[1] !== undefined ? decodeEntities(m[1].trim()) : null;
+  if (!m || m[1] === undefined) return null;
+  const inner = m[1].trim();
+  const cdata = /^<!\[CDATA\[([\s\S]*?)\]\]>$/.exec(inner);
+  return cdata ? (cdata[1] ?? '').trim() : decodeEntities(inner);
+}
+
+const JOB_DESCRIPTIONS_RE = /<jobDescriptions>[\s\S]*?<\/jobDescriptions>/;
+
+/**
+ * The position's description sections, "name\nvalue" each, as stored
+ * plain text. `value` is HTML — CDATA-wrapped in the feeds we have seen,
+ * entity-escaped otherwise; `tag` + `toStoredDescription` handle both.
+ */
+function personioDescription(block: string): string | null {
+  const section = JOB_DESCRIPTIONS_RE.exec(block)?.[0];
+  if (!section) return null;
+  const parts: string[] = [];
+  const re = /<jobDescription>([\s\S]*?)<\/jobDescription>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(section)) !== null) {
+    const entry = m[1] ?? '';
+    const heading = tag(entry, 'name');
+    const value = tag(entry, 'value');
+    if (heading) parts.push(heading);
+    if (value) parts.push(value);
+  }
+  return toStoredDescription(...parts);
 }
 
 /** Split the XML body into individual <position>…</position> blocks. */
@@ -99,7 +134,10 @@ function emptyFacts(): Facts {
   };
 }
 
-function mapPosition(block: string, slug: string, tld: 'de' | 'com'): NormalizedJob | null {
+function mapPosition(fullBlock: string, slug: string, tld: 'de' | 'com'): NormalizedJob | null {
+  // Position-level tags are read with the description sections cut out —
+  // each <jobDescription> has its own <name>.
+  const block = fullBlock.replace(JOB_DESCRIPTIONS_RE, '');
   const id = tag(block, 'id');
   const name = tag(block, 'name');
   if (!id || !name) return null;
@@ -146,6 +184,7 @@ function mapPosition(block: string, slug: string, tld: 'de' | 'com'): Normalized
     facts,
     wording,
     postedAt: createdAt ? new Date(createdAt) : null,
+    description: personioDescription(fullBlock),
   };
 }
 

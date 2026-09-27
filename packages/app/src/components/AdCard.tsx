@@ -4,6 +4,7 @@ import { useState, useOptimistic, useTransition } from 'react';
 import { describeMatch, type MatchExplanation } from '@job-digest/core';
 import type { DigestAd } from '@job-digest/db';
 import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
+import { unmuteCompany } from '@/lib/feedback-actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
 import { RuleLane } from './RuleLane';
 import { ScoreBreakdown } from './ScoreBreakdown';
@@ -44,12 +45,19 @@ export function AdCard({
   expanded,
   onToggle,
   dismissed,
+  onDismissed,
 }: {
   ad: DigestAd;
   expanded: boolean;
   onToggle: () => void;
   /** Rendered from the "Filtered out" section — action bar shrinks to Undo. */
   dismissed?: boolean;
+  /**
+   * Called as Dismiss is clicked, so the list can put the optional "why?"
+   * follow-up in this card's place (DismissFollowUp, ADR-003 §8.11). The
+   * dismiss itself never waits on it.
+   */
+  onDismissed?: (ad: DigestAd) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useOptimistic<OptimisticState, Partial<OptimisticState>>(
@@ -77,10 +85,17 @@ export function AdCard({
       setOptimistic({ applicationStatus: 'applied' });
       await recordApplicationEvent(ad.id, 'applied');
     });
-  const onDismiss = () =>
+  const onDismiss = () => {
+    onDismissed?.(ad);
     startTransition(async () => {
       setOptimistic({ justActed: true });
       await dismissAd(ad.id);
+    });
+  };
+  const onUnmute = () =>
+    startTransition(async () => {
+      setOptimistic({ justActed: true });
+      if (ad.company) await unmuteCompany(ad.company);
     });
   const onUndo = () =>
     startTransition(async () => {
@@ -106,6 +121,15 @@ export function AdCard({
           {(ad.company || ad.location) && <span className={styles.metaDot} />}
           <span className={styles.metaSource}>{ad.source}</span>
         </div>
+
+        {ad.mutedCompany && (
+          <div className={styles.mutedLine}>
+            Muted company — in Explore, unscored.{' '}
+            <button type="button" className={styles.mutedUndo} disabled={optimistic.justActed} onClick={onUnmute}>
+              Unmute
+            </button>
+          </div>
+        )}
 
         <div className={styles.main}>
           <div className={styles.mainLeft}>

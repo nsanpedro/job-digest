@@ -4,6 +4,8 @@ import { useState } from 'react';
 import type { Ruleset } from '@job-digest/core';
 import type { Digest, DigestAd } from '@job-digest/db';
 import { AdCard } from './AdCard';
+import { DismissFollowUp } from './DismissFollowUp';
+import { useDismissFollowUps } from './dismiss-follow-ups';
 import { EmptyDigestDiagnostic } from './EmptyDigestDiagnostic';
 import { FilteredSection } from './FilteredSection';
 import styles from './DigestList.module.css';
@@ -32,16 +34,22 @@ function AdList({
   expandedId: string | null;
   onToggle: (id: string) => void;
 }) {
+  const followUps = useDismissFollowUps(ads);
   return (
     <div className={styles.adList}>
-      {ads.map((ad) => (
-        <AdCard
-          key={ad.id}
-          ad={ad}
-          expanded={expandedId === ad.id}
-          onToggle={() => onToggle(ad.id)}
-        />
-      ))}
+      {followUps.items.map((item, i) =>
+        item.kind === 'followUp' ? (
+          <DismissFollowUp key={item.ad.id} ad={item.ad} onClose={() => followUps.close(item.ad.id)} />
+        ) : (
+          <AdCard
+            key={item.ad.id}
+            ad={item.ad}
+            expanded={expandedId === item.ad.id}
+            onToggle={() => onToggle(item.ad.id)}
+            onDismissed={(ad) => followUps.onDismissed(ad, i)}
+          />
+        ),
+      )}
     </div>
   );
 }

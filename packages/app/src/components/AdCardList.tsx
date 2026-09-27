@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { DigestAd } from '@job-digest/db';
 import { AdCard } from './AdCard';
+import { DismissFollowUp } from './DismissFollowUp';
+import { useDismissFollowUps } from './dismiss-follow-ups';
 import styles from './DigestList.module.css';
 
 /**
@@ -13,19 +15,25 @@ import styles from './DigestList.module.css';
  */
 export function AdCardList({ ads, empty }: { ads: DigestAd[]; empty: string }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const followUps = useDismissFollowUps(ads);
 
-  if (ads.length === 0) return <p className={styles.empty}>{empty}</p>;
+  if (followUps.items.length === 0) return <p className={styles.empty}>{empty}</p>;
 
   return (
     <div className={styles.list}>
-      {ads.map((ad) => (
-        <AdCard
-          key={ad.id}
-          ad={ad}
-          expanded={expandedId === ad.id}
-          onToggle={() => setExpandedId((id) => (id === ad.id ? null : ad.id))}
-        />
-      ))}
+      {followUps.items.map((item, i) =>
+        item.kind === 'followUp' ? (
+          <DismissFollowUp key={item.ad.id} ad={item.ad} onClose={() => followUps.close(item.ad.id)} />
+        ) : (
+          <AdCard
+            key={item.ad.id}
+            ad={item.ad}
+            expanded={expandedId === item.ad.id}
+            onToggle={() => setExpandedId((id) => (id === item.ad.id ? null : item.ad.id))}
+            onDismissed={(ad) => followUps.onDismissed(ad, i)}
+          />
+        ),
+      )}
     </div>
   );
 }

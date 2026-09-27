@@ -341,3 +341,126 @@ The three matcher changes — spelling pre-pass (`normalizeRoleSpelling`), word-
 | v4 + level gate | 0.857 | 0.315 | 0.538 | 3 | 6 / 3 |
 
 The level gate removed 15 direction-matched ads across the weeks — 8 of them dismissed, none positive — so it only changes the curated tiers (their juniors already ranked below the positives). The one week still weak (0.167) has a single positive, "Staff Engineer - Virtual Assembly Line", that matches none of the user's directions: a direction-coverage gap, not a matcher error.
+
+### 8.9 Top pick eligibility — v5 calibration (Sep 2026)
+
+I23 asked for Pay **and** Onsite to be read before an ad could be a Top pick. In practice the tier came up empty in most weeks. When the tier is empty the digest holds at most 8 ads (Read 6 + Stretch 2), not 10, and the week's two strongest ads compete for Read slots.
+
+**Measured without production data.** `packages/ingest/test/top-pick-eligibility.test.ts` runs the real alert fixtures through the real pipeline (extractor → `normalizeAd` → facts). Board ads are synthesised the way the providers build them: no salary except on about half of Ashby postings, and home office read from the location string. It then replays 200 seeded weeks of 20–49 new ads each through evaluate → gates → `scoreAd` → `selectTiers`, under the Engineering ruleset (Pay hard at 3500 €, Onsite a preference at 3 days):
+
+| scenario | empty Top weeks, v4 | empty Top weeks, v5 | Top size v4 → v5 | curated size v4 → v5 |
+| --- | --- | --- | --- | --- |
+| fixture mix (LinkedIn 25 / Xing 55 / StepStone 10 / boards 10 %) | 67 % | **0 %** | 0.38 → 1.99 | 7.3 → 8.7 |
+| LinkedIn-heavy (70 % LinkedIn) | 84 % | **10 %** | 0.16 → 1.57 | 7.3 → 8.4 |
+| board-heavy (40 % boards) | 61 % | **3 %** | 0.49 → 1.88 | 7.5 → 8.8 |
+| no pay-bearing source (LinkedIn + Greenhouse/Lever/Personio) | 100 % | 100 % | 0 → 0 | 7.6 → 7.6 |
+
+The fixtures showed that the missing fact was usually not Pay. Xing and StepStone cards quote a salary band on more than 80 % of cards (90 % in the fixtures). They almost never give a home-office day count: "Hybrid" and "Homeoffice möglich" both read as `null`, on purpose (`normalizeWorkplace`). Pay is missing on every LinkedIn alert, on Greenhouse, Lever and Personio, and on about half of Ashby postings. LinkedIn gives a usable home-office value on about a third of its cards ("Presencial", "En remoto"). So under I23 as written, the fact that emptied the tier on the pay-bearing platforms was Onsite. Onsite is a preference in `DEFAULT_RULESET` and in every `rulesetForCategory` ruleset.
+
+**The rule.** An ad is Top-pick eligible when it scores at least `tierThresholds.topPick`, is new this week, was not a Top pick last week (I25), and has no `unknown` verdict on a Pay or Onsite rule **that the user's ruleset makes hard**. An unread preference is allowed through.
+
+Why severity is the line:
+
+- An unread hard rule could hide a dealbreaker. Had we read the salary, the ad might be blocked. The Top tier cannot vouch for that ad.
+- An unread preference cannot hide a dealbreaker. A preference never blocks (I4), so the worst the missing fact could turn out to be is a `warn`. That is the "one gap" an ad may carry into Worth a read or Stretch anyway.
+- The user's own ruleset says which facts are dealbreakers, and the gate asks for exactly those. The unread preference stays on the card as "not read".
+- An `unknown` from an undecidable exception (I12) means the base condition was read and failed, and only the escape hatch could not be checked. That only happens on hard rules, so such an ad stays out of Top pick.
+
+**I23, as amended:** *a Top pick cannot rest on an unread dealbreaker.* An ad whose Pay or Onsite rule is hard and whose verdict on it is `unknown` is ineligible for the Top tier regardless of score. An unread Pay or Onsite *preference* does not disqualify the ad, and is shown on the card as not read.
+
+Deliberately not changed:
+
+- **The set of facts stays Pay and Onsite.** Widening I23 to every hard rule would empty the tier for everyone: Shift is hard by default, and no alert or board states shift facts.
+- **No role-strength clause.** A second clause was considered: a full-phrase direction match, `directionFit ≥ 1`. It changed no week in the simulation, because at `topPick = 70` every eligible ad there already had a full-phrase match. It would only add a second reason to explain.
+- **The honest limit stays.** For a user whose sources never state pay and whose Pay rule is hard, the tier stays empty (last row above). Relaxing the rule further would mean recommending an ad whose dealbreaker we never read. The levers for that user are the ruleset (Pay as a preference: 0 % empty weeks in the same scenario) or a pay-bearing source, not the tier rule.
+
+**Versioned as calibration v5.** The rule lives in `Calibration.topPickCertainty` (`'all'` for v1–v4, `'hard'` for v5). It is not a weight, but it changes which ads reach the Top slots, and those slots are recorded in `ads_top_pick_history`. So it gets the same treatment as the tier thresholds it sits beside (§2.7): a screenshot that says `calibration@v4` should mean the v4 Top-pick rule. Weights and thresholds are v4's unchanged, so every score is identical and a test pins that. `CALIBRATION_V4` stays exported for the replay.
+
+**The eval.** `eval-ranking.ts` now prints a Top pick block for each variant: weeks with an empty tier, mean tier size, and positives / negatives in the tier. It also has a `v5+level` row next to `v4+level`. The two rows share every ranking metric, since the scores are the same, and differ only in the Top pick block and the curated column. That block is where a real account will show whether the relaxed gate lets dismissed ads into the strongest tier.
+
+### 8.10 Descriptions in matching
+
+`computeMatch` always had a description window — tier 0.8 for a full phrase, 0.4 for a long domain word, both read from the first `DESCRIPTION_MATCH_CHARS` (400) of the description — but every caller passed `null`: the providers didn't carry a description, and nothing stored one. A generic title ("Software Engineer (m/w/d)") whose lede says "Engineering Manager for our frontend team" matched nothing.
+
+**Carried and stored.** `NormalizedJob.description` (plain text) comes from the response each adapter already fetches — no extra call per job:
+
+| Provider | Field | Cost |
+| --- | --- | --- |
+| Greenhouse | `content` (entity-escaped HTML) | needs `?content=true` on the list call: same request count, payload ~5–15 KB per job (several MB for a 500-job board; the onboarding-cache refresh pays it too). Accepted — one request per job would be worse on every axis. |
+| Lever | `descriptionPlain` + `lists[]` + `additionalPlain` | none, already in `mode=json` |
+| Ashby | `descriptionPlain` (fallback `descriptionHtml`) | none |
+| Personio | `<jobDescriptions>` (CDATA / escaped HTML), stored as "section\ntext" | none |
+
+One HTML → text pass (`packages/worker/src/providers/description.ts`) for all of them and for enrichment: block tags become newlines (the matcher splits phrases on `\n`, so a heading line stays its own segment), inline tags vanish, entities decode once. Stored in `ads.description` (migration `0018_ads_description.sql`, nullable text, no backfill), capped at **4 000 chars**: the matcher reads 400, but the cap covers the 3 500-char LLM extraction window with slack, so a re-extraction or a re-tuned window can run from the stored text, and bounds a row at ~4 KB. API ingest writes it (and refreshes it on every fetch; a fetch without one never erases it). Enrichment of Greenhouse/Lever-linked email ads fills it when null. Email-alert ads stay null → title-only, exactly as before.
+
+**Read by every caller.** The ingest gate (`directionFitStrength(job.title, job.description, …)`), the digest read gate and the explanations (`classifyDirections` → `explainMatch`), and ranking (`ScoreAdArgs.description` → `directionFit`). With a null or omitted description every number is the title-only one (pinned by tests).
+
+**Guards — prose is not a title.** The 400-char window stays the anti-boilerplate guard (company intro and EEO text past it cannot match). Two more, in `computeMatch`'s 0.8 tier only (title tiers unchanged):
+
+- *Tight phrase.* In a title "both words, in order, in one segment" is already tight; a prose sentence is long, and "…with our engineering team and the product manager…" would read as "Engineering Manager". The description phrase test is one contiguous run (any order), or term order with at most one token between words ("Join our Front-End team as an engineer" still reads as "frontend engineer"). No "Role, Qualifier" inversion in prose — its "qualifier anywhere" rule is a title idiom.
+- *No one-word phrases.* A one-word term in prose is word evidence and falls to the 0.4 long-word tier, keeping its ≥ 8-char floor and role-suffix blocklist ("engineer" in a lede grants nothing).
+
+**Gate policy.** A description full phrase (0.8) passes the digest read gate on its own — that is the point. A lone description long-word (0.4) does not (`isDirectionHit` in `explain-match.ts`): one domain word in 400 chars of prose ("…our distributed team…") is usually company context, not the role. The focused ingest gate (0.7) already refuses it; discovery mode (0.3) ingests it and the digest puts it in Explore. Its explanation stays `matched` (a true statement about the text) and `directionFit` still scores it when the ad got in on other evidence. At ingest, 0.8 × stretch (0.5) = 0.4 clears discovery only, like any stretch evidence.
+
+**Excludes now see the description too.** `directionFitStrength` and `explainMatch` already checked `excludeTerms` against the description window; with descriptions stored that path goes live. Kept as designed and tested — an industry exclude ("insurance", "gambling") is usually evidenced in the lede, not the title — but it is the one place this change can *remove* an ad a title-only gate kept ("junior" as an exclude hits "you will mentor junior engineers"). Watch for it in the next eval run.
+
+**Deploy order.** The digest selects whole `ads` rows, so migration 0018 must be applied before this code runs. Not yet measured: the eval (`eval-ranking.ts`, now reading `ads.description`) is only informative once API-sourced ads have been re-fetched with descriptions.
+
+### 8.11 Dismiss reasons as explicit feedback (Sep 2026)
+
+Saved, dismissed and applied ads did not affect the ranking; they were only the eval's labels. Dismiss now takes an optional *why*, and some answers turn into an effect the user can see and undo.
+
+**Capture.** Dismiss still takes one click. The card becomes a one-line "Dismissed" row in its own place in the list, with Undo and an optional "Why?" and five chips: Wrong role, Wrong level, Location, Company, Other. Picking one is never needed. The reason is stored in `ad_user_state.dismiss_reason`, a nullable Postgres enum `dismiss_reason` (migration 0019). It is a closed set for the same reason as `application_status`: each value has written copy and a defined effect. Changing the reason undoes the previous reason's effect. Undo on the dismissal clears the reason and removes every effect that dismissal produced. The Dismissed list shows the reason ("Dismissed by you — wrong role").
+
+**Effects.** They are pure functions in `packages/core/src/feedback.ts`, dispatched by `planDismissFeedback`:
+
+| Reason | Effect | Where it applies | Undo |
+| --- | --- | --- | --- |
+| `company` | Mute the company. Its ads go to Explore, unscored. The card says "Muted company — in Explore, unscored" and has an Unmute button. | `getDigest` pass 2: `applyPreFilters` runs a mute gate before the direction gate (`isMutedCompany`), counted in `metrics.explore.mutedCompany` | Unmute on the card, in the follow-up, or in Profile → "From your dismissals" |
+| `wrong_role` | Propose up to three title words to exclude from every direction the title matched (`suggestExcludeTerms`). **Nothing is saved until the user picks a word.** The server recomputes the proposal and saves only a word it still contains. | The existing per-direction `exclude_terms`, which the matcher already reads at read time and at the ingest gate | Remove, in the follow-up or in Profile |
+| `wrong_level` | No new mechanism. The follow-up states what the level gate (§8.7) does: entry-level titles already go to Explore for a senior-or-above target; with no rung named the gate is off; otherwise the reason is only recorded. | — | — |
+| `location`, `other` | Recorded only. They are eval labels, and the follow-up says "nothing is filtered". | — | — |
+
+A company is matched on `companyKey`: lowercase, diacritics folded, punctuation removed, and trailing legal forms dropped (GmbH, AG, & Co. KG, Inc, S.L.U., …). So "Acme GmbH" mutes "ACME GmbH & Co. KG", but not "Acme Group" or "Acmetech".
+
+An exclude is proposed only for a word that passes all of these checks:
+
+- It is **not covered by the user's directions**. It must not appear, at a word boundary (the exclude gate's own rule), in any direction's label or search terms. Excluding a word a direction searches for would remove that direction's own matches.
+- It is not a seniority word (level has its own reason), not a word from the company or location line, and not title boilerplate ("m/w/d", "all gender", "Vollzeit", "remote", …).
+- It actually fires: with the word added, every matched direction reads `excluded` for this title.
+
+"Most specific first" means longer words first, with ties broken by title order. There is no corpus frequency, so the proposal can be explained from the title alone. The word goes to every matched direction, because excluding it from only one would leave the ad in through another. The API ingest gate (`directionFitStrength`) combines the excludes of all directions, so a word saved on one direction also filters at ingest the ads another direction matched. Checking coverage across *all* directions keeps that from removing any direction's own search phrases.
+
+**Storage.** Each saved effect is a row in `feedback_effects`: `kind` (`mute_company` | `exclude_term`), `value`, `value_key`, `direction_id` for an exclude, the source `ad_id`, and `created_at`. The table has partial unique indexes (one mute per company key, one term per direction), a CHECK that only an exclude has a direction, RLS with the tenant policy, and `SELECT, INSERT, DELETE` for `app_user` and `SELECT` for `worker`. An exclude's term also goes into `directions.exclude_terms`, where the matcher reads it; the row records where it came from and when. Rows are deleted to undo, never edited.
+
+**Eval honesty.** `eval-ranking.ts` grades the ranking against dismissals. Once dismissals change the ranking, the eval could end up checking the ranking against its own answer key. Three rules prevent that:
+
+1. The +fb variant applies only effects saved strictly before the replayed week's start (`effectsBefore(effects, window.start)`). A dismissal made during a week is a label for that week and never an input to it.
+2. Every other variant runs with the feedback excludes removed from the stored directions (`withoutExcludeEffects`). The baseline is therefore the pipeline without this feature, not the current directions with the feedback already included.
+3. An ad already dismissed before a week started is unlabelled in that week, for every variant (`dismissedBefore`). The product had already moved it aside, and with feedback on, the dismissal that created a mute would otherwise grade that mute in every later week. This changes the earlier variants' numbers slightly when an ad is seen again after its dismissal.
+
+The report adds a `v4+level+fb` row, the dismiss-reason counts, and how many direction-matched ads the prior effects sent to Explore. A positive among those ads is a cost of the feedback.
+
+**Why this is not the learned weights §2.5 rejected.** §2.5 refused to fit the five score weights to applied/saved/dismissed actions, because at N=1 that is fitting noise. None of that happens here:
+
+- **No weight moves.** Calibration, components and thresholds are unchanged. A reason changes a *gate* the user already has (their direction excludes) or adds a new *explicit* one (a muted company). No number is fitted.
+- **One statement, one effect, one undo.** The user says "not this company", and that company is muted. Nothing is inferred from a pattern of clicks. An unexplained dismissal still changes nothing.
+- **The user confirms the one effect that generalises.** An exclude word can affect ads the user has not seen, so it is only proposed and saved after the user picks it.
+- **It is visible and reversible.** The follow-up names each effect when it happens. A muted ad carries a line on its card, and every standing effect is listed in Profile → "From your dismissals" with its undo. The proposal is deterministic in (reason, title, directions): the same inputs always give the same words.
+- **Wrong level and location stay labels.** Where the product already has a mechanism (the level gate, `locationFit`), a reason does not add a second one that would compete with it.
+
+Candidate.ts still keeps saved, dismissed and applied out of `CandidateProfile`. Feedback enters only as explicit gates, with its own temporal split in the eval, as that file's note required.
+
+### 8.12 §8.9–§8.11 measured on the real account (27 Sep 2026)
+
+Same account as §8.6/§8.8, 13 weeks, now with the eval's temporal split (§8.11): an ad dismissed before a week began is unlabelled in that week, so the label counts (30 positive / 37 dismissed label-weeks) and the absolute numbers are not comparable with §8.8's table — compare rows within this run.
+
+| variant | pairwise | nDCG@10 | recall@10 | dismissed in top 10 | Top pick: empty weeks | Top pick (+/−) |
+| --- | --- | --- | --- | --- | --- | --- |
+| v2 | 0.637 | 0.124 | 0.167 | 15 | 11 / 11 | 0 / 0 |
+| v4 + level | 0.825 | 0.351 | 0.600 | 3 | 10 / 11 | 0 / 0 |
+| **v5 + level** (§8.9) | 0.825 | 0.351 | 0.600 | 3 | **1 / 11** | **3 / 0** |
+| v5 + level + feedback (§8.11) | 0.825 | 0.351 | 0.600 | 3 | 1 / 11 | 3 / 0 |
+
+- **Top pick (§8.9)** is the measurable change: the tier was empty 10 of 11 weeks, now 1 of 11, and the 3 ads it picked across those weeks are ads the user applied to or saved — none dismissed. Ranking metrics are unchanged by construction (v5 scores exactly as v4).
+- **Descriptions (§8.10)** and **dismiss reasons (§8.11)** show no effect yet, correctly: production has no stored descriptions (the column arrives with migration 0018 and fills as API ads are re-fetched) and no dismiss reasons (0019). Re-measure after a few weeks of both.

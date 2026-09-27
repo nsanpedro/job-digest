@@ -23,6 +23,9 @@ import {
   evaluate,
   explainMatch,
   isBelowTargetLevel,
+  isDirectionHit,
+  isMutedCompany,
+  mutedCompanyKeys,
   scoreAd,
   selectTiers,
   targetsSeniorOnly,
@@ -38,6 +41,7 @@ import { accounts, adNarratives, adSightings, ads, adUserState, emailParses, raw
 import { getLatestApplicationStatuses } from './applications';
 import { getPlatformCapabilities } from './capabilities';
 import { getActiveProfile, listInterestedDirections } from './discovery';
+import { listFeedbackEffects } from './feedback';
 import { getActiveRuleset } from './ruleset';
 import { getTopPickHistory, recordTopPicks } from './top-pick-history';
 import type {
@@ -82,16 +86,19 @@ type Db = PostgresJsDatabase<Record<string, unknown>>;
  * per-direction shape and we derive the boolean/ids/labels from it,
  * rather than running `computeMatch` twice.
  *
- * Description is null: the read-time gate is title-only (see the note
- * on `directionFit` in scoring.ts).
+ * `description` is the ad's stored `ads.description` (null for email-alert
+ * ads → title-only). A direction counts when `isDirectionHit` says so:
+ * any title match or a full phrase in the description lede, not a lone
+ * description long-word (ADR-003 §8.10 "Descriptions in matching").
  */
 function classifyDirections(
   title: string,
   dirs: readonly DirectionRow[],
+  description: string | null = null,
 ): { any: boolean; ids: string[]; labels: string[]; explanations: MatchExplanation[] } {
   const explanations = explainMatch(
     title,
-    null,
+    description,
     dirs.map((d) => ({
       label: d.label,
       distance: d.distance,
@@ -102,7 +109,7 @@ function classifyDirections(
   const ids: string[] = [];
   const labels: string[] = [];
   for (let i = 0; i < dirs.length; i++) {
-    if (explanations[i]!.kind === 'matched') {
+    if (isDirectionHit(explanations[i]!)) {
       ids.push(dirs[i]!.id);
       labels.push(dirs[i]!.label);
     }
@@ -118,9 +125,13 @@ function classifyDirections(
  * Exported so the worker can apply the same gate at ingest time (before
  * writing to the DB) when the user has directions configured.
  */
-export function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]): boolean {
+export function matchesAnyDirection(
+  title: string,
+  dirs: readonly DirectionRow[],
+  description: string | null = null,
+): boolean {
   if (dirs.length === 0) return true;
-  return classifyDirections(title, dirs).any;
+  return classifyDirections(title, dirs, description).any;
 }
 
 // ── Pre-filters (pass 2) ─────────────────────────────────────────────────────
@@ -129,6 +140,8 @@ export function matchesAnyDirection(title: string, dirs: readonly DirectionRow[]
 export interface PreFilterSplit<T> {
   /** Passed every active gate — scored into the tiers. */
   passed: T[];
+  /** From a company the user muted from a dismissal (ADR-003 §8.11) → explore, unscored. */
+  mutedCompany: T[];
   /** Matched none of the user's directions → explore, unscored. */
   directionMisses: T[];
   /**
@@ -136,33 +149,41 @@ export interface PreFilterSplit<T> {
    * targets only senior-or-above rungs (ADR-003 §8.7) → explore, unscored.
    */
   belowTargetLevel: T[];
-  /** False when neither gate had signal to run on (no directions, no senior target). */
+  /** False when no gate had signal to run on (no mutes, no directions, no senior target). */
   active: boolean;
 }
 
 /**
  * Pass 2 of `getDigest`, pure: the hard user preferences, applied in order.
- * The direction gate runs first, so an off-direction entry-level ad counts
- * as a direction miss and never as a level miss — the three buckets are
+ * A muted company goes first — it is the most explicit of the three, the
+ * user named it — then the direction gate, so an off-direction entry-level
+ * ad counts as a direction miss and never as a level miss. The buckets are
  * disjoint and each count means one thing.
  *
  * Exported for tests: the rest of `getDigest` needs a database, this doesn't.
  */
-export function applyPreFilters<T extends { ad: { title: string } }>(
+export function applyPreFilters<
+  T extends { ad: { title: string; company?: string | null }; description?: string | null },
+>(
   entries: readonly T[],
   dirs: readonly DirectionRow[],
   candidate: Pick<CandidateProfile, 'seniorities'>,
+  mutedCompanies: ReadonlySet<string> = new Set(),
 ): PreFilterSplit<T> {
+  const muteGate = mutedCompanies.size > 0;
   const directionGate = dirs.length > 0;
   const levelGate = targetsSeniorOnly(candidate);
   const out: PreFilterSplit<T> = {
     passed: [],
+    mutedCompany: [],
     directionMisses: [],
     belowTargetLevel: [],
-    active: directionGate || levelGate,
+    active: muteGate || directionGate || levelGate,
   };
   for (const entry of entries) {
-    if (directionGate && !matchesAnyDirection(entry.ad.title, dirs)) {
+    if (muteGate && isMutedCompany(entry.ad.company, mutedCompanies)) {
+      out.mutedCompany.push(entry);
+    } else if (directionGate && !matchesAnyDirection(entry.ad.title, dirs, entry.description ?? null)) {
       out.directionMisses.push(entry);
     } else if (levelGate && isBelowTargetLevel(entry.ad.title, candidate)) {
       out.belowTargetLevel.push(entry);
@@ -260,6 +281,8 @@ export async function getDigest(
     location: { city: userCity, remoteOk },
   });
   const history = await getTopPickHistory(db, userId, now);
+  // Companies muted from a dismissal (ADR-003 §8.11) — explicit, reversible.
+  const mutedCompanies = mutedCompanyKeys(await listFeedbackEffects(db, userId));
   const calibration = DEFAULT_CALIBRATION;
 
   // ── Pass 1: split into dismissed vs. eligible ──────────────────────────────
@@ -267,7 +290,11 @@ export async function getDigest(
   // Eligible ads (not user-dismissed, not hard-blocked) plus their raw facts
   // — facts are needed for scoring and dropped from DigestAd to keep that
   // type light.
-  const eligible: Array<{ ad: DigestAd; facts: typeof rows[number]['ad']['facts'] }> = [];
+  const eligible: Array<{
+    ad: DigestAd;
+    facts: typeof rows[number]['ad']['facts'];
+    description: string | null;
+  }> = [];
   const dismissed: DismissedAd[] = [];
   let filteredByRule = 0;
   let dismissedByUser = 0;
@@ -311,7 +338,7 @@ export async function getDigest(
     // I10: three distinct outcomes, checked in the order the UI presents them.
     if (row.state?.dismissedAt) {
       dismissedByUser++;
-      dismissed.push({ ...base, reason: { kind: 'user' } });
+      dismissed.push({ ...base, reason: { kind: 'user', why: row.state.dismissReason } });
       continue;
     }
     const blockers = verdicts.filter((v) => v.state === 'block');
@@ -321,7 +348,7 @@ export async function getDigest(
       dismissed.push({ ...base, reason: { kind: 'rule', blockers } });
       continue;
     }
-    eligible.push({ ad: base, facts: row.ad.facts });
+    eligible.push({ ad: base, facts: row.ad.facts, description: row.ad.description });
   }
 
   // User dismissals above rule dismissals (design, screen 1).
@@ -356,22 +383,25 @@ export async function getDigest(
   // gate is counted there and never reaches the level check), so each
   // number in the explore header says what it claims.
 
-  const gated = applyPreFilters(eligible, interestedDirs, candidate);
+  const gated = applyPreFilters(eligible, interestedDirs, candidate, mutedCompanies);
   const candidates = gated.passed;
-  const explorePool: DigestAd[] = [...gated.directionMisses, ...gated.belowTargetLevel].map((e) => e.ad);
+  const explorePool: DigestAd[] = [
+    ...gated.mutedCompany.map((e) => ({ ...e.ad, mutedCompany: true })),
+    ...[...gated.directionMisses, ...gated.belowTargetLevel].map((e) => e.ad),
+  ];
 
   // ── Pass 3: score + select tiers ──────────────────────────────────────────
 
   const adById = new Map<string, DigestAd>();
   const scoredPool: ScoredAd[] = [];
 
-  for (const { ad, facts } of candidates) {
+  for (const { ad, facts, description } of candidates) {
     // One pass over directions gives us the ids (for the diversity cap),
     // the labels (for the AdCard row), AND the full per-direction
     // explanations (for the "Why is this here?" chip in ExpandedPanel).
     // Was three separate passes.
     const matched = interestedDirs.length > 0
-      ? classifyDirections(ad.title, interestedDirs)
+      ? classifyDirections(ad.title, interestedDirs, description)
       : { any: true, ids: [], labels: [], explanations: [] };
 
     const breakdown: ScoreBreakdown = scoreAd({
@@ -381,6 +411,7 @@ export async function getDigest(
       directions: interestedDirs,
       candidate,
       title: ad.title,
+      description,
       locationRaw: ad.location,
       source: ad.source,
       receivedAt: ad.receivedAt,
@@ -439,6 +470,7 @@ export async function getDigest(
           preFilterMisses: gated.directionMisses.length,
           belowTargetLevel: gated.belowTargetLevel.length,
           belowThreshold: tiered.explore.length,
+          mutedCompany: gated.mutedCompany.length,
         }
       : null,
     filteredByRule,

@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { DEFAULT_RULESET, type Mode, type Ruleset } from '@job-digest/core';
-import { accounts, applicationEvents, adUserState, mailboxes, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
+import { accounts, applicationEvents, adUserState, mailboxes, removeEffectsFromAd, rulesets, runs, type ApplicationStatus } from '@job-digest/db';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   discoverSources,
@@ -66,8 +66,16 @@ export async function dismissAd(adId: string): Promise<void> {
   await upsertState(adId, { dismissedAt: new Date() });
 }
 
+/**
+ * Undo takes back everything the dismissal set in motion: the reason, and
+ * any effect it had — a mute, a confirmed exclude (ADR-003 §8.11). A company
+ * muted from an earlier dismissal of another ad stays muted.
+ */
 export async function undoDismiss(adId: string): Promise<void> {
-  await upsertState(adId, { dismissedAt: null });
+  const userId = await currentUserId();
+  await withTenant(userId, (tx) => removeEffectsFromAd(tx, userId, adId));
+  await upsertState(adId, { dismissedAt: null, dismissReason: null });
+  revalidatePath('/profile');
 }
 
 /**

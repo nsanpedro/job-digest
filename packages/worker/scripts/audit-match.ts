@@ -4,10 +4,11 @@
 // clearly outside the user's directions with strength ≥ 0.6. Those are the
 // false positives that produced the "the digest shows me any ad" complaint.
 //
-// Title-only, description=null: the digest read path is title-only (see
-// scoring.ts's directionFit and digest.ts's classifyDirections). Passing the
-// alert body here would answer a different question — what the ingest gate
-// used, not what the ranking used — and the user complaint is about ranking.
+// Title-only, description=null: written when the digest read path was
+// title-only, and the complaint it audits was about title matches. Since
+// ADR-003 §8.10 "Descriptions in matching" the digest and ranking also read
+// `ads.description` (null for email-alert ads); this one-off audit still
+// answers the title-only question.
 //
 // Wrapped in withTenant like every other worker script: a script is not an
 // exemption from RLS just because it runs outside a request.

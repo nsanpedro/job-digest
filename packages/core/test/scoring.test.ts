@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import {
   CALIBRATION_V2,
   CALIBRATION_V3,
+  CALIBRATION_V4,
+  CALIBRATION_V5,
   DEFAULT_CALIBRATION,
   directionFit,
   effectiveWeights,
@@ -26,6 +28,7 @@ import {
   type ScoringDirection,
 } from '../src/scoring';
 import type { Facts, Ruleset, Verdict } from '../src/index';
+import { evaluate } from '../src/evaluate';
 
 const NO_FACTS: Facts = {
   rotating: null,
@@ -1020,5 +1023,172 @@ describe('selectTiers', () => {
     // total = 0.538*0.5 + 0.231*0 + 0.231*1.0 + 0 ≈ 0.500 → 50.
     // Was 68 under the old phantom-1.0 contract.
     expect(result.total).toBe(50);
+  });
+});
+
+// ── Top pick eligibility (v5, ADR-003 §8.9) ─────────────────────────────────
+//
+// I23 amended: the Top tier needs the Pay / Onsite facts the user made hard,
+// not every one of them. Verdicts come from the real `evaluate()` so the
+// severity on each is the ruleset's, not a fixture's.
+
+describe('Top pick eligibility — v5 asks for the hard facts only', () => {
+  /** An Engineering-category ruleset: Pay hard, Onsite a preference. */
+  const rules = (over: Partial<Ruleset> = {}): Ruleset => ({
+    ...defaultRuleset(),
+    Onsite: { key: 'Onsite', severity: 'preference', condition: { minHomeDays: 3 } },
+    Pay: { key: 'Pay', severity: 'hard', condition: { minMonthly: 3500, basis: 'fte' } },
+    ...over,
+  });
+  // Shapes measured on the real alert fixtures: Xing / StepStone quote a
+  // salary band but rarely a home-office day count ("Hybrid" reads as
+  // null); LinkedIn quotes neither.
+  const xingShaped = facts({ pay: 4500 });
+  const linkedInShaped = NO_FACTS;
+
+  const ad = (id: string, total: number, verdicts: readonly Verdict[], p: Partial<ScoredAd> = {}): ScoredAd => ({
+    id,
+    score: {
+      ruleMargin: 0.6,
+      directionFit: 1,
+      signalCompleteness: 0.2,
+      freshness: 1,
+      sourceQuality: 0.6,
+      seniorityFit: 1,
+      stackFit: null,
+      locationFit: 1,
+      total,
+      weights: DEFAULT_CALIBRATION.weights,
+    },
+    verdicts,
+    company: `Company-${id}`,
+    source: 'Xing',
+    matchedDirectionIds: [],
+    hasPreferenceWarn: false,
+    repeat: false,
+    ...p,
+  });
+  const none: ReadonlySet<string> = new Set();
+
+  it('isCertain defaults to the v1–v4 reading: both facts, whatever their severity', () => {
+    const v = evaluate(xingShaped, rules());
+    expect(v.find((x) => x.key === 'Onsite')).toMatchObject({ severity: 'preference', state: 'unknown' });
+    expect(isCertain(v)).toBe(false);
+    expect(isCertain(v, 'all')).toBe(false);
+  });
+
+  it('pay read, home-office preference unread → certain under v5', () => {
+    expect(isCertain(evaluate(xingShaped, rules()), 'hard')).toBe(true);
+  });
+
+  it('pay unread while Pay is hard → not certain, however strong the match', () => {
+    const v = evaluate(linkedInShaped, rules());
+    expect(isCertain(v, 'hard')).toBe(false);
+    const result = selectTiers([ad('li', 95, v)], none, DEFAULT_CALIBRATION);
+    expect(result.topPicks).toHaveLength(0);
+    // Still in the digest — I23 gates Top only, and unknown never blocks (I4).
+    expect(result.worthAReading.map((a) => a.id)).toEqual(['li']);
+  });
+
+  it('pay unread while Pay is a preference → eligible: the user said pay is not a dealbreaker', () => {
+    const v = evaluate(
+      linkedInShaped,
+      rules({ Pay: { key: 'Pay', severity: 'preference', condition: { minMonthly: 3500, basis: 'fte' } } }),
+    );
+    expect(isCertain(v, 'hard')).toBe(true);
+    expect(selectTiers([ad('li', 95, v)], none, DEFAULT_CALIBRATION).topPicks.map((a) => a.id)).toEqual(['li']);
+    // v4 still refused it.
+    expect(selectTiers([ad('li', 95, v)], none, CALIBRATION_V4).topPicks).toHaveLength(0);
+  });
+
+  it('home office unread while Onsite is hard (a user who needs remote) → not certain', () => {
+    const v = evaluate(xingShaped, rules({ Onsite: { key: 'Onsite', severity: 'hard', condition: { minHomeDays: 5 } } }));
+    expect(v.find((x) => x.key === 'Onsite')).toMatchObject({ severity: 'hard', state: 'unknown' });
+    expect(isCertain(v, 'hard')).toBe(false);
+    expect(selectTiers([ad('x', 95, v)], none, DEFAULT_CALIBRATION).topPicks).toHaveLength(0);
+  });
+
+  it('a hard Pay rule left undecidable (pay read and below the floor, exception unread — I12) is not certain', () => {
+    const v = evaluate(
+      facts({ pay: 3000 }),
+      rules({
+        Pay: {
+          key: 'Pay',
+          severity: 'hard',
+          condition: { minMonthly: 3500, basis: 'fte' },
+          exception: { mode: 'waive', when: { kind: 'homeAtLeast', days: 4 } },
+        },
+      }),
+    );
+    const pay = v.find((x) => x.key === 'Pay')!;
+    expect(pay.state).toBe('unknown');
+    expect(pay.because.some((s) => s.kind === 'undecidable')).toBe(true);
+    expect(isCertain(v, 'hard')).toBe(false);
+  });
+
+  it('other hard rules left unread (Shift) never counted for I23, and still do not', () => {
+    const v = evaluate(xingShaped, rules());
+    expect(v.find((x) => x.key === 'Shift')).toMatchObject({ severity: 'hard', state: 'unknown' });
+    expect(isCertain(v, 'hard')).toBe(true);
+  });
+
+  it('the Xing-shaped ad takes Top under v5 and not under v4; the LinkedIn-shaped one under neither', () => {
+    const pool = [
+      ad('linkedin', 90, evaluate(linkedInShaped, rules()), { source: 'LinkedIn' }),
+      ad('xing', 80, evaluate(xingShaped, rules())),
+    ];
+    const v4 = selectTiers(pool, none, CALIBRATION_V4);
+    expect(v4.topPicks).toHaveLength(0);
+    expect(v4.worthAReading.map((a) => a.id)).toEqual(['linkedin', 'xing']);
+
+    const v5 = selectTiers(pool, none, DEFAULT_CALIBRATION);
+    expect(v5.topPicks.map((a) => a.id)).toEqual(['xing']);
+    expect(v5.worthAReading.map((a) => a.id)).toEqual(['linkedin']);
+  });
+
+  it("I25 still holds under v5: last week's Top pick is not re-promoted, a repeat never enters the tiers", () => {
+    const v = evaluate(xingShaped, rules());
+    const pool = [ad('last-week', 95, v), ad('repeat', 92, v, { repeat: true }), ad('fresh', 75, v)];
+    const result = selectTiers(pool, new Set(['last-week']), DEFAULT_CALIBRATION);
+    expect(result.topPicks.map((a) => a.id)).toEqual(['fresh']);
+    expect(result.worthAReading.map((a) => a.id)).toEqual(['last-week']);
+    expect(result.stillOpen.map((a) => a.id)).toEqual(['repeat']);
+  });
+
+  it('the score threshold still applies — certainty is a gate on top of it, not a substitute', () => {
+    const v = evaluate(xingShaped, rules());
+    expect(selectTiers([ad('x', 69, v)], none, DEFAULT_CALIBRATION).topPicks).toHaveLength(0);
+  });
+});
+
+describe('CALIBRATION_V5', () => {
+  it('is the default, and differs from v4 only in the Top-pick certainty rule', () => {
+    expect(DEFAULT_CALIBRATION).toBe(CALIBRATION_V5);
+    expect(CALIBRATION_V5.version).toBe(5);
+    expect(CALIBRATION_V5.topPickCertainty).toBe('hard');
+    expect({ ...CALIBRATION_V5, version: 4, topPickCertainty: 'all' }).toEqual(CALIBRATION_V4);
+  });
+
+  it('earlier calibrations keep I23 as first written', () => {
+    for (const c of [CALIBRATION_V2, CALIBRATION_V3, CALIBRATION_V4]) expect(c.topPickCertainty).toBe('all');
+  });
+
+  it('scores every ad exactly as v4 does', () => {
+    const now = new Date('2026-08-24T12:00:00Z');
+    const input = {
+      facts: facts({ pay: 4500 }),
+      verdicts: [],
+      ruleset: defaultRuleset(),
+      directions: [direction({ searchTerms: ['frontend engineer'] })],
+      candidate: { seniorities: ['senior'] as const, stack: ['React'], location: { city: 'Hamburg', remoteOk: true } },
+      title: 'Senior Frontend Engineer (React)',
+      locationRaw: 'Hamburg',
+      source: 'Xing',
+      receivedAt: now,
+      now,
+    };
+    expect(scoreAd({ ...input, calibration: CALIBRATION_V5 })).toEqual(
+      scoreAd({ ...input, calibration: CALIBRATION_V4 }),
+    );
   });
 });

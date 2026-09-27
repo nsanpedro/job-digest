@@ -14,6 +14,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   customType,
   date,
   index,
@@ -146,6 +147,20 @@ export const directionStateEnum = pgEnum('direction_state', [
   'dismissed',
   'alert_configured',
 ]);
+
+/**
+ * Why the user dismissed an ad (ADR-003 §8.11, migration 0019). Closed set,
+ * same reasoning as `application_status`: each value has authored copy and
+ * a defined effect (packages/core/src/feedback.ts).
+ */
+export const dismissReasonEnum = pgEnum('dismiss_reason', [
+  'wrong_role',
+  'wrong_level',
+  'location',
+  'company',
+  'other',
+]);
+export const feedbackEffectKindEnum = pgEnum('feedback_effect_kind', ['mute_company', 'exclude_term']);
 
 // ── Tenancy root ────────────────────────────────────────────────────────────
 
@@ -414,6 +429,21 @@ export const ads = pgTable(
      * location_raw) — nothing to re-fetch, nothing to re-parse.
      */
     titleFacts: jsonb('title_facts').$type<TitleFacts>(),
+    /**
+     * The posting's description as plain text (HTML stripped, block
+     * boundaries as newlines), capped at 4 000 chars by the writer
+     * (`DESCRIPTION_MAX_CHARS` in worker/src/providers/description.ts).
+     * Feeds the direction matcher's description window — only its first
+     * DESCRIPTION_MATCH_CHARS (400) are read for matching (ADR-003 §8.10
+     * "Descriptions in matching").
+     *
+     * Written by API ingest (every provider whose list response carries a
+     * description) and by post-ingest enrichment for Greenhouse/Lever-linked
+     * email ads (fill-if-null). Null for email-alert ads without enrichment
+     * and for ads that predate the column — null means "no description
+     * known" (I4), and every matcher call degrades to title-only on it.
+     */
+    description: text('description'),
     /** Enriched facts (§6.6): commute etc. — no quote, marked as inferred. */
     enriched: jsonb('enriched').$type<Record<string, unknown>>(),
     /** Per-field provenance: method (deterministic|llm), extractor version. */
@@ -656,6 +686,8 @@ export const adUserState = pgTable(
     overriddenAt: timestamp('overridden_at', { withTimezone: true }),
     overrideRulesetVersion: integer('override_ruleset_version'),
     overrideRuleKey: text('override_rule_key'),
+    /** Why the user dismissed it, when they said (migration 0019). Null = not said, or not dismissed. */
+    dismissReason: dismissReasonEnum('dismiss_reason'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('ad_user_state_user').on(t.userId), tenantPolicy('ad_user_state')],
@@ -699,6 +731,46 @@ export const applicationEvents = pgTable(
     // current status from it.
     index('application_events_ad_at').on(t.adId, t.at.desc()),
     tenantPolicy('application_events'),
+  ],
+);
+
+// ── Dismiss reasons as explicit feedback (ADR-003 §8.11, migration 0019) ─────
+
+/**
+ * One row per effect a dismiss reason had — a muted company, or an exclude
+ * term the user confirmed. Timestamped so the ranking eval can replay a week
+ * with only the effects that existed before it started, and deletable so
+ * every effect is reversible (Unmute / Remove in Profile).
+ *
+ * An `exclude_term` row is provenance: the term itself lives in
+ * `directions.exclude_terms`, where the matcher already reads it, and this
+ * row records that it came from a dismissal (and which one, and when).
+ */
+export const feedbackEffects = pgTable(
+  'feedback_effects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: userId(),
+    kind: feedbackEffectKindEnum('kind').notNull(),
+    /** The dismissal that produced it. Kept if the ad goes, so the effect outlives it. */
+    adId: uuid('ad_id').references(() => ads.id, { onDelete: 'set null' }),
+    /** Set for `exclude_term` only. */
+    directionId: uuid('direction_id').references(() => directions.id, { onDelete: 'cascade' }),
+    /** Company as the ad spelled it, or the exclude term as saved. */
+    value: text('value').notNull(),
+    /** `companyKey(value)` for a mute; the lowercased term for an exclude. */
+    valueKey: text('value_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('feedback_effects_user').on(t.userId),
+    uniqueIndex('feedback_effects_mute_unique').on(t.userId, t.valueKey).where(sql`${t.kind} = 'mute_company'`),
+    uniqueIndex('feedback_effects_exclude_unique')
+      .on(t.directionId, t.valueKey)
+      .where(sql`${t.kind} = 'exclude_term'`),
+    // An exclude belongs to a direction; a mute to none.
+    check('feedback_effects_direction_kind', sql`(${t.kind} = 'exclude_term') = (${t.directionId} IS NOT NULL)`),
+    tenantPolicy('feedback_effects'),
   ],
 );
 
