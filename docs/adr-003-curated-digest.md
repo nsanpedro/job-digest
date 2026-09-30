@@ -464,3 +464,23 @@ Same account as §8.6/§8.8, 13 weeks, now with the eval's temporal split (§8.1
 
 - **Top pick (§8.9)** is the measurable change: the tier was empty 10 of 11 weeks, now 1 of 11, and the 3 ads it picked across those weeks are ads the user applied to or saved — none dismissed. Ranking metrics are unchanged by construction (v5 scores exactly as v4).
 - **Descriptions (§8.10)** and **dismiss reasons (§8.11)** show no effect yet, correctly: production has no stored descriptions (the column arrives with migration 0018 and fills as API ads are re-fetched) and no dismiss reasons (0019). Re-measure after a few weeks of both.
+
+### 8.x Description backfill
+
+Two days after §8.10 shipped, production had 10 of 2 330 ads with a description, all Greenhouse. The adapters were not at fault: each one produces a description from its real response shape (pinned by fixture tests in `packages/worker/test/description-backfill.test.ts`). The gap was in what reaches the write.
+
+- **The ingest gate ran before the upsert.** `fetch-apis.ts` filtered each board through `directionFitStrength` and only the jobs that passed reached `ingestJob`, the one place that wrote `description`. An ad already in the table whose job no longer clears the gate was never touched again. That covers ads admitted before the user had directions, ads admitted by an earlier looser gate, and ads a description exclude now refuses. "Filled on re-fetch" held only for the few jobs that passed that day's gate.
+- **Enrichment only ran for new email ads.** `enrichAd` ran for ads created in the current run. An email ad enriched before 0018, or never enriched, stayed null. `detectTier1` also missed Greenhouse's current `job-boards.greenhouse.io` links.
+- **Most of the 2 330 cannot have one.** LinkedIn, Xing, Indeed and StepStone alert links have no keyless API. Those ads stay null and title-only, as §8.10 already said. The reachable set is ads from API sources whose posting is still open, plus email ads that link to one Greenhouse or Lever posting.
+
+**Fix.**
+- *API fetch.* Before the gate, every fetched job with a description fills the user's ads that match it by externalId or dedupe key and still have a null description. This is one SELECT of ids per source, plus one batched `UPDATE … WHERE description IS NULL` while a gap remains. It never sets `lastSeenAt`, adds a sighting or changes facts, so admission works as before. It also runs before the per-job loop, so a refresh that hits the 60 s `after()` budget behind Gmail still writes the descriptions. For admitted jobs the current text still wins, and null never erases a description (`mergeDescription`).
+- *Enrichment.* A re-sighted email ad with a null description and a Greenhouse or Lever link goes back to `enrichAd`, which now asks `planEnrichment` what to do:
+  - No enrichment row: full run, as before.
+  - Row exists, description null: fetch the description only. There is no Haiku call, because the facts were already extracted from that same text, and no enrichment or provenance write.
+  - Any other case: nothing.
+
+  A failed fetch is not retried on every sighting.
+- *One-off.* `packages/worker/scripts/backfill-descriptions.ts` handles rows that no refresh will touch soon. Run it with tsx, `--dry-run` first. It fetches each board once, however many accounts share it, and each lone Greenhouse or Lever posting once. It makes one request at a time with a `--delay-ms` pause, writes only `description IS NULL` rows and never calls the LLM. It is idempotent.
+
+Not addressed here: the EU Greenhouse instance (`*.eu.greenhouse.io`, which has its own API host) and forwarded email (`forwarding.ts`), which does not enrich at all. The §8.10 eval can run once the backfill has been applied.

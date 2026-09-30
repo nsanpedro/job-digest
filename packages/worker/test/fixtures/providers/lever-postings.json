@@ -1,0 +1,48 @@
+[
+  {
+    "additionalPlain": "We offer 30 days of paid vacation and a yearly learning budget.\n\nFlowtech is an equal opportunity employer.",
+    "additional": "<div>We offer <b>30 days</b> of paid vacation and a yearly learning budget.</div><div><br></div><div>Flowtech is an equal opportunity employer.</div>",
+    "categories": {
+      "commitment": "Full-time",
+      "department": "Engineering",
+      "location": "Munich",
+      "team": "Platform",
+      "allLocations": ["Munich"]
+    },
+    "createdAt": 1756800000000,
+    "descriptionPlain": "Flowtech is hiring an Engineering Manager for the Platform team.\n\nYou will lead eight backend engineers building our workflow engine.",
+    "description": "<div>Flowtech is hiring an <b>Engineering Manager</b> for the Platform team.</div><div><br></div><div>You will lead eight backend engineers building our workflow engine.</div>",
+    "descriptionBodyPlain": "You will lead eight backend engineers building our workflow engine.",
+    "descriptionBody": "<div>You will lead eight backend engineers building our workflow engine.</div>",
+    "openingPlain": "Flowtech is hiring an Engineering Manager for the Platform team.",
+    "opening": "<div>Flowtech is hiring an <b>Engineering Manager</b> for the Platform team.</div>",
+    "id": "5f0c3b1e-8a2d-4c6f-9e1a-2b3c4d5e6f70",
+    "lists": [
+      { "text": "What you'll do", "content": "<li>Grow the team from 8 to 12</li><li>Run the on-call rotation</li>" },
+      { "text": "What we're looking for", "content": "<li>3+ years managing engineers</li><li>Go or Java</li>" }
+    ],
+    "text": "Senior Software Engineer",
+    "country": "DE",
+    "workplaceType": "hybrid",
+    "hostedUrl": "https://jobs.lever.co/flowtech/5f0c3b1e-8a2d-4c6f-9e1a-2b3c4d5e6f70",
+    "applyUrl": "https://jobs.lever.co/flowtech/5f0c3b1e-8a2d-4c6f-9e1a-2b3c4d5e6f70/apply",
+    "salaryRange": { "currency": "EUR", "interval": "per-year-salary", "min": 95000, "max": 120000 },
+    "salaryDescriptionPlain": "",
+    "salaryDescription": ""
+  },
+  {
+    "additionalPlain": "",
+    "additional": "",
+    "categories": { "commitment": "Part-time", "location": "Remote", "team": "Design" },
+    "createdAt": 1757800000000,
+    "descriptionPlain": "",
+    "description": "<div>Product Designer for our <i>mobile</i> app.</div>",
+    "id": "a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d",
+    "lists": [],
+    "text": "Product Designer",
+    "country": "DE",
+    "workplaceType": "remote",
+    "hostedUrl": "https://jobs.lever.co/flowtech/a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d",
+    "applyUrl": "https://jobs.lever.co/flowtech/a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d/apply"
+  }
+]
