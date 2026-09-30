@@ -17,7 +17,7 @@
  * that: they make each query correct on its own terms, independent of
  * whether RLS happens to be active for the connection running it.
  */
-import type { Derivation, Direction, DroppedItem, Skill } from '@job-digest/core';
+import type { AdMarket, Derivation, Direction, DroppedItem, Skill } from '@job-digest/core';
 import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ads, directions, profiles } from '../schema';
@@ -30,6 +30,31 @@ export interface DerivationResult extends Derivation {
   dropped: DroppedItem[];
   promptVersion: number;
   model: string;
+  /** The job-ad market the search terms were written for (prompt v2+). Kept in the snapshot only. */
+  market?: AdMarket;
+}
+
+/**
+ * One `directions` insert row per surviving direction — pure, so the
+ * mapping is testable without Postgres. `excludeTerms` are the model's
+ * proposals, already gated by `parseDerivation` (never a word any of these
+ * directions searches for). Every row is new: a re-derivation writes a new
+ * `profile_version`, so nothing here can overwrite excludes a user added to
+ * an earlier version's direction — those rows are left exactly as they are.
+ */
+export function directionInsertValues(userId: string, version: number, derived: readonly Direction[]) {
+  return derived.map((d) => ({
+    userId,
+    profileVersion: version,
+    label: d.label,
+    rationale: d.rationale,
+    bridge: d.bridge,
+    searchTerms: d.searchTerms,
+    excludeTerms: d.excludeTerms ?? [],
+    distance: d.distance,
+    seenTitles: d.seenTitles,
+    state: 'interested' as const,
+  }));
 }
 
 function nextVersion(db: Db, userId: string) {
@@ -63,10 +88,12 @@ export async function startDerivation(db: Db, userId: string): Promise<{ profile
  * Resolve a derivation on success: store the full snapshot, activate this
  * version (deactivating any prior one — same one-active-version pattern
  * `saveRuleset` uses for `rulesets`), and create one `directions` row per
- * surviving direction, each starting at `state: 'suggested'`.
+ * surviving direction (`directionInsertValues`), each starting at
+ * `state: 'interested'`, with the model's gated exclude terms.
  *
  * `onConflictDoNothing` on the (user, version, label) unique index makes a
- * retried completion idempotent rather than erroring on a double-insert.
+ * retried completion idempotent rather than erroring on a double-insert —
+ * and means a retry never replaces `exclude_terms` a user has edited since.
  */
 export async function completeDerivation(
   db: Db,
@@ -75,7 +102,7 @@ export async function completeDerivation(
   version: number,
   result: DerivationResult,
 ): Promise<void> {
-  const { skills, directions: derivedDirections, dropped, promptVersion, model } = result;
+  const { skills, directions: derivedDirections, dropped, promptVersion, model, market } = result;
 
   await db.update(profiles).set({ isActive: false }).where(eq(profiles.userId, userId));
   await db
@@ -83,7 +110,7 @@ export async function completeDerivation(
     .set({
       status: 'ok',
       isActive: true,
-      data: { skills, dropped, promptVersion, model, derivedAt: new Date().toISOString() } satisfies Record<
+      data: { skills, dropped, promptVersion, model, market: market ?? null, derivedAt: new Date().toISOString() } satisfies Record<
         string,
         unknown
       >,
@@ -93,19 +120,7 @@ export async function completeDerivation(
   if (derivedDirections.length > 0) {
     await db
       .insert(directions)
-      .values(
-        derivedDirections.map((d: Direction) => ({
-          userId,
-          profileVersion: version,
-          label: d.label,
-          rationale: d.rationale,
-          bridge: d.bridge,
-          searchTerms: d.searchTerms,
-          distance: d.distance,
-          seenTitles: d.seenTitles,
-          state: 'interested' as const,
-        })),
-      )
+      .values(directionInsertValues(userId, version, derivedDirections))
       .onConflictDoNothing({ target: [directions.userId, directions.profileVersion, directions.label] });
   }
 }

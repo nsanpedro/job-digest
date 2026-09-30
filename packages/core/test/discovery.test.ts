@@ -4,7 +4,7 @@
  * touches the network (that's derive-directions.ts in @job-digest/worker).
  */
 import { describe, expect, it } from 'vitest';
-import { MAX_DIRECTIONS, MIN_BRIDGE_SKILLS, parseDerivation } from '../src/discovery';
+import { DERIVATION_SCHEMA, MAX_DIRECTIONS, MAX_EXCLUDE_TERMS, MIN_BRIDGE_SKILLS, parseDerivation } from '../src/discovery';
 
 const CV = `Jane Doe. Five years of audit preparation and quality documentation in a
 hospital laboratory. Fluent in German and English. Managed a team of three
@@ -172,5 +172,139 @@ describe('malformed top-level response', () => {
     };
     const result = parseDerivation(raw, CV, KNOWN_TITLES);
     expect(result.directions).toEqual([]);
+  });
+});
+
+describe('excludeTerms — model proposals, gated before they can hide a wanted ad', () => {
+  const skills = [skill('audit prep', 'audit preparation'), skill('ISO 9001', 'ISO 9001 internal auditing')];
+  const bridge = ['audit prep', 'ISO 9001'];
+
+  function emDirection(over: Partial<Record<string, unknown>> = {}) {
+    return direction({
+      label: 'Engineering Manager',
+      bridge,
+      searchTerms: ['Engineering Manager', 'Leiter Softwareentwicklung'],
+      ...over,
+    });
+  }
+
+  it('keeps role families that share a word with the search terms but not the phrase', () => {
+    const raw = { skills, directions: [emDirection({ excludeTerms: ['Account Manager', 'Sales Manager', 'sales'] })] };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual(['Account Manager', 'Sales Manager', 'sales']);
+    expect(result.dropped.filter((d) => d.kind === 'excludeTerm')).toEqual([]);
+  });
+
+  it("drops an exclude that collides with the direction's own search terms or label, and records why", () => {
+    const raw = {
+      skills,
+      directions: [emDirection({ excludeTerms: ['Manager', 'engineering', 'Softwareentwicklung', 'Account Manager'] })],
+    };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual(['Account Manager']);
+    for (const term of ['Manager', 'engineering', 'Softwareentwicklung']) {
+      expect(result.dropped).toContainEqual(
+        expect.objectContaining({ kind: 'excludeTerm', label: term, reason: expect.stringContaining('collides with') }),
+      );
+    }
+  });
+
+  it('uses the matcher semantics — a synonym of a search-term word collides too', () => {
+    // "Entwickler" never appears literally in "Software Engineer", but the
+    // matcher reads them as the same role word (ROLE_SYNONYMS).
+    const raw = {
+      skills,
+      directions: [direction({ label: 'Software Engineer', bridge, searchTerms: ['Software Engineer'], excludeTerms: ['Entwickler'] })],
+    };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual([]);
+    expect(result.dropped).toContainEqual(expect.objectContaining({ kind: 'excludeTerm', label: 'Entwickler' }));
+  });
+
+  it("drops an exclude that collides with ANOTHER direction's terms — excludes are unioned at match time", () => {
+    const raw = {
+      skills,
+      directions: [
+        emDirection({ excludeTerms: ['Sales Engineer', 'Account Manager'] }),
+        direction({ label: 'Solutions Engineering', bridge, searchTerms: ['Sales Engineer', 'Pre-Sales Engineer'] }),
+      ],
+    };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual(['Account Manager']);
+    expect(result.dropped).toContainEqual(
+      expect.objectContaining({
+        kind: 'excludeTerm',
+        label: 'Sales Engineer',
+        reason: expect.stringContaining('Solutions Engineering'),
+      }),
+    );
+  });
+
+  it('only checks against directions that survive the gates — a dropped direction protects nothing', () => {
+    const raw = {
+      skills,
+      directions: [
+        emDirection({ excludeTerms: ['Sales Engineer'] }),
+        // One bridge only → dropped (I17), so its search terms are not the user's.
+        direction({ label: 'Solutions Engineering', bridge: ['audit prep'], searchTerms: ['Sales Engineer'] }),
+      ],
+    };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions).toHaveLength(1);
+    expect(result.directions[0]!.excludeTerms).toEqual(['Sales Engineer']);
+  });
+
+  it('drops seniority-only and too-short excludes', () => {
+    const raw = { skills, directions: [emDirection({ excludeTerms: ['Junior', 'Senior', 'HR', 'Account Manager'] })] };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual(['Account Manager']);
+    expect(result.dropped).toContainEqual(expect.objectContaining({ kind: 'excludeTerm', label: 'Junior', reason: expect.stringContaining('seniority') }));
+    expect(result.dropped).toContainEqual(expect.objectContaining({ kind: 'excludeTerm', label: 'Senior' }));
+    expect(result.dropped).toContainEqual(expect.objectContaining({ kind: 'excludeTerm', label: 'HR', reason: expect.stringContaining('too short') }));
+  });
+
+  it('dedupes case and whitespace variants silently and trims', () => {
+    const raw = { skills, directions: [emDirection({ excludeTerms: ['  Account   Manager ', 'account manager', 'ACCOUNT MANAGER'] })] };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual(['Account Manager']);
+  });
+
+  it(`caps at MAX_EXCLUDE_TERMS (${MAX_EXCLUDE_TERMS}) per direction, keeping the first, and records the rest`, () => {
+    const proposals = ['Account Manager', 'Sales Manager', 'Office Manager', 'Key Account Manager', 'Category Manager', 'Store Manager', 'Event Manager'];
+    const raw = { skills, directions: [emDirection({ excludeTerms: proposals })] };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual(proposals.slice(0, MAX_EXCLUDE_TERMS));
+    const capped = result.dropped.filter((d) => d.kind === 'excludeTerm' && d.reason.includes('cap'));
+    expect(capped.map((d) => d.label)).toEqual(proposals.slice(MAX_EXCLUDE_TERMS));
+  });
+
+  it('a colliding exclude does not use up a cap slot', () => {
+    const proposals = ['Manager', 'Account Manager', 'Sales Manager', 'Office Manager', 'Key Account Manager', 'Category Manager'];
+    const raw = { skills, directions: [emDirection({ excludeTerms: proposals })] };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions[0]!.excludeTerms).toEqual(proposals.slice(1));
+  });
+
+  it('a missing excludeTerms field reads as none and keeps the direction', () => {
+    const raw = { skills, directions: [emDirection()] };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions).toHaveLength(1);
+    expect(result.directions[0]!.excludeTerms).toEqual([]);
+    expect(result.dropped).toEqual([]);
+  });
+
+  it('a malformed excludeTerms field is recorded but keeps the direction', () => {
+    const raw = { skills, directions: [emDirection({ excludeTerms: 'sales' })] };
+    const result = parseDerivation(raw, CV, KNOWN_TITLES);
+    expect(result.directions).toHaveLength(1);
+    expect(result.directions[0]!.excludeTerms).toEqual([]);
+    expect(result.dropped).toContainEqual(expect.objectContaining({ kind: 'excludeTerm', label: '(malformed)' }));
+  });
+
+  it('DERIVATION_SCHEMA requires excludeTerms and stays inside the structured-outputs subset', () => {
+    const item = DERIVATION_SCHEMA.properties.directions.items;
+    expect(item.required).toContain('excludeTerms');
+    expect(item.properties.excludeTerms).toEqual({ type: 'array', items: { type: 'string' } });
+    expect(item.additionalProperties).toBe(false);
   });
 });

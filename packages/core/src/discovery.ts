@@ -19,6 +19,8 @@
  * in as the user's own ad titles, never a title the model merely asserts
  * exists.
  */
+import { containsWord, normalizeRoleSpelling, tokenize } from './matching';
+import { readSeniority } from './title-lexicon';
 import { verifyQuote } from './verify-quote';
 
 /** At most this many directions are ever returned — zero is a valid, correct answer (ADR-001 §3). */
@@ -26,6 +28,15 @@ export const MAX_DIRECTIONS = 3;
 
 /** A direction needs at least this many verified bridging skills to be shown at all (I17). */
 export const MIN_BRIDGE_SKILLS = 2;
+
+/**
+ * At most this many model-proposed exclude terms survive per direction.
+ * Excludes are unioned across directions and applied to the title and the
+ * description lede (curation.ts `directionFitStrength`), so every extra one
+ * is another chance to hide a wanted ad — a short list of clear role
+ * families is the point, not coverage.
+ */
+export const MAX_EXCLUDE_TERMS = 5;
 
 export interface Skill {
   /** Short label, e.g. "5 years of audit preparation". */
@@ -41,8 +52,20 @@ export interface Direction {
   /** Skill `text` values from the surviving `skills` list — the premises for this inference. */
   bridge: string[];
   rationale: string;
-  /** German, as typed into a platform search. */
+  /**
+   * Role titles in the ad languages of the user's market (`adMarket` in
+   * market-language.ts), as typed into a platform search. Also the patterns
+   * the matcher reads (`computeMatch`) — ADR-003 §8.x "Market-language
+   * direction terms" records why the two are not split.
+   */
   searchTerms: string[];
+  /**
+   * Role families the user plausibly does not want that share words with
+   * `searchTerms` ("account manager" for "Engineering Manager"). Proposed by
+   * the model, gated in `parseDerivation` (never a word the user's own
+   * directions search for), persisted into `directions.exclude_terms`.
+   */
+  excludeTerms: string[];
   distance: Distance;
   /** Titles from the user's own ads the model places in this direction — verifiable, never asserted. */
   seenTitles: string[];
@@ -55,8 +78,8 @@ export interface Derivation {
 
 /** What was discarded and why — never thrown away silently, so a bad derivation is debuggable. */
 export interface DroppedItem {
-  kind: 'skill' | 'direction';
-  /** The skill's `text` or the direction's `label`, whichever was dropped. */
+  kind: 'skill' | 'direction' | 'excludeTerm';
+  /** The skill's `text`, the direction's `label`, or the exclude term — whichever was dropped. */
   label: string;
   reason: string;
 }
@@ -95,10 +118,11 @@ export const DERIVATION_SCHEMA = {
           bridge: { type: 'array', items: { type: 'string' } },
           rationale: { type: 'string' },
           searchTerms: { type: 'array', items: { type: 'string' } },
+          excludeTerms: { type: 'array', items: { type: 'string' } },
           distance: { type: 'string', enum: ['adjacent', 'stretch'] },
           seenTitles: { type: 'array', items: { type: 'string' } },
         },
-        required: ['label', 'bridge', 'rationale', 'searchTerms', 'distance', 'seenTitles'],
+        required: ['label', 'bridge', 'rationale', 'searchTerms', 'excludeTerms', 'distance', 'seenTitles'],
         additionalProperties: false,
       },
     },
@@ -186,14 +210,111 @@ function parseDirection(
   // direction, since a direction can still be shown "unserved" with none.
   const seenTitles = r.seenTitles.filter((t) => knownTitles.has(t));
 
+  // Exclude terms are gated later, against every surviving direction (see
+  // `gateExcludeTerms`). A missing field reads as none — excludes are an
+  // optional refinement, never a reason to lose the direction itself.
+  let excludeTerms: string[] = [];
+  if (isStringArray(r.excludeTerms)) {
+    excludeTerms = r.excludeTerms;
+  } else if (r.excludeTerms !== undefined) {
+    dropped.push({ kind: 'excludeTerm', label: '(malformed)', reason: `excludeTerms of "${r.label}" was not a list of strings` });
+  }
+
   return {
     label: r.label,
     bridge,
     rationale: r.rationale,
     searchTerms: r.searchTerms,
+    excludeTerms,
     distance: r.distance,
     seenTitles,
   };
+}
+
+/** Lowercased, spelling-normalised, whitespace-collapsed — the key two excludes are "the same term" under. */
+function excludeKey(term: string): string {
+  return normalizeRoleSpelling(term.toLowerCase()).replace(/\s+/g, ' ').trim();
+}
+
+const REGEX_META = /[.*+?^${}()|[\]\\]/g;
+
+/**
+ * Would `exclude` remove an ad titled `text`? True under either reading:
+ *
+ *   - the exclude gate's own rule — a word-boundary hit after the spelling
+ *     pre-pass (curation.ts `hasExcludeHit`, feedback.ts `excludeHits`);
+ *   - the matcher's — every token of the exclude is `containsWord` of the
+ *     text, synonyms included, so "entwickler" collides with "Software
+ *     Engineer" even though the literal regex would not fire.
+ *
+ * The second reading is stricter than the gate needs. On purpose: a
+ * model-proposed exclude that is even a synonym of the user's own search
+ * phrase is not one to apply without the user asking.
+ */
+function excludeCollidesWith(text: string, exclude: string, excludeTokens: readonly string[]): boolean {
+  const haystack = normalizeRoleSpelling(text.toLowerCase());
+  const escaped = excludeKey(exclude).replace(REGEX_META, '\\$&');
+  if (new RegExp(`\\b${escaped}\\b`, 'iu').test(haystack)) return true;
+  const textTokens = tokenize(text).join(' ');
+  return excludeTokens.length > 0 && excludeTokens.every((w) => containsWord(textTokens, w));
+}
+
+/**
+ * Gate the model's exclude proposals. Runs after the direction cap, against
+ * the directions that will actually be persisted, because excludes are
+ * unioned across directions at match time (curation.ts): an exclude saved
+ * on one direction also removes ads another direction matched. So an
+ * exclude is dropped, and recorded in `dropped`, when it:
+ *
+ *   1. is empty or a case/spelling duplicate of one already kept;
+ *   2. has no token the matcher can read (`tokenize` keeps nothing — "IT",
+ *      "QA", "HR"): too short to gate on a word boundary safely;
+ *   3. is only seniority words ("Senior", "Junior") — level is the level
+ *      gate's job (§8.7), and "junior" in a description lede hits "you will
+ *      mentor junior engineers";
+ *   4. collides with the label or a search term of ANY kept direction (see
+ *      `excludeCollidesWith`) — it would remove that direction's own
+ *      matches. Same rule `suggestExcludeTerms` applies to dismissal words;
+ *   5. exceeds MAX_EXCLUDE_TERMS for its direction (first ones win — the
+ *      model lists the most important first).
+ */
+function gateExcludeTerms(directions: readonly Direction[], dropped: DroppedItem[]): Direction[] {
+  const covered = directions.flatMap((d) => [d.label, ...d.searchTerms].map((text) => ({ text, direction: d.label })));
+
+  return directions.map((d) => {
+    const kept: string[] = [];
+    const seen = new Set<string>();
+    for (const raw of d.excludeTerms) {
+      const term = raw.trim().replace(/\s+/g, ' ');
+      const key = excludeKey(term);
+      if (!key || seen.has(key)) continue;
+      const tokens = tokenize(term);
+      if (tokens.length === 0) {
+        dropped.push({ kind: 'excludeTerm', label: term, reason: `too short to gate on safely (direction "${d.label}")` });
+        continue;
+      }
+      if (tokens.every((t) => readSeniority(t) !== null)) {
+        dropped.push({ kind: 'excludeTerm', label: term, reason: `a seniority word, not a role family (direction "${d.label}")` });
+        continue;
+      }
+      const hit = covered.find((c) => excludeCollidesWith(c.text, term, tokens));
+      if (hit) {
+        dropped.push({
+          kind: 'excludeTerm',
+          label: term,
+          reason: `collides with "${hit.text}" of direction "${hit.direction}" — it would exclude the user's own matches (direction "${d.label}")`,
+        });
+        continue;
+      }
+      if (kept.length >= MAX_EXCLUDE_TERMS) {
+        dropped.push({ kind: 'excludeTerm', label: term, reason: `exceeded the ${MAX_EXCLUDE_TERMS}-exclude cap (direction "${d.label}")` });
+        continue;
+      }
+      seen.add(key);
+      kept.push(term);
+    }
+    return { ...d, excludeTerms: kept };
+  });
 }
 
 /**
@@ -227,10 +348,11 @@ export function parseDerivation(raw: unknown, cvText: string, knownTitles: reado
     .map((d) => parseDirection(d, survivingSkillTexts, knownTitleSet, dropped))
     .filter((d): d is Direction => d !== null);
 
-  const directions = allDirections.slice(0, MAX_DIRECTIONS);
+  const capped = allDirections.slice(0, MAX_DIRECTIONS);
   for (const excess of allDirections.slice(MAX_DIRECTIONS)) {
     dropped.push({ kind: 'direction', label: excess.label, reason: `exceeded the ${MAX_DIRECTIONS}-direction cap` });
   }
+  const directions = gateExcludeTerms(capped, dropped);
 
   return { skills, directions, dropped };
 }

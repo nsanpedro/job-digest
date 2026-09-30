@@ -18,6 +18,7 @@ import { after } from 'next/server';
 import {
   completeDerivation,
   countDerivationsSince,
+  getAccountOverview,
   getDerivationProgress as queryDerivationProgress,
   getDistinctAdTitles,
   setDirectionState as querySetDirectionState,
@@ -75,10 +76,15 @@ export async function uploadCv(formData: FormData): Promise<{ profileId: string;
     return { error: humanReadableExtractionError(extraction.reason) };
   }
 
-  const adTitles = await withTenant(userId, (tx) => getDistinctAdTitles(tx, userId));
+  // The account city decides which languages search terms are written in
+  // (`adMarket` in core, ADR-003 §8.x "Market-language direction terms").
+  const { adTitles, city } = await withTenant(userId, async (tx) => ({
+    adTitles: await getDistinctAdTitles(tx, userId),
+    city: (await getAccountOverview(tx, userId))?.city ?? null,
+  }));
   const { profileId, version } = await withTenant(userId, (tx) => startDerivation(tx, userId));
 
-  after(() => runDerivation({ userId, profileId, version, cvText: extraction.text, adTitles }));
+  after(() => runDerivation({ userId, profileId, version, cvText: extraction.text, adTitles, city }));
 
   return { profileId, version };
 }
@@ -95,10 +101,11 @@ async function runDerivation(params: {
   version: number;
   cvText: string;
   adTitles: string[];
+  city: string | null;
 }): Promise<void> {
-  const { userId, profileId, version, cvText, adTitles } = params;
+  const { userId, profileId, version, cvText, adTitles, city } = params;
   try {
-    const result = await deriveDirections({ cvText, adTitles });
+    const result = await deriveDirections({ cvText, adTitles, city });
 
     if (result.refused) {
       await withTenant(userId, (tx) =>
@@ -114,6 +121,7 @@ async function runDerivation(params: {
         dropped: result.dropped,
         promptVersion: result.promptVersion,
         model: DIRECTIONS_MODEL,
+        market: result.market,
       }),
     );
   } catch (err) {

@@ -464,3 +464,48 @@ Same account as §8.6/§8.8, 13 weeks, now with the eval's temporal split (§8.1
 
 - **Top pick (§8.9)** is the measurable change: the tier was empty 10 of 11 weeks, now 1 of 11, and the 3 ads it picked across those weeks are ads the user applied to or saved — none dismissed. Ranking metrics are unchanged by construction (v5 scores exactly as v4).
 - **Descriptions (§8.10)** and **dismiss reasons (§8.11)** show no effect yet, correctly: production has no stored descriptions (the column arrives with migration 0018 and fills as API ads are re-fetched) and no dismiss reasons (0019). Re-measure after a few weeks of both.
+
+### 8.x Market-language direction terms (Sep 2026)
+
+A direction's `searchTerms` do two jobs: they are what the user types into a job-board alert, and they are the patterns every gate and score reads (`computeMatch` via the ingest gate, the digest read gate and `directionFit`). Role discovery's prompt (v1) asked for "2-4 realistic German search terms" for every account. Two of the three production accounts are in Buenos Aires and Barcelona, where ads are posted in Spanish and English. Their German terms reached Spanish and English titles only through the `ROLE_SYNONYMS` families in `matching.ts`. Those families cover a handful of role words ("engineer", "designer", "manager", "analyst"), so any other part of a German term matched nothing. The model also never proposed `excludeTerms` (migration 0016), so that column stayed empty until the user added words from dismissals (§8.11).
+
+**The market is data the prompt receives, not something the model guesses.** `adMarket` (`packages/core/src/market-language.ts`, pure) decides the ad languages:
+
+1. The account's city, through the same closed lexicon `locationFit` uses (`homeCountry`), then a closed country → languages table. The local language comes first, then English, because tech and management ads in these markets are posted in English as often as in the local language (the same observation behind `ROLE_SYNONYMS`). For example, Hamburg, Wien and Zürich give German + English, and Barcelona and Buenos Aires give Spanish + English. A placeable city in a country the table does not list (London, Toronto, …) gives English.
+2. If the city is unset or the lexicon cannot place it, the CV's language (function-word counts, German / Spanish / English only; a bilingual or short CV reads as unknown) plus English.
+3. Otherwise English.
+
+The city wins over the CV, because a Spanish CV in Hamburg still has to find German and English ads. `deriveDirections` takes `city` and puts the result in an `<ad_market>` block at the end of the **system** prompt (`buildSystemPrompt`). The block comes from our closed tables, not from the CV, so it goes with the operator instructions and not in the user turn, where untrusted CV text could imitate it. Because the block comes last, the static instructions are a byte-identical prefix for every account. The market is stored in the `profiles.data` snapshot next to `promptVersion`.
+
+**Prompt v2** (`PROMPT_VERSION` 1 → 2):
+
+- Step 5 asks for 2-3 search terms per ad language (at most 8). Each is the title ads in that language actually use, not a word-for-word translation. Each must be a job title as it would appear in an ad title, never a bare skill or keyword ("Python", "agile"), because the matcher's long-word tier would read a keyword as evidence for every ad that mentions it.
+- The new step 6 asks for 0-5 `excludeTerms`: role titles of neighbouring families the person plausibly does not want that share a word with the search terms (for "Engineering Manager": "Account Manager", "Sales Manager"). It lists the constraints the gate below enforces.
+- `DERIVATION_SCHEMA` gains `excludeTerms: string[]` (required, basic types only).
+
+**Excludes are gated in `parseDerivation`, like skills and seen titles.** An exclude term is ad-level: the union of all directions' excludes is applied to the title and the 400-character description lede (curation.ts, explain-match.ts), and a hit removes the ad for *every* direction. So each proposed exclude is checked against every direction that survives the I17 gate and the cap, not only its own direction. An exclude is dropped, and recorded in `dropped` as `kind: 'excludeTerm'` with the reason, when:
+
+- it collides with any kept direction's label or search terms. The check reads the text two ways: the exclude gate's own word-boundary regex after the spelling pre-pass, and the matcher's reading (every exclude token is `containsWord` of the text, `ROLE_SYNONYMS` included). The second reading is stricter than the gate needs, on purpose: "Entwickler" collides with "Software Engineer". This is the same "not covered by the user's directions" rule `suggestExcludeTerms` applies to dismissal words (§8.11);
+- it has no token `tokenize` keeps ("HR", "QA"), which is too short to gate on a word boundary safely;
+- it is only seniority words ("Junior", "Senior"). Level belongs to the level gate (§8.7), and "junior" in a description lede hits "you will mentor junior engineers" (§8.10);
+- it is past `MAX_EXCLUDE_TERMS` (5) for its direction (the first ones are kept) or duplicates a kept term (dropped silently).
+
+A missing `excludeTerms` field reads as none; the direction is kept. The gates I17/I18 are unchanged.
+
+**Persistence.** `completeDerivation` writes the gated excludes into `directions.exclude_terms` (`directionInsertValues`, pure and tested). No schema change. A re-derivation writes new rows under a new `profile_version`, and a retried completion of the same version is `onConflictDoNothing`. So no path rewrites an existing direction row, and excludes a user added to an earlier direction (§8.11) are never overwritten. There is nothing to merge them into, because the new rows are separate rows.
+
+**Search terms and match terms stay one list.** We considered splitting them: search terms written for recall (what goes into an alert) and match terms written for precision (what the gates read). We decided against it for now:
+
+- The language problem is fixed by writing the terms in the market's languages. A separate match list would not change that.
+- The precision failures recorded in §8.8/§8.10 came from how the matcher read a term (a bag of words, a role suffix treated as evidence, generic halves like "front"/"end"). They did not come from the terms themselves, and the matcher now guards against those (word order, segments, `NON_DISCRIMINATIVE_ROLE_WORDS`, spelling pass). v2 also asks for titles, not keywords, which is what a precise pattern needs anyway.
+- A split needs a new `directions.match_terms` column (a migration), a backfill rule for existing rows, and changes in every reader of `searchTerms`: ingest gate, digest gate, explanations, ranking, dismiss suggestions, the eval and audit scripts. Part of that code is being changed in parallel.
+- The model-proposed excludes are the cheap precision lever this change adds, and they use the column that already exists.
+
+Revisit when an eval on re-derived v2 directions shows false positives that come from a search term that is good for alerts but too broad for matching.
+
+**Existing users are not re-derived.** v1 directions keep their German-only terms and empty model excludes until the user uploads the CV again on Profile → Role discovery (`uploadCv`, rate-limited to 5 per rolling 24 h by `countDerivationsSince`). Two things to know:
+
+- The city must be set (Profile → Location) *before* the upload. Otherwise the market falls back to the CV language.
+- A re-derivation *adds* a profile version. It does not retire the earlier one. `listInterestedDirections`, which the digest, the ingest gate and the dismiss suggestions read, returns every non-dismissed direction across all versions, while Profile shows only the active version's directions. To stop the old German terms from matching, dismiss the old directions on Profile *before* uploading again, because afterwards they are no longer listed there. Dismissing a direction also retires any dismissal excludes saved on it (§8.11).
+
+Not yet measured: the eval can only grade v2 terms once the accounts re-derive.

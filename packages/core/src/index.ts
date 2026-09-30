@@ -5,6 +5,7 @@ export { normalizeWhitespace, verifyQuote } from './verify-quote';
 export {
   DERIVATION_SCHEMA,
   MAX_DIRECTIONS,
+  MAX_EXCLUDE_TERMS,
   MIN_BRIDGE_SKILLS,
   parseDerivation,
   type Derivation,
@@ -63,6 +64,14 @@ export {
   type Region,
   type UserLocation,
 } from './location';
+export {
+  AD_LANGUAGE_NAME,
+  adMarket,
+  detectCvLanguage,
+  type AdLanguage,
+  type AdMarket,
+  type AdMarketSource,
+} from './market-language';
 export { SENIORITY_PATTERNS, STACK_PATTERNS, readSeniority, readStack } from './title-lexicon';
 export {
   LABEL_GAIN,
