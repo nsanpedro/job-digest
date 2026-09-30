@@ -224,6 +224,9 @@ describe('getDigest', () => {
     expect(back).toBeTruthy();
     expect(back!.scoreBreakdown).not.toBeNull();
     expect(back!.verdicts.some((v) => v.state === 'block')).toBe(true);
+    // The card needs to say why a blocked ad is on screen (ADR-003 §8.14).
+    expect(back!.overridden).toBe(true);
+    expect(offered.filter((a) => a.id !== blocked.id).every((a) => !a.overridden)).toBe(true);
   });
 
   it('reports off-target as null rather than inventing the number (§13)', async () => {
