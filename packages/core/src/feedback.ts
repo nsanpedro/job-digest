@@ -341,3 +341,25 @@ export function planDismissFeedback(input: {
       return { kind: 'noted' };
   }
 }
+
+/**
+ * The stored effect kind a reason owns for its ad, if any. Setting or
+ * changing a reason — from the follow-up row, the card's "Dismiss because"
+ * strip or the Dismissed list — removes every effect this ad produced except
+ * the kind the new reason owns: Company → Location takes the mute back;
+ * Wrong role → Company drops a confirmed exclude. Mirrors
+ * `planDismissFeedback`: `mute` ↔ `mute_company`, `suggest_exclude` ↔
+ * `exclude_term`.
+ */
+export function effectKindOwnedBy(reason: DismissReason): FeedbackEffectKind | null {
+  switch (reason) {
+    case 'company':
+      return 'mute_company';
+    case 'wrong_role':
+      return 'exclude_term';
+    case 'wrong_level':
+    case 'location':
+    case 'other':
+      return null;
+  }
+}

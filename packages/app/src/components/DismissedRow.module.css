@@ -126,7 +126,34 @@
   color: var(--text-strong);
 }
 
+/* "Add reason" / "Change" — a quiet link after the reason text. */
+.reasonEdit {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 4px;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+/* The reason chips, on their own line under the row. */
+.picker {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 4px;
+}
+
 @media (max-width: 640px) {
+  .picker {
+    grid-row: 3;
+  }
+
   .row {
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto;
