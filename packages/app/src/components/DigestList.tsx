@@ -8,6 +8,7 @@ import { DismissFollowUp } from './DismissFollowUp';
 import { useDismissFollowUps } from './dismiss-follow-ups';
 import { EmptyDigestDiagnostic } from './EmptyDigestDiagnostic';
 import { FilteredSection } from './FilteredSection';
+import { placementOf } from './override-follow-ups';
 import styles from './DigestList.module.css';
 
 /**
@@ -135,6 +136,30 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
     ...digest.stillOpen,
   ].sort((a, b) => (b.scoreBreakdown?.total ?? 0) - (a.scoreBreakdown?.total ?? 0));
 
+  // "Show anyway" (ADR-003 §8.14): the held section asks where the ad
+  // landed, and "Go to it" opens its card — unfolding "Hidden" first when
+  // that is where it went.
+  const placement = (adId: string) => placementOf(adId, matches, digest.explore, WORTH_A_LOOK_TOP_N);
+  const reveal = (adId: string) => {
+    if (placement(adId) === 'hidden') {
+      const hidden = document.getElementById('hidden');
+      if (hidden instanceof HTMLDetailsElement) hidden.open = true;
+    }
+    setExpandedId(adId);
+    requestAnimationFrame(() =>
+      document.getElementById(`ad-${adId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+    );
+  };
+  const filtered = (
+    <FilteredSection
+      dismissed={digest.dismissed}
+      rules={rules}
+      rulesetVersion={digest.rulesetVersion}
+      placementOf={placement}
+      onReveal={reveal}
+    />
+  );
+
   // The empty case has two flavors — nothing at all, and "we saw ads but none
   // tiered". Both used to collapse to a single line ("No matches this week." /
   // "No ads arrived in this window."), which read the same to a test PM user
@@ -152,11 +177,7 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
           still explains the count above; these are the concrete near-misses.
         */}
         <ExplorePromoted explore={digest.explore} expandedId={expandedId} onToggle={toggle} />
-        <FilteredSection
-          dismissed={digest.dismissed}
-          rules={rules}
-          rulesetVersion={digest.rulesetVersion}
-        />
+        {filtered}
       </div>
     );
   }
@@ -171,11 +192,7 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
 
       <ExplorePromoted explore={digest.explore} expandedId={expandedId} onToggle={toggle} />
 
-      <FilteredSection
-        dismissed={digest.dismissed}
-        rules={rules}
-        rulesetVersion={digest.rulesetVersion}
-      />
+      {filtered}
     </div>
   );
 }

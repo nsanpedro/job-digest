@@ -80,9 +80,10 @@ export async function undoDismiss(adId: string): Promise<void> {
 
 /**
  * "Show anyway" on a rule-blocked ad (design §7.5 / open question 3):
- * restores it to the main list, tagged with the rule that blocked it and the
+ * restores it to the candidates, tagged with the rule that blocked it and the
  * ruleset version in force — the signal that later drives a loosen-this-rule
- * proposal.
+ * proposal. It is ranked like any other ad, so it may land in Explore
+ * (ADR-003 §8.14); the held section says where.
  */
 export async function overrideRule(adId: string, ruleKey: string, rulesetVersion: number): Promise<void> {
   await upsertState(adId, {
