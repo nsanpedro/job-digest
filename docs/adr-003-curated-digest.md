@@ -504,3 +504,23 @@ With (a), retirement follows from activation, which `completeDerivation` already
 - A suggestion accepted while a derivation is completing can land on the directions being retired, because the follow-up read them before the switch. The word is then held, listed as not applied, and moves at the next analysis. The window is the completion transaction. Closing it would take a lock on the active profile row in both paths.
 - A carried word applies at read time to directions it was never saved on. It is still a word no current direction searches for, and ingest already applied it to them.
 - A held word stays held until a later analysis no longer covers it or the user removes it. Nothing re-plans it in between.
+
+### 8.14 An override restores eligibility, not a slot (Sep 2026)
+
+**Problem.** "Show anyway" on a rule-blocked ad (system-design §7.5) predates the curated digest. Back then, every ad that was not dismissed was in the one visible list, so an override meant the ad was on screen. Under the tiers, the ad goes back into ranking and competes for capped slots (I21, I24). On the fixture corpus the overridden ad (Pay 4.333 € against a 4.500 € floor) scores 53. That clears Worth a read (50), but the six Read slots already hold 54–59, so it lands in Explore. `getDigest`'s own test still expected it in a tier. The test had not run since migration 0013 (§8.13), so nobody noticed. In the UI the row disappeared from "Held by the sift", and the ad could reappear inside the collapsed "Hidden" list. That read as the ad vanishing.
+
+**Options.**
+
+| | Change | Decision |
+| --- | --- | --- |
+| (a) | Rank the ad like any candidate, and tell the user where it went | **Chosen** |
+| (b) | Reserve a slot: an overridden ad bypasses the thresholds and caps | Rejected. An override would push a better-fitting ad out of a scarce tier, and I21's cap would no longer bound the page. The user asked to see this ad, not to rank it above others. |
+| (c) | Score the overridden rule as neutral (`unknown`, 0.5) instead of 0 | Rejected. The override records a decision and does not change the fact. An ad paying below the floor would outrank one whose pay was not stated, which reverses §2.6. |
+
+**I28 — an override restores eligibility, not a slot.** An overridden ad leaves `dismissed` (`filteredByRule` drops by one) and goes through the pre-filters, scoring and `selectTiers` unchanged. The failed rule still scores 0 in `ruleMargin`. The ad carries `DigestAd.overridden` while a hard rule still blocks it. If a looser ruleset outlives the override, the flag is dropped, because the ad is then an ordinary pass.
+
+**Telling the user.** The held row becomes an `OverrideFollowUp` in place, the same pattern as the dismiss follow-up (§8.11). It says whether the ad is in the matches, under Worth a look or under Hidden, and that the blocking rule still counts against its score. It offers Go to it (opens Hidden if needed, expands the card and scrolls to it), Undo, and close. The card carries a "Shown anyway" line with Hide again, so the reason survives a reload and also shows on the Explore page.
+
+**Verification.** `worker/test/digest.test.ts` checks that the overridden ad leaves `dismissed`, that it is offered (tiers, still open or Explore), that it is scored, that it keeps its `block` verdict, and that it is the only ad with `overridden`. It does not pin a tier, because that is the ranking's call.
+
+**Limitation.** Overrides are recorded but not yet counted. The loosen-this-rule proposal in §7.5 does not exist yet.
