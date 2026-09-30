@@ -342,7 +342,9 @@ export async function getDigest(
       continue;
     }
     const blockers = verdicts.filter((v) => v.state === 'block');
-    // An override puts a rule-blocked ad back; §7.5 counts that decision.
+    // An override puts a rule-blocked ad back among the candidates; §7.5
+    // counts that decision. It is scored and tiered like any other ad —
+    // no reserved slot — so it may land in Explore (I24).
     if (blockers.length > 0 && !row.state?.overriddenAt) {
       filteredByRule++;
       dismissed.push({ ...base, reason: { kind: 'rule', blockers } });
