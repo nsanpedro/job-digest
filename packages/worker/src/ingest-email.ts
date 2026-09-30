@@ -25,6 +25,7 @@ import {
 import { adSightings, ads, emailParses, rawEmails } from '@job-digest/db';
 import { classifyOutcome, type CauseCode, type Outcome } from './outcome';
 import { mergeFacts } from './merge-facts';
+import { shouldEnrichExisting } from './description-fill';
 import { provenanceFromFacts } from '@job-digest/core';
 import type { Tx } from './tenant';
 
@@ -70,7 +71,10 @@ export interface IngestResult {
   adsCreated: number;
   adsEnriched: number;
   conflicts: number;
-  /** New ads with an external URL that may be enriched post-transaction (ADR-003). */
+  /**
+   * Ads that may be enriched post-transaction (ADR-003): new ads with an
+   * external URL, and re-sighted ones still missing a description.
+   */
   enrichmentCandidates: EnrichmentCandidate[];
 }
 
@@ -172,7 +176,9 @@ export async function ingestEmail(tx: Tx, input: IngestInput): Promise<IngestRes
     if (outcome.created) adsCreated++;
     if (outcome.enriched) adsEnriched++;
     conflicts += outcome.conflicts;
-    if (outcome.created && outcome.externalUrl) {
+    // `externalUrl` is set for new ads with a URL, and for re-sighted ads
+    // that still need a description (see upsertAd).
+    if (outcome.externalUrl) {
       enrichmentCandidates.push({ adId: outcome.adId, externalUrl: outcome.externalUrl });
     }
   }
@@ -297,6 +303,13 @@ async function upsertAd(
       })
       .where(eq(ads.id, prior.id));
     adId = prior.id;
+    // A re-sighted ad that links to a Greenhouse/Lever posting but has no
+    // description yet (enriched before migration 0018, or never enriched)
+    // goes back to enrichAd, which decides between a full run and a
+    // description-only fetch (planEnrichment, ADR-003 §8.15 "Description
+    // backfill"). Once filled it stops qualifying, so this is at most one
+    // extra request per ad.
+    if (shouldEnrichExisting(prior)) resolvedExternalUrl = prior.externalUrl;
   } else {
     const title = input.extracted.title?.value ?? '(title not read)';
     const locationRaw = input.extracted.location?.value ?? null;

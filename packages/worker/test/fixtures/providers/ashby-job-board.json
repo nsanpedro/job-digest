@@ -1,0 +1,57 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "0b7a3c52-6d1e-4f7a-9b2c-3d4e5f607182",
+      "title": "Software Engineer",
+      "department": "Engineering",
+      "team": "Growth",
+      "employmentType": "FullTime",
+      "location": "Berlin",
+      "secondaryLocations": [{ "location": "Hamburg", "address": { "postalAddress": { "addressCountry": "Germany", "addressLocality": "Hamburg" } } }],
+      "publishedAt": "2026-09-05T08:30:12.345+00:00",
+      "isListed": true,
+      "isRemote": false,
+      "workplaceType": "Hybrid",
+      "address": { "postalAddress": { "addressRegion": "Berlin", "addressCountry": "Germany", "addressLocality": "Berlin" } },
+      "jobUrl": "https://jobs.ashbyhq.com/lumen/0b7a3c52-6d1e-4f7a-9b2c-3d4e5f607182",
+      "applyUrl": "https://jobs.ashbyhq.com/lumen/0b7a3c52-6d1e-4f7a-9b2c-3d4e5f607182/application",
+      "descriptionHtml": "<h2><strong>About the role</strong></h2><p>Lumen is looking for an <strong>Engineering Manager</strong> to lead the Growth frontend team.</p><ul><li><p>Coach five engineers</p></li><li><p>Own experimentation tooling</p></li></ul>",
+      "descriptionPlain": "About the role\n\nLumen is looking for an Engineering Manager to lead the Growth frontend team.\n\n* Coach five engineers\n\n* Own experimentation tooling\n",
+      "compensation": {
+        "compensationTierSummary": "€80K – €100K",
+        "scrapeableCompensationSalarySummary": "€80K - €100K",
+        "compensationTiers": [
+          {
+            "id": "c1",
+            "tierSummary": "€80K – €100K",
+            "title": "Berlin",
+            "components": [
+              { "id": "k1", "summary": "€80K – €100K", "compensationType": "Salary", "interval": "1 YEAR", "currencyCode": "EUR", "minValue": 80000, "maxValue": 100000 }
+            ]
+          }
+        ],
+        "summaryComponents": []
+      }
+    },
+    {
+      "id": "9f8e7d6c-5b4a-4321-8fed-cba987654321",
+      "title": "Account Executive",
+      "department": "Sales",
+      "team": "Sales",
+      "employmentType": "FullTime",
+      "location": "Remote",
+      "secondaryLocations": [],
+      "publishedAt": "2026-09-12T12:00:00.000+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": null,
+      "jobUrl": "https://jobs.ashbyhq.com/lumen/9f8e7d6c-5b4a-4321-8fed-cba987654321",
+      "applyUrl": "https://jobs.ashbyhq.com/lumen/9f8e7d6c-5b4a-4321-8fed-cba987654321/application",
+      "descriptionHtml": "<p>Sell Lumen to <em>mid-market</em> SaaS companies.</p>",
+      "descriptionPlain": "",
+      "compensation": null
+    }
+  ]
+}
