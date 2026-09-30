@@ -27,7 +27,7 @@ export function FilteredSection({
   // UI state, not synced server-side (design's State Management table lists
   // it the same way).
   const [open, setOpen] = useState(true);
-  const followUps = useOverrideFollowUps(dismissed);
+  const followUps = useOverrideFollowUps(dismissed, placementOf);
 
   // A follow-up keeps the section up after its last held ad was overridden:
   // the section is where the user is looking for the answer.

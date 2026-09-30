@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { DigestAd, DismissedAd } from '@job-digest/db';
 
 /**
@@ -35,6 +35,34 @@ interface RecentOverride {
   ad: DismissedAd;
   /** Position in the displayed list when it was overridden. */
   index: number;
+  /** The re-split has placed the ad somewhere on the page at least once. */
+  placed: boolean;
+}
+
+/**
+ * The next follow-up map after a re-split, or `null` when nothing changed.
+ * A follow-up is marked placed once its ad shows up on the page. A placed ad
+ * that is held again was un-overridden (Hide again on its card): the
+ * follow-up has nothing true left to say, so it closes. Before the first
+ * placement the ad is still held because the re-split has not happened yet,
+ * and the follow-up stays.
+ */
+export function settleOverrides(
+  recent: ReadonlyMap<string, RecentOverride>,
+  heldIds: ReadonlySet<string>,
+  placementOf: (adId: string) => Placement | null,
+): ReadonlyMap<string, RecentOverride> | null {
+  let next: Map<string, RecentOverride> | null = null;
+  for (const [id, r] of recent) {
+    if (!r.placed && placementOf(id) !== null) {
+      next ??= new Map(recent);
+      next.set(id, { ...r, placed: true });
+    } else if (r.placed && heldIds.has(id)) {
+      next ??= new Map(recent);
+      next.delete(id);
+    }
+  }
+  return next;
 }
 
 export type HeldItem = { kind: 'row'; ad: DismissedAd } | { kind: 'followUp'; ad: DismissedAd };
@@ -57,10 +85,17 @@ export function interleaveOverrides(
   return items;
 }
 
-export function useOverrideFollowUps(held: readonly DismissedAd[]) {
+export function useOverrideFollowUps(
+  held: readonly DismissedAd[],
+  placementOf: (adId: string) => Placement | null,
+) {
   const [recent, setRecent] = useState<ReadonlyMap<string, RecentOverride>>(new Map());
+  useEffect(() => {
+    const next = settleOverrides(recent, new Set(held.map((a) => a.id)), placementOf);
+    if (next) setRecent(next);
+  }, [held, recent, placementOf]);
   const onOverridden = useCallback((ad: DismissedAd, index: number) => {
-    setRecent((prev) => new Map(prev).set(ad.id, { ad, index }));
+    setRecent((prev) => new Map(prev).set(ad.id, { ad, index, placed: false }));
   }, []);
   const close = useCallback((id: string) => {
     setRecent((prev) => {
