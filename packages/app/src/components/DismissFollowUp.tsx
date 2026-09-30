@@ -10,6 +10,7 @@ import {
 } from '@job-digest/core';
 import type { DigestAd } from '@job-digest/db';
 import { undoDismiss } from '@/lib/actions';
+import { joinLabels } from '@/lib/format';
 import {
   acceptExcludeSuggestion,
   removeExcludeFromAd,
@@ -30,11 +31,6 @@ const LEVEL_COPY: Record<LevelFeedback, string> = {
   no_target: 'Your directions name no level, so nothing is filtered by level. Noted.',
   not_gated: 'Noted. Only entry-level titles are filtered by level today.',
 };
-
-function joinLabels(labels: readonly string[]): string {
-  const quoted = labels.map((l) => `“${l}”`);
-  return quoted.length <= 1 ? (quoted[0] ?? '') : `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`;
-}
 
 export function DismissFollowUp({ ad, onClose }: { ad: DigestAd; onClose: () => void }) {
   const [pending, startTransition] = useTransition();

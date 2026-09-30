@@ -1,4 +1,4 @@
-import { DEFAULT_MODE, DEFAULT_RULESET, type Mode } from '@job-digest/core';
+import { DEFAULT_MODE, DEFAULT_RULESET, groupExcludeEffects, type Mode } from '@job-digest/core';
 import {
   getAccountOverview,
   getActiveProfile,
@@ -73,6 +73,13 @@ export default async function ProfilePage({
     const fx = await listFeedbackEffects(tx, user.id);
     return [rs, acct, prof, dirs, cov, fx] as const;
   });
+  // Excludes are listed per word; a word held on a retired or dismissed
+  // direction (ADR-003 §8.13) says which current direction blocks it.
+  const currentDirections = directions.filter((d) => d.state !== 'dismissed');
+  const excludeGroups = groupExcludeEffects(
+    feedback.filter((e) => e.kind === 'exclude_term'),
+    currentDirections,
+  );
   const userSources = await getSources();
   const suggestedSources = await getSuggestedSources();
   const catalog = await getCuratedCatalog(requestedMarket ?? 'ALL');
@@ -107,7 +114,7 @@ export default async function ProfilePage({
 
         <div className={styles.section} id="feedback">
           <p className={styles.sectionLabel}>From your dismissals</p>
-          <FeedbackEffects effects={feedback} />
+          <FeedbackEffects mutes={feedback.filter((e) => e.kind === 'mute_company')} excludes={excludeGroups} />
         </div>
 
         <div className={styles.section}>
