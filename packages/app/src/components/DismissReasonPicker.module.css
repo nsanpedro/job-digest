@@ -1,0 +1,78 @@
+/* The reason chips and their effect line — follow-up row and Dismissed list. */
+.reasons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ask {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.chip,
+.term {
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+.chip:hover,
+.term:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.chipOn {
+  background: var(--saved-bg);
+  color: var(--saved-fg);
+  border-color: var(--saved-bd);
+}
+
+.chipOn:hover {
+  border-color: var(--saved-bd);
+  color: var(--saved-fg);
+  cursor: default;
+}
+
+.term {
+  font-family: var(--font-mono);
+  margin-right: 4px;
+}
+
+.effect {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.gloss {
+  color: var(--text-faint);
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chip:disabled,
+.term:disabled,
+.link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

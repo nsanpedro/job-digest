@@ -107,6 +107,7 @@ export {
   DISMISS_REASON_LABEL,
   companyKey,
   dismissedBefore,
+  effectKindOwnedBy,
   effectsBefore,
   isDismissReason,
   isMutedCompany,
@@ -124,6 +125,15 @@ export {
   type FeedbackEffectKind,
   type LevelFeedback,
 } from './feedback';
+export {
+  followUpItems,
+  followUpReducer,
+  hasFollowUps,
+  type FollowUpAction,
+  type FollowUpItem,
+  type FollowUpState,
+  type RecentDismissal,
+} from './dismiss-follow-up';
 export { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from './default-ruleset';
 export {
   DIAGNOSTIC_MIN_CURATED,

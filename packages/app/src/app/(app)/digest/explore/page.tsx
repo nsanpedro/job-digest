@@ -51,36 +51,34 @@ export default async function ExplorePage() {
 
       <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Everything we filtered out</h1>
 
-      {explore.length === 0 ? (
-        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 24 }}>
-          Nothing was filtered out this week.
+      {explore.length > 0 && (
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>
+          {mutedCompany > 0 && (
+            <>
+              {mutedCompany} {mutedCompany === 1 ? 'is' : 'are'} from companies you muted (
+              <a href="/profile#feedback">manage</a>).{' '}
+            </>
+          )}
+          {preFilterMisses > 0 && (
+            <>{preFilterMisses} matched none of your directions. </>
+          )}
+          {belowTargetLevel > 0 && (
+            <>
+              {belowTargetLevel} {belowTargetLevel === 1 ? 'is an entry-level role' : 'are entry-level roles'}{' '}
+              (junior, intern, working student) below the level you&rsquo;re targeting.{' '}
+            </>
+          )}
+          {belowThreshold > 0 && (
+            <>{belowThreshold} scored below the match threshold.</>
+          )}
         </p>
-      ) : (
-        <>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.5 }}>
-            {mutedCompany > 0 && (
-              <>
-                {mutedCompany} {mutedCompany === 1 ? 'is' : 'are'} from companies you muted (
-                <a href="/profile#feedback">manage</a>).{' '}
-              </>
-            )}
-            {preFilterMisses > 0 && (
-              <>{preFilterMisses} matched none of your directions. </>
-            )}
-            {belowTargetLevel > 0 && (
-              <>
-                {belowTargetLevel} {belowTargetLevel === 1 ? 'is an entry-level role' : 'are entry-level roles'}{' '}
-                (junior, intern, working student) below the level you&rsquo;re targeting.{' '}
-              </>
-            )}
-            {belowThreshold > 0 && (
-              <>{belowThreshold} scored below the match threshold.</>
-            )}
-          </p>
-
-          <ExploreList ads={explore} />
-        </>
       )}
+
+      {/*
+        Mounted even when the list is empty: dismissing the last ad here must
+        keep its follow-up row (the optional "why?"), which lives in this list.
+      */}
+      <ExploreList ads={explore} empty="Nothing was filtered out this week." />
     </div>
   );
 }
