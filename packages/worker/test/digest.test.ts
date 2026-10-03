@@ -186,7 +186,7 @@ describe('getDigest', () => {
     expect(after.dismissed[0]?.reason.kind).toBe('user');
   });
 
-  it('an override puts a rule-blocked ad back in the list', async () => {
+  it('an override puts a rule-blocked ad back among the candidates', async () => {
     // Back to a strict floor: the previous test loosened Pay until nothing
     // blocked, which is the correct outcome there and no setup for this one.
     await db
@@ -210,8 +210,23 @@ describe('getDigest', () => {
       });
 
     const after = await getDigest(db, userId, { now: NOW });
-    expect(inDigest(after).find((a) => a.id === blocked.id)).toBeTruthy();
+    expect(after.dismissed.find((d) => d.id === blocked.id)).toBeUndefined();
     expect(after.metrics.filteredByRule).toBe(before.metrics.filteredByRule - 1);
+
+    // "Show anyway" makes the ad eligible again, not guaranteed a slot: it is
+    // scored like any other candidate — the overridden rule still costs it
+    // its ruleMargin — and competes for the capped tiers (ADR-003 §2.8, I24).
+    // In this corpus it scores just under a full Worth-a-read and lands in
+    // Explore, which the dashboard renders; where it lands is the ranking's
+    // call, so the test pins only that it is offered and was scored.
+    const offered = [...inDigest(after), ...after.stillOpen, ...after.explore];
+    const back = offered.find((a) => a.id === blocked.id);
+    expect(back).toBeTruthy();
+    expect(back!.scoreBreakdown).not.toBeNull();
+    expect(back!.verdicts.some((v) => v.state === 'block')).toBe(true);
+    // The card needs to say why a blocked ad is on screen (ADR-003 §8.14).
+    expect(back!.overridden).toBe(true);
+    expect(offered.filter((a) => a.id !== blocked.id).every((a) => !a.overridden)).toBe(true);
   });
 
   it('reports off-target as null rather than inventing the number (§13)', async () => {

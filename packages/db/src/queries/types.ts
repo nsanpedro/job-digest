@@ -102,6 +102,14 @@ export interface DigestAd {
    * a way to unmute. Absent everywhere but the digest's explore bucket.
    */
   mutedCompany?: boolean;
+  /**
+   * True when a hard rule still blocks the ad and the user chose "Show
+   * anyway" (ADR-003 §8.14): it is scored and tiered like any candidate, so
+   * it can land in any tier or in Explore, and the card says why it is there
+   * with a way to hide it again. Absent when nothing blocks the ad — an
+   * override outlived by a looser ruleset is no longer an override.
+   */
+  overridden?: boolean;
 }
 
 /**
