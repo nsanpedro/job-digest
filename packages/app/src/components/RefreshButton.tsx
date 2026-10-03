@@ -20,6 +20,14 @@ const POLL_MS = 1000;
  *  for the user to read the counts, short enough not to loiter. */
 const NARRATION_LINGER_MS = 8000;
 
+/**
+ * When to stop waiting on a run that never leaves 'running'. The work runs in
+ * `after()`, which cannot outlive the route's `maxDuration` (60 s, see
+ * digest/page.tsx): a run still open well past that was cut off by the
+ * platform and will never be closed. 90 s leaves room for a slow last poll.
+ */
+const RUN_DEADLINE_MS = 90_000;
+
 type RunSnapshot = Awaited<ReturnType<typeof getRunProgress>>;
 
 /**
@@ -44,6 +52,8 @@ export function RefreshButton() {
   const [narrationSticky, setNarrationSticky] = useState(false);
   const [, startTransition] = useTransition();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedRef = useRef(0);
+  const [timedOut, setTimedOut] = useState(false);
   const lingerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
@@ -61,10 +71,14 @@ export function RefreshButton() {
         if (g) setGmailProgress(g);
         if (a) setApiProgress(a);
 
-        // Both runs must be terminal (or absent) before we stop polling.
+        // Both runs must be terminal (or absent) before we stop polling —
+        // or the deadline has passed, in which case a still-open run was cut
+        // off by the platform and waiting longer would only hang the button.
         const gDone = !g || g.status !== 'running';
         const aDone = !apiRunId || !a || a.status !== 'running';
-        if (!(gDone && aDone)) return;
+        const overdue = Date.now() - startedRef.current > RUN_DEADLINE_MS;
+        if (!(gDone && aDone) && !overdue) return;
+        if (!(gDone && aDone)) setTimedOut(true);
 
         if (pollRef.current) clearInterval(pollRef.current);
 
@@ -89,6 +103,8 @@ export function RefreshButton() {
   }
 
   function run() {
+    startedRef.current = Date.now();
+    setTimedOut(false);
     setState('running');
     setGmailProgress(null);
     setApiProgress(null);
@@ -106,17 +122,21 @@ export function RefreshButton() {
     });
   }
 
+  // Once Gmail has settled, what is still running is the public-sources
+  // stage — saying "Reading the inbox…" through it read as a hung inbox.
+  const gmailSettled = gmailProgress !== null && gmailProgress.status !== 'running';
   const label =
     state === 'idle' ? 'Update now'
     : state === 'running' ?
-      gmailProgress?.emailsTotal
+      gmailSettled ? 'Checking public sources…'
+      : gmailProgress?.emailsTotal
         ? `Reading the inbox… ${gmailProgress.emailsProcessed} of ${gmailProgress.emailsTotal}`
         : 'Reading the inbox…'
     : state === 'done' ? 'Up to date — just now'
     : 'Retry';
 
   const v = VARIANTS[state];
-  const narrationLines = buildNarration(gmailProgress, apiProgress, state);
+  const narrationLines = buildNarration(gmailProgress, apiProgress, state, timedOut);
   const showNarration = (state === 'running' || (state === 'done' && narrationSticky)) && narrationLines.length > 0;
 
   return (
@@ -159,6 +179,7 @@ function buildNarration(
   gmail: RunSnapshot | null,
   api: RunSnapshot | null,
   overall: RunState,
+  timedOut = false,
 ): Array<{ key: string; text: string }> {
   const lines: Array<{ key: string; text: string }> = [];
 
@@ -229,10 +250,17 @@ function buildNarration(
     }
   }
 
+  if (timedOut) {
+    lines.push({
+      key: 'timed-out',
+      text: 'This update ran out of time before every stage finished — what was read is kept, the rest is picked up next time.',
+    });
+  }
+
   // Final summary line, only after both stages have settled. Sums are trivial
   // (both counters are on `runs` already) and land the honest headline: the
   // one that keeps a quiet finish from reading as "nothing happened here".
-  if (overall === 'done') {
+  if (overall === 'done' && !timedOut) {
     const totalNew = (gmail?.adsCreated ?? 0) + (api?.adsCreated ?? 0);
     if (totalNew === 0) {
       lines.push({
