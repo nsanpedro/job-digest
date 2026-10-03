@@ -22,7 +22,9 @@ vi.mock('@anthropic-ai/sdk', () => ({
 // Imported after the mock so the mocked module is what derive-directions.ts
 // actually resolves — vi.mock is hoisted above imports by vitest, but being
 // explicit about the order here is cheap and removes any doubt when reading it.
-const { deriveDirections, MAX_AD_TITLES } = await import('../src/derive-directions');
+const { buildDerivationRequest, buildSystemPrompt, deriveDirections, MAX_AD_TITLES, PROMPT_VERSION } = await import(
+  '../src/derive-directions'
+);
 
 function textResponse(payload: unknown, overrides: Record<string, unknown> = {}) {
   return {
@@ -150,5 +152,92 @@ describe('response handling — always re-gated by parseDerivation, never truste
     const result = await deriveDirections({ cvText: 'CV text', adTitles: [] });
     expect(result.promptVersion).toBeGreaterThanOrEqual(1);
     expect(result.usage).toEqual({ inputTokens: 1234, outputTokens: 567 });
+  });
+});
+
+describe('market-aware prompt assembly (pure — no network)', () => {
+  it('Hamburg: the system prompt names German and English as the ad languages', () => {
+    const { market, params } = buildDerivationRequest({ cvText: 'CV text', adTitles: [], city: 'Hamburg' });
+    expect(market).toEqual({ country: 'DE', languages: ['de', 'en'], source: 'city' });
+    const system = params.system as string;
+    expect(system).toContain('<ad_market>');
+    expect(system).toContain('country: DE');
+    expect(system).toContain('ad_languages: German, English');
+    expect(system).not.toMatch(/realistic German search terms/);
+  });
+
+  it('Barcelona and Buenos Aires: Spanish and English', () => {
+    for (const [city, country] of [
+      ['Barcelona', 'ES'],
+      ['Buenos Aires', 'AR'],
+    ] as const) {
+      const system = buildDerivationRequest({ cvText: 'CV text', adTitles: [], city }).params.system as string;
+      expect(system).toContain(`country: ${country}`);
+      expect(system).toContain('ad_languages: Spanish, English');
+    }
+  });
+
+  it('no city: English by default, and says so', () => {
+    const system = buildDerivationRequest({ cvText: 'CV text', adTitles: [] }).params.system as string;
+    expect(system).toContain('country: unknown');
+    expect(system).toContain('ad_languages: English');
+    expect(system).toMatch(/decided_by: .*English by default/);
+  });
+
+  it('keeps the market out of the user turn — it is application data, not CV text', () => {
+    const { params } = buildDerivationRequest({ cvText: 'CV text', adTitles: ['A'], city: 'Hamburg' });
+    const user = params.messages[0]!.content as string;
+    expect(user).toContain('<cv_text>');
+    expect(user).not.toContain('<ad_market>');
+  });
+
+  it('the static instructions are a byte-identical prefix across markets', () => {
+    const de = buildSystemPrompt({ country: 'DE', languages: ['de', 'en'], source: 'city' });
+    const es = buildSystemPrompt({ country: 'ES', languages: ['es', 'en'], source: 'city' });
+    const prefix = de.slice(0, de.indexOf('<ad_market>'));
+    expect(es.startsWith(prefix)).toBe(true);
+  });
+
+  it('asks for excludeTerms and binds the schema that requires them', () => {
+    const { params } = buildDerivationRequest({ cvText: 'CV text', adTitles: [], city: 'Hamburg' });
+    expect(params.system as string).toContain('"excludeTerms"');
+    const schema = params.output_config!.format!.schema as { properties: { directions: { items: { required: string[] } } } };
+    expect(schema.properties.directions.items.required).toContain('excludeTerms');
+  });
+
+  it('deriveDirections sends exactly the built request and returns the market', async () => {
+    mockCreate.mockResolvedValue(textResponse({ skills: [], directions: [] }));
+    const input = { cvText: 'CV text', adTitles: ['Frontend Developer'], city: 'Buenos Aires' };
+    const result = await deriveDirections(input);
+    expect(mockCreate.mock.calls[0]![0]).toEqual(buildDerivationRequest(input).params);
+    expect(result.market).toEqual({ country: 'AR', languages: ['es', 'en'], source: 'city' });
+    expect(result.promptVersion).toBe(PROMPT_VERSION);
+    expect(PROMPT_VERSION).toBe(2);
+  });
+
+  it("model-proposed excludes pass through parseDerivation's gate — a colliding one is dropped", async () => {
+    const cvText = 'Led a team of six engineers. Ran hiring and quarterly planning for the platform group.';
+    mockCreate.mockResolvedValue(
+      textResponse({
+        skills: [
+          { text: 'team lead', quote: 'Led a team of six engineers' },
+          { text: 'hiring', quote: 'Ran hiring and quarterly planning' },
+        ],
+        directions: [
+          {
+            label: 'Engineering Manager',
+            bridge: ['team lead', 'hiring'],
+            rationale: 'Leading engineers and running hiring are the core of the role.',
+            searchTerms: ['Engineering Manager', 'Gerente de Ingeniería'],
+            excludeTerms: ['Account Manager', 'Manager'],
+            distance: 'adjacent',
+            seenTitles: [],
+          },
+        ],
+      }),
+    );
+    const result = await deriveDirections({ cvText, adTitles: [], city: 'Barcelona' });
+    expect(result.directions[0]!.excludeTerms).toEqual(['Account Manager']);
+    expect(result.dropped).toContainEqual(expect.objectContaining({ kind: 'excludeTerm', label: 'Manager' }));
   });
 });

@@ -4,6 +4,7 @@ import {
   DISMISS_REASONS,
   companyKey,
   dismissedBefore,
+  effectKindOwnedBy,
   effectsBefore,
   excludeCoveredBy,
   groupExcludeEffects,
@@ -262,6 +263,30 @@ describe('planDismissFeedback', () => {
   it('location and other → recorded only', () => {
     expect(planDismissFeedback({ ...base, reason: 'location' })).toEqual({ kind: 'noted' });
     expect(planDismissFeedback({ ...base, reason: 'other' })).toEqual({ kind: 'noted' });
+  });
+});
+
+describe('effectKindOwnedBy', () => {
+  it('company owns the mute, wrong_role the exclude, the rest nothing', () => {
+    expect(effectKindOwnedBy('company')).toBe('mute_company');
+    expect(effectKindOwnedBy('wrong_role')).toBe('exclude_term');
+    expect(effectKindOwnedBy('wrong_level')).toBeNull();
+    expect(effectKindOwnedBy('location')).toBeNull();
+    expect(effectKindOwnedBy('other')).toBeNull();
+  });
+
+  it('agrees with planDismissFeedback: a reason owns the kind its plan can produce', () => {
+    const produces = { mute: 'mute_company', suggest_exclude: 'exclude_term' } as const;
+    for (const reason of DISMISS_REASONS) {
+      const plan = planDismissFeedback({
+        reason,
+        ad: { title: 'Product Manager Sales', company: 'Acme GmbH', location: 'Berlin' },
+        directions: [dir('Product Manager', ['Product Manager'])],
+        candidate: { seniorities: ['senior'] },
+      });
+      const kind = plan.kind === 'mute' || plan.kind === 'suggest_exclude' ? produces[plan.kind] : null;
+      expect(effectKindOwnedBy(reason)).toBe(kind);
+    }
   });
 });
 

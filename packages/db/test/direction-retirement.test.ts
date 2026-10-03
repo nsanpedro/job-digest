@@ -66,6 +66,7 @@ const direction = (label: string, searchTerms: string[]): Direction => ({
   rationale: `${label} rationale`,
   bridge: [],
   searchTerms,
+  excludeTerms: [],
   distance: 'adjacent',
   seenTitles: [],
 });

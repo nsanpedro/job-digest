@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import type { Ruleset } from '@job-digest/core';
 import type { Digest, DigestAd } from '@job-digest/db';
-import { AdCard } from './AdCard';
-import { DismissFollowUp } from './DismissFollowUp';
-import { useDismissFollowUps } from './dismiss-follow-ups';
+import { DismissableAdList } from './DismissableAdList';
+import { useDismissFollowUps, type DismissFollowUps } from './dismiss-follow-ups';
 import { EmptyDigestDiagnostic } from './EmptyDigestDiagnostic';
 import { FilteredSection } from './FilteredSection';
 import { placementOf } from './override-follow-ups';
@@ -25,35 +24,6 @@ import styles from './DigestList.module.css';
  * restart the digest with a second batch of full-weight cards.
  */
 const WORTH_A_LOOK_TOP_N = 3;
-
-function AdList({
-  ads,
-  expandedId,
-  onToggle,
-}: {
-  ads: DigestAd[];
-  expandedId: string | null;
-  onToggle: (id: string) => void;
-}) {
-  const followUps = useDismissFollowUps(ads);
-  return (
-    <div className={styles.adList}>
-      {followUps.items.map((item, i) =>
-        item.kind === 'followUp' ? (
-          <DismissFollowUp key={item.ad.id} ad={item.ad} onClose={() => followUps.close(item.ad.id)} />
-        ) : (
-          <AdCard
-            key={item.ad.id}
-            ad={item.ad}
-            expanded={expandedId === item.ad.id}
-            onToggle={() => onToggle(item.ad.id)}
-            onDismissed={(ad) => followUps.onDismissed(ad, i)}
-          />
-        ),
-      )}
-    </div>
-  );
-}
 
 function matchCountLine(n: number): string {
   if (n === 0) return 'No matches this week.';
@@ -77,30 +47,43 @@ function matchCountLine(n: number): string {
  */
 function ExplorePromoted({
   explore,
+  followUps,
   expandedId,
   onToggle,
 }: {
   explore: DigestAd[];
+  followUps: DismissFollowUps;
   expandedId: string | null;
   onToggle: (id: string) => void;
 }) {
-  if (explore.length === 0) return null;
-
+  // A follow-up row keeps its section on screen after the server moved its
+  // ad out — including when that emptied the section.
   const worthALook = explore.slice(0, WORTH_A_LOOK_TOP_N);
   const hidden = explore.slice(WORTH_A_LOOK_TOP_N);
+  const showWorth = worthALook.length > 0 || followUps.has('worth');
+  const showHidden = hidden.length > 0 || followUps.has('hidden');
 
   return (
     <>
-      <section className={styles.worthALook}>
-        <div className={styles.sectionHead}>
-          <h2 className={styles.sectionLabel}>Worth a look</h2>
-          <span className={styles.sectionGloss}>close to the bar, not over it</span>
-          <span className={`mesh-rule ${styles.sectionRule}`} />
-        </div>
-        <AdList ads={worthALook} expandedId={expandedId} onToggle={onToggle} />
-      </section>
+      {showWorth && (
+        <section className={styles.worthALook}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionLabel}>Worth a look</h2>
+            <span className={styles.sectionGloss}>close to the bar, not over it</span>
+            <span className={`mesh-rule ${styles.sectionRule}`} />
+          </div>
+          <DismissableAdList
+            list="worth"
+            ads={worthALook}
+            followUps={followUps}
+            expandedId={expandedId}
+            onToggle={onToggle}
+            className={styles.adList}
+          />
+        </section>
+      )}
 
-      {hidden.length > 0 && (
+      {showHidden && (
         // Native <details>/<summary>: the count stays visible when collapsed
         // (the whole reason for keeping it visible without weight), and no
         // React state is needed for a disclosure this simple. The AdCards
@@ -112,7 +95,14 @@ function ExplorePromoted({
             Hidden — {hidden.length} more filtered out
           </summary>
           <div className={styles.hiddenList}>
-            <AdList ads={hidden} expandedId={expandedId} onToggle={onToggle} />
+            <DismissableAdList
+              list="hidden"
+              ads={hidden}
+              followUps={followUps}
+              expandedId={expandedId}
+              onToggle={onToggle}
+              className={styles.adList}
+            />
           </div>
         </details>
       )}
@@ -122,11 +112,13 @@ function ExplorePromoted({
 
 /**
  * Owns the single-expand accordion state across all sections — opening one
- * card closes any other.
+ * card closes any other — and the dismiss follow-up rows of every section
+ * (see useDismissFollowUps: a section the server empties keeps its rows).
  */
 export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id));
+  const followUps = useDismissFollowUps();
 
   // Merge all curated tiers into a single flat list sorted by score desc.
   const matches: DigestAd[] = [
@@ -135,6 +127,7 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
     ...digest.stretch,
     ...digest.stillOpen,
   ].sort((a, b) => (b.scoreBreakdown?.total ?? 0) - (a.scoreBreakdown?.total ?? 0));
+  const empty = matches.length === 0;
 
   // "Show anyway" (ADR-003 §8.14): the held section asks where the ad
   // landed, and "Go to it" opens its card — unfolding "Hidden" first when
@@ -164,33 +157,35 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
   // tiered". Both used to collapse to a single line ("No matches this week." /
   // "No ads arrived in this window."), which read the same to a test PM user
   // as "nothing happened this week" and hid the mechanism (parse failures,
-  // below-threshold misses, everything blocked by rules). The diagnostic below
+  // below-threshold misses, everything blocked by rules). The diagnostic
   // narrates the counts the digest already carries — see EmptyDigestDiagnostic.
-  if (matches.length === 0) {
-    return (
-      <div className={styles.root}>
-        <EmptyDigestDiagnostic digest={digest} rules={rules} />
-        {/*
-          Even with zero curated matches, promote the top of explore inline —
-          this is the whole fix for the PM test user who saw "nothing this week"
-          without realising an explore bucket existed at all. The diagnostic
-          still explains the count above; these are the concrete near-misses.
-        */}
-        <ExplorePromoted explore={digest.explore} expandedId={expandedId} onToggle={toggle} />
-        {filtered}
-      </div>
-    );
-  }
-
+  //
+  // One tree for both layouts, so switching between them (the last curated
+  // ad dismissed, or its Undo) keeps every element in place: the curated
+  // list stays mounted and, in the empty layout, still shows the follow-up
+  // row of the ad just dismissed — above the diagnostic, where the card was.
   return (
     <div className={styles.root}>
-      <p className={styles.matchCount}>{matchCountLine(matches.length)}</p>
+      {!empty && <p className={styles.matchCount}>{matchCountLine(matches.length)}</p>}
 
-      {matches.length > 0 && (
-        <AdList ads={matches} expandedId={expandedId} onToggle={toggle} />
-      )}
+      <DismissableAdList
+        list="curated"
+        ads={matches}
+        followUps={followUps}
+        expandedId={expandedId}
+        onToggle={toggle}
+        className={styles.adList}
+      />
 
-      <ExplorePromoted explore={digest.explore} expandedId={expandedId} onToggle={toggle} />
+      {empty && <EmptyDigestDiagnostic digest={digest} rules={rules} />}
+
+      {/*
+        Even with zero curated matches, promote the top of explore inline —
+        this is the whole fix for the PM test user who saw "nothing this week"
+        without realising an explore bucket existed at all. The diagnostic
+        still explains the count above; these are the concrete near-misses.
+      */}
+      <ExplorePromoted explore={digest.explore} followUps={followUps} expandedId={expandedId} onToggle={toggle} />
 
       {filtered}
     </div>
