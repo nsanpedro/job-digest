@@ -17,7 +17,7 @@ import {
   type Digest,
 } from '@job-digest/db';
 
-const inDigest = (d: Digest) => [...d.topPicks, ...d.worthAReading, ...d.stretch];
+const inDigest = (d: Digest) => d.matches;
 import { and, eq } from 'drizzle-orm';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';

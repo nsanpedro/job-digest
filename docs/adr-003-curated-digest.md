@@ -464,3 +464,37 @@ Same account as §8.6/§8.8, 13 weeks, now with the eval's temporal split (§8.1
 
 - **Top pick (§8.9)** is the measurable change: the tier was empty 10 of 11 weeks, now 1 of 11, and the 3 ads it picked across those weeks are ads the user applied to or saved — none dismissed. Ranking metrics are unchanged by construction (v5 scores exactly as v4).
 - **Descriptions (§8.10)** and **dismiss reasons (§8.11)** show no effect yet, correctly: production has no stored descriptions (the column arrives with migration 0018 and fills as API ads are re-fetched) and no dismiss reasons (0019). Re-measure after a few weeks of both.
+
+---
+
+## 9. Placement is a cut on the displayed score (Oct 2026)
+
+**Supersedes I21, I23, I24, I25 and the Top / Read / Stretch / Still-open structure of §2.3 and §8.3. Scoring (§2.1–§2.6, calibration v4) is unchanged.**
+
+### 9.1 What was wrong
+
+The number on a card (`score.total`) and the section the card landed in were decided by different rules. `selectTiers` put several things between them: slot caps (2 Top, 6 Read, 2 Stretch), per-company / per-platform / per-direction caps that sent a capped ad to Explore, a Stretch tier gated on `directionFit` instead of the total, a repeat split, and a Top-pick certainty gate. The UI then flattened Top, Read, Stretch and Still-open into one list sorted by score, and promoted the first three Explore entries as "Worth a look".
+
+Reported on the real account: two Figma ads, same title and company, both 74%, in different sections; and 60% ads in "Matches this week" while 75% ads sat in the other sections. Each was the system doing what the code said — an ad that hit a company cap went to Explore at full score, and Stretch admitted ads on `directionFit ≥ 60` with a total of 45. Nothing on the screen said which rule had fired, so every such placement read as a bug, and every calibration round (§8.1–§8.12) added another rule between the number and the section.
+
+### 9.2 Decision
+
+**I29 — placement is a monotone function of the displayed score.** An ad with a higher score is never in a lower section than an ad with a lower score. `selectMatches` splits the scored pool at `Calibration.matchThreshold` (50, the old Worth-a-read cut) and sorts each side by score desc, id asc. Nothing else.
+
+- Matches: every scored ad with `total ≥ 50`, new or repeat, no cap. `repeat` is a flag on the card, not a section.
+- Worth a look: the top 3 *scored* ads below the threshold — by construction all of them below every match.
+- Hidden: everything else below the bar, plus the pre-filter misses (direction, level, muted company). Those carry no score, so they are never ranked against scored ads and never promoted.
+- Removed: slot caps, diversity caps, Stretch, Still-open, Top pick and its certainty gate (`isCertain`, `TopPickCertainty`, calibration v5), Top-pick history (`getTopPickHistory`, `recordTopPicks`). `getDigest` no longer writes.
+
+### 9.3 Cost, stated
+
+- **No cap means the list can be long.** On the real account this week: 15 matches from 40 ads. A user with a broad direction set and a busy inbox gets a longer list; the order is still by score, so the head of it is the same ads the old tiers would have shown. If length becomes a problem, the fix is rendering (collapse after N), not a second placement rule.
+- **No diversity.** Four Figma "Manager, Software Engineering" ads at 74% now appear as four cards. That is what the score says; grouping them is a presentation change that does not move any ad between sections.
+- **Top-pick certainty is gone.** Under v5 it made the top tier non-empty in 10 of 11 weeks instead of 1 of 11 (§8.12) — but the UI never showed a "Top pick" label, so the distinction was not visible to the user. The score still carries Pay/Onsite margin and signal completeness.
+- `ads_top_pick_history` is now unused. It stays in the schema until a hand-written drop migration is applied to Supabase.
+
+### 9.4 Measured on the real account (3 Oct 2026)
+
+`getDigest` against the live account, read-only: 40 ads this week → 15 matches (scores 54–79), 18 in Explore, 7 dismissed by the user. The lowest match scores 54; no scored ad is in Explore (`belowThreshold: 0`), so I29 holds. All four Figma ads (74) are in Matches together.
+
+The same run showed where the remaining misses come from, and it is not scoring: 17 of the 18 Explore ads are pre-filter misses (no score), including "Senior Full Stack Developer", "Senior Fullstack Developer" and "Senior Backend Engineer". The account's active directions are *Engineering Manager / Team Lead* and *Lead / Senior Frontend Engineer*; no direction covers fullstack or backend, so those titles are gated out before scoring. Fixing that is a Profile change (add a direction), not a calibration change.

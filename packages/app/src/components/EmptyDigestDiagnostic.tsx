@@ -4,8 +4,7 @@ import type { Digest } from '@job-digest/db';
 import styles from './EmptyDigestDiagnostic.module.css';
 
 /**
- * Rendered in place of the tier lists when all four curated buckets (top /
- * read / stretch / stillOpen) are empty. Names the mechanism from the counts
+ * Rendered in place of the matches list when it is empty. Names the mechanism from the counts
  * the digest already carries — never invented numbers.
  *
  * The old empty state was a single line ("No matches this week.") — a PM test
@@ -31,15 +30,10 @@ export function EmptyDigestDiagnostic({
   // week") without a later prop churn. Not read yet.
   void rules;
 
-  // Sum of every ad we surfaced anywhere in the tier ladder — the honest
-  // "ads reviewed" number the user can compare against their expectation.
-  // Dismissed ads are excluded on purpose: those never entered the ranking.
-  const adsReviewed =
-    digest.topPicks.length +
-    digest.worthAReading.length +
-    digest.stretch.length +
-    digest.stillOpen.length +
-    digest.explore.length;
+  // Every ad that entered the ranking — the honest "ads reviewed" number the
+  // user can compare against their expectation. Dismissed ads are excluded on
+  // purpose: those never entered the ranking.
+  const adsReviewed = digest.matches.length + digest.explore.length;
 
   // metrics.explore is null when no pre-filter ran (no directions, no senior-or-above target rung) —
   // in that case every explore entry is a below-threshold miss by construction,
@@ -75,7 +69,7 @@ export function EmptyDigestDiagnostic({
         {belowThreshold > 0 && (
           <li className={styles.line}>
             {/* belowThreshold: digest.metrics.explore.belowThreshold, or digest.explore.length when no pre-filter ran */}
-            <strong>{belowThreshold}</strong> ad{belowThreshold === 1 ? '' : 's'} scored below the tier threshold —{' '}
+            <strong>{belowThreshold}</strong> ad{belowThreshold === 1 ? '' : 's'} scored below the {digest.matchThreshold}% match bar —{' '}
             <Link href="/digest/explore" className={styles.inlineLink}>
               see them in Explore
             </Link>
@@ -99,8 +93,8 @@ export function EmptyDigestDiagnostic({
           </p>
         )}
         {primary === 'threshold' && (
-          <Link href="/profile" className={styles.btn}>
-            Lower the match threshold in Profile
+          <Link href="/digest/explore" className={styles.btn}>
+            See what scored just below the bar
           </Link>
         )}
         {primary === 'unread' && (

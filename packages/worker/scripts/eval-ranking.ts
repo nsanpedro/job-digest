@@ -20,11 +20,9 @@
 // v4 plus the level gate that sends entry-level titles to Explore when the
 // user targets only senior-or-above rungs (ADR-003 §8.7), via the same
 // isBelowTargetLevel getDigest uses. v4 stays in the report without it so
-// the gate's effect reads as its own row. v5+level is the shipped pipeline:
-// v4's scores unchanged, Top pick asking only for the hard Pay / Onsite
-// facts (ADR-003 §8.9) — so it differs from v4+level in the Top pick block
-// and the curated column, never in the ranking metrics.
-// v5+level+fb adds the dismiss-reason feedback (ADR-003 §8.11): companies
+// the gate's effect reads as its own row. v4+level is the shipped pipeline
+// (placement is a score cut, ADR-003 §9, so it does not move the ranking
+// metrics). v4+level+fb adds the dismiss-reason feedback (ADR-003 §8.11): companies
 // the user muted go to Explore, and exclude terms confirmed from a
 // dismissal apply to their direction — each only from its `created_at`
 // onward, i.e. only effects saved strictly before the replayed week's
@@ -39,9 +37,9 @@
 // — the product had already moved it aside, and with feedback on, the
 // dismissal that created a mute would otherwise grade that same mute in
 // every later week.
-// The curated surface (Top / Read / Stretch via selectTiers) is reported
-// separately — that is what the user actually sees first — and the Top pick
-// tier on its own: weeks it came up empty, its size, and the labels in it.
+// The curated surface (the matches: every gated ad at or over the threshold,
+// via selectMatches) is reported separately — that is what the user actually
+// sees first.
 //
 // The *current* ruleset, directions and CV are applied to every past week:
 // the question is "which calibration ranks this user's weeks better now",
@@ -73,7 +71,7 @@ import {
   mutedCompanyKeys,
   rankingMetrics,
   scoreAd,
-  selectTiers,
+  selectMatches,
   type Calibration,
   type CandidateProfile,
   type Label,
@@ -196,10 +194,6 @@ interface VariantWeek {
   curatedPositives: number;
   curatedNegatives: number;
   curatedSize: number;
-  /** The Top pick tier alone (I23 / ADR-003 §8.9): its size and the labels in it. */
-  topSize: number;
-  topPositives: number;
-  topNegatives: number;
   /** id → 1-based rank, for the movers table. */
   rankOf: Map<string, number>;
   scoreOf: Map<string, ScoreBreakdown>;
@@ -320,32 +314,16 @@ function runVariant(
 
   const pool: ScoredAd[] = week
     .filter(isGated)
-    .map((a) => ({
-      id: a.id,
-      score: scoreOf.get(a.id)!,
-      verdicts: a.verdicts,
-      company: a.company,
-      source: a.source,
-      // Direction ids only feed the per-direction diversity cap; the eval
-      // leaves it off rather than re-deriving ids per ad.
-      matchedDirectionIds: [],
-      hasPreferenceWarn: a.verdicts.some((v) => v.severity === 'preference' && v.state === 'warn'),
-      repeat: a.repeat,
-    }));
-  const tiers = selectTiers(pool, new Set(), variant.calibration);
-  const curated = [...tiers.topPicks, ...tiers.worthAReading, ...tiers.stretch];
+    .map((a) => ({ id: a.id, score: scoreOf.get(a.id)! }));
+  const curated = selectMatches(pool, variant.calibration).matches;
   const labelOf = new Map(week.map((a) => [a.id, a.label]));
   const curatedLabels = curated.map((c) => labelOf.get(c.id) ?? null);
-  const topLabels = tiers.topPicks.map((c) => labelOf.get(c.id) ?? null);
 
   return {
     metrics: rankingMetrics(ranked.map((a) => ({ id: a.id, label: a.label })), k),
     curatedPositives: curatedLabels.filter((l) => l === 'applied' || l === 'saved').length,
     curatedNegatives: curatedLabels.filter((l) => l === 'dismissed').length,
     curatedSize: curated.length,
-    topSize: tiers.topPicks.length,
-    topPositives: topLabels.filter((l) => l === 'applied' || l === 'saved').length,
-    topNegatives: topLabels.filter((l) => l === 'dismissed').length,
     rankOf,
     scoreOf,
   };
@@ -413,14 +391,6 @@ async function main() {
         {
           name: `v${CALIBRATION_V4.version}+level`,
           calibration: CALIBRATION_V4,
-          candidate,
-          locationGate: false,
-          levelGate: true,
-          feedback: false,
-        },
-        {
-          name: `v${DEFAULT_CALIBRATION.version}+level`,
-          calibration: DEFAULT_CALIBRATION,
           candidate,
           locationGate: false,
           levelGate: true,
@@ -518,24 +488,6 @@ async function main() {
         `${variants[v]!.name.padEnd(12)}  ${fmt(agg.pairwiseAccuracy)}     ${fmt(agg.ndcgAtK)}   ` +
           `${fmt(agg.recallAtK)}     ${String(agg.positivesAtK).padStart(3)}    ${String(agg.negativesAtK).padStart(3)}    ` +
           `${cp}/${cn}/${cs}`,
-      );
-    }
-    console.log('');
-
-    // The Top pick tier on its own. Its eligibility (I23) is the one thing
-    // v4 and v5 disagree on, so this is where the two read apart. Weeks with
-    // no ads at all are left out of the denominator.
-    const weeksWithAds = weeks.filter((w) => w.ads.length > 0);
-    console.log('top pick  empty weeks  mean size  top(+/−)');
-    for (let v = 0; v < variants.length; v++) {
-      const rs = weeksWithAds.map((w) => w.results[v]!);
-      const empty = rs.filter((r) => r.topSize === 0).length;
-      const size = rs.reduce((n, r) => n + r.topSize, 0);
-      const tp = rs.reduce((n, r) => n + r.topPositives, 0);
-      const tn = rs.reduce((n, r) => n + r.topNegatives, 0);
-      console.log(
-        `${variants[v]!.name.padEnd(8)}  ${`${empty}/${rs.length}`.padStart(11)}  ` +
-          `${(rs.length > 0 ? size / rs.length : 0).toFixed(2).padStart(9)}  ${tp}/${tn}`,
       );
     }
     console.log('');

@@ -27,7 +27,7 @@ import {
   isMutedCompany,
   mutedCompanyKeys,
   scoreAd,
-  selectTiers,
+  selectMatches,
   targetsSeniorOnly,
   type CandidateProfile,
   type MatchExplanation,
@@ -43,7 +43,6 @@ import { getPlatformCapabilities } from './capabilities';
 import { getActiveProfile, listInterestedDirections } from './discovery';
 import { listFeedbackEffects } from './feedback';
 import { getActiveRuleset } from './ruleset';
-import { getTopPickHistory, recordTopPicks } from './top-pick-history';
 import type {
   Digest,
   DigestAd,
@@ -280,7 +279,6 @@ export async function getDigest(
     directions: interestedDirs,
     location: { city: userCity, remoteOk },
   });
-  const history = await getTopPickHistory(db, userId, now);
   // Companies muted from a dismissal (ADR-003 §8.11) — explicit, reversible.
   const mutedCompanies = mutedCompanyKeys(await listFeedbackEffects(db, userId));
   const calibration = DEFAULT_CALIBRATION;
@@ -396,7 +394,7 @@ export async function getDigest(
   const scoredPool: ScoredAd[] = [];
 
   for (const { ad, facts, description } of candidates) {
-    // One pass over directions gives us the ids (for the diversity cap),
+    // One pass over directions gives us the ids,
     // the labels (for the AdCard row), AND the full per-direction
     // explanations (for the "Why is this here?" chip in ExpandedPanel).
     // Was three separate passes.
@@ -428,48 +426,32 @@ export async function getDigest(
     };
     adById.set(ad.id, withScore);
 
-    const scored: ScoredAd = {
-      id: ad.id,
-      score: breakdown,
-      verdicts: ad.verdicts,
-      company: ad.company,
-      source: ad.source,
-      matchedDirectionIds: matched.ids,
-      hasPreferenceWarn: ad.verdicts.some(
-        (v) => v.severity === 'preference' && v.state === 'warn',
-      ),
-      repeat: ad.repeat,
-    };
+    const scored: ScoredAd = { id: ad.id, score: breakdown };
     scoredPool.push(scored);
   }
 
-  const tiered = selectTiers(scoredPool, history, calibration);
+  const placed = selectMatches(scoredPool, calibration);
 
-  // Reconstruct DigestAd[] from tier ids; ads not in adById are impossible
-  // (selectTiers only returns ids we put in), so the non-null assertion is safe.
-  const toDigestAds = (tier: readonly ScoredAd[]): DigestAd[] =>
-    tier.map((s) => adById.get(s.id)!);
+  // Reconstruct DigestAd[] from ids; ads not in adById are impossible
+  // (selectMatches only returns ids we put in), so the non-null assertion is safe.
+  const toDigestAds = (ads: readonly ScoredAd[]): DigestAd[] =>
+    ads.map((s) => adById.get(s.id)!);
 
-  const topPicks = toDigestAds(tiered.topPicks);
-  const worthAReading = toDigestAds(tiered.worthAReading);
-  const stretch = toDigestAds(tiered.stretch);
-  const stillOpen = toDigestAds(tiered.stillOpen);
-  // Explore = pre-filter misses (direction or level) + everything selectTiers left over (new ads
-  // below threshold, and repeats that didn't fit under the stillOpen cap).
-  const explore = [...explorePool, ...toDigestAds(tiered.explore)].sort(compareAds);
-
-  // Record top picks for I25 (idempotent via unique index).
-  await recordTopPicks(db, userId, topPicks.map((a) => a.id), now);
+  const matches = toDigestAds(placed.matches);
+  // Explore = pre-filter misses (direction or level, muted company) + the
+  // scored ads below the match threshold. Scored ads sort first, so the head
+  // of explore is always the best-scoring near-miss (ADR-003 §9).
+  const explore = [...explorePool, ...toDigestAds(placed.explore)].sort(compareAds);
 
   const metrics: DigestMetrics = {
     adsReceived: rows.length,
-    inDigest: topPicks.length + worthAReading.length + stretch.length,
+    inDigest: matches.length,
     explore: gated.active
       ? {
           total: explore.length,
           preFilterMisses: gated.directionMisses.length,
           belowTargetLevel: gated.belowTargetLevel.length,
-          belowThreshold: tiered.explore.length,
+          belowThreshold: placed.explore.length,
           mutedCompany: gated.mutedCompany.length,
         }
       : null,
@@ -481,10 +463,8 @@ export async function getDigest(
   return {
     window,
     metrics,
-    topPicks,
-    worthAReading,
-    stretch,
-    stillOpen,
+    matches,
+    matchThreshold: calibration.matchThreshold,
     explore,
     dismissed,
     parse: await getParseSummary(db, userId, window),

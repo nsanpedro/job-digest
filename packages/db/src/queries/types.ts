@@ -175,26 +175,18 @@ export interface ParseSummary {
 export interface Digest {
   window: { start: Date; end: Date };
   metrics: DigestMetrics;
-  /** The two strongest-matched ads for this week (I21, I23). */
-  topPicks: DigestAd[];
-  /** Next six by fitScore after the Top picks (I21). */
-  worthAReading: DigestAd[];
-  /** Up to two ads with a failed preference but high direction fit (ADR-003 §2.3). */
-  stretch: DigestAd[];
   /**
-   * Ads from earlier weeks that are still open — first seen before this week
-   * started, but scored well enough this week that they'd rank in the curated
-   * tiers if they were new. Kept out of Top/Read/Stretch on purpose: the weekly
-   * digest is meant to answer "what's new this week", not re-surface what the
-   * user already saw. Capped so the section stays scannable.
+   * Every ad whose score is at or above `matchThreshold`, best first (I29).
+   * Includes ads first seen in earlier weeks — `repeat` marks them on the
+   * card; they do not get a section of their own.
    */
-  stillOpen: DigestAd[];
+  matches: DigestAd[];
+  /** The score an ad needs to be a match. Shown so the cut is never implicit. */
+  matchThreshold: number;
   /**
-   * Everything that didn't make the Top 10: pre-filter misses (off-direction,
+   * Everything that is not a match: pre-filter misses (off-direction,
    * or an entry-level title for a senior-or-above target) plus ads that
-   * scored below tier thresholds.
-   * Collapsible — the user can always reach it, but the Top 10 is the default
-   * view (I21, ADR-003 §5).
+   * scored below `matchThreshold`. Pre-filter misses carry no score.
    */
   explore: DigestAd[];
   /** Rule-blocked and user-dismissed ads. */

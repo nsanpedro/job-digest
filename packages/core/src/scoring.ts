@@ -101,14 +101,8 @@ export interface Calibration {
     stackFit: number;
     locationFit: number;
   };
-  tierThresholds: {
-    /** Top pick eligibility. */
-    topPick: number;
-    /** Worth-a-read eligibility. */
-    worthAReading: number;
-    /** Stretch eligibility (measured on directionFit alone — see selectTiers). */
-    stretch: number;
-  };
+  /** Minimum total score for an ad to be a match (selectMatches). */
+  matchThreshold: number;
   /** Prior per source name. Missing keys fall back to `defaultSourcePrior`. */
   sourcePriors: Record<string, number>;
   defaultSourcePrior: number;
@@ -116,19 +110,7 @@ export interface Calibration {
   freshnessDecayDays: number;
   /** Floor freshness reaches at freshnessDecayDays (linear from 1.0). */
   freshnessFloor: number;
-  /**
-   * Which of the Top-pick facts (Pay, Onsite — I23) must have been read for
-   * an ad to be Top-pick eligible. See `isCertain`.
-   *   'all'  — both, whatever their severity (v1–v4: I23 as first written).
-   *   'hard' — only those the user's ruleset makes hard (v5, ADR-003 §8.9).
-   * A selection rule, not a weight — but it decides which ads reach the Top
-   * tier, so it is versioned with the thresholds it sits beside.
-   */
-  topPickCertainty: TopPickCertainty;
 }
-
-/** See `Calibration.topPickCertainty`. */
-export type TopPickCertainty = 'all' | 'hard';
 
 /**
  * v2 calibration — rebalanced after real-usage feedback (Aug 2026).
@@ -161,11 +143,7 @@ export const CALIBRATION_V2: Calibration = {
     stackFit: 0,
     locationFit: 0,
   },
-  tierThresholds: {
-    topPick: 70,
-    worthAReading: 50,
-    stretch: 60,
-  },
+  matchThreshold: 50,
   sourcePriors: {
     Greenhouse: 1.0,
     Lever: 1.0,
@@ -179,7 +157,6 @@ export const CALIBRATION_V2: Calibration = {
   defaultSourcePrior: 0.6,
   freshnessDecayDays: 7,
   freshnessFloor: 0.4,
-  topPickCertainty: 'all',
 };
 
 /**
@@ -277,30 +254,8 @@ export const CALIBRATION_V4: Calibration = {
   })(),
 };
 
-/**
- * v5 calibration — Top pick requires the facts the user made hard, not
- * every fact I23 named (ADR-003 §8.9). Weights and thresholds are v4's
- * unchanged, so every score is identical; only which ads may take the Top
- * slots moves.
- *
- * Under v4, Top pick needed both Pay and Onsite read. Replayed over the
- * real alert fixtures, that left the tier empty in 61–84% of synthetic weeks
- * (packages/ingest/test/top-pick-eligibility.test.ts) — and the
- * missing fact was not the one expected: Xing and StepStone quote a salary
- * band on ~90% of cards, but almost never a home-office day count
- * ("Hybrid", "Homeoffice möglich" read as null), and Onsite is a preference
- * in every default ruleset. v5 asks for the facts whose absence could hide a
- * dealbreaker — the hard ones — and lets an unread preference through, since
- * a preference can only ever cost a warning (I4). See `isCertain`.
- */
-export const CALIBRATION_V5: Calibration = {
-  ...CALIBRATION_V4,
-  version: 5,
-  topPickCertainty: 'hard',
-};
-
 /** The calibration the digest runs under. */
-export const DEFAULT_CALIBRATION: Calibration = CALIBRATION_V5;
+export const DEFAULT_CALIBRATION: Calibration = CALIBRATION_V4;
 
 // ── Component functions (exported so tests can pin each one) ─────────────────
 
@@ -593,52 +548,6 @@ export function sourceQuality(source: string, calibration: Calibration): number 
   return calibration.sourcePriors[source] ?? calibration.defaultSourcePrior;
 }
 
-// ── Certainty (Top-pick gate, I23) ───────────────────────────────────────────
-
-/** The rules whose facts decide Top-pick certainty (I23): salary and home office. */
-const TOP_PICK_FACTS = ['Pay', 'Onsite'] as const;
-
-/**
- * True when no rule that decides Top-pick eligibility is `unknown` — the
- * product's strongest recommendation cannot rest on facts we didn't read
- * (I23). Pay and Onsite are the rules in question.
- *
- * `mode` says which of the two have to be read:
- *
- *   'all'  — both, whatever their severity. I23 as first written (v1–v4).
- *   'hard' — only those the user's ruleset makes hard (v5, ADR-003 §8.9).
- *
- * Why severity is the line: an unread *hard* rule could be hiding a
- * dealbreaker — had we read the salary, the ad might be blocked — so the
- * Top tier cannot vouch for it. An unread *preference* cannot hide one: a
- * preference never blocks (I4), the worst the missing fact could turn out
- * to be is a `warn` — the "one gap" an ad may carry into Worth a read or
- * Stretch. The user's own ruleset says which facts are dealbreakers; the
- * gate asks for exactly those. The unread preference stays visible on the
- * card as "not read".
- *
- * The `unknown` of an undecidable exception (I12 — the base condition was
- * read and failed, the escape hatch could not be checked) only arises on a
- * hard rule, so it keeps an ad out of Top pick under both modes.
- *
- * Not widened to the other hard rules (Shift is hard by default): I23 never
- * covered them, and no alert or board states shift facts, so requiring them
- * would empty the tier for every user rather than make it more honest.
- *
- * A rule whose condition is inactive (Onsite.minHomeDays === 0) does not
- * count against certainty even if the fact is null: we didn't need to know.
- * That check is folded into the verdict — an inactive Onsite condition
- * returns `pass`, not `unknown`.
- */
-export function isCertain(verdicts: readonly Verdict[], mode: TopPickCertainty = 'all'): boolean {
-  return !verdicts.some(
-    (v) =>
-      (TOP_PICK_FACTS as readonly string[]).includes(v.key) &&
-      v.state === 'unknown' &&
-      (mode === 'all' || v.severity === 'hard'),
-  );
-}
-
 // ── Composed score ───────────────────────────────────────────────────────────
 
 export interface ScoreAdArgs {
@@ -729,80 +638,23 @@ export function scoreAd(args: ScoreAdArgs): ScoreBreakdown {
   };
 }
 
-// ── Tier selection ───────────────────────────────────────────────────────────
+// ── Placement ────────────────────────────────────────────────────────────────
 
 /**
- * One scored ad — the minimum shape the selection algorithm consults.
+ * One scored ad — all that placement consults is the id and the score.
  * The caller keeps whatever wider ad type it uses and passes a projection.
  */
 export interface ScoredAd {
   id: string;
   score: ScoreBreakdown;
-  verdicts: readonly Verdict[];
-  /** For diversity cap and honesty ("still open"). Null companies are all distinct. */
-  company: string | null;
-  /** For per-platform diversity cap. */
-  source: string;
-  /**
-   * Which directions this ad matched (by id, for the per-direction cap).
-   * Empty is fine — the cap only fires when the same non-empty direction
-   * dominates.
-   */
-  matchedDirectionIds: readonly string[];
-  /** True when a preference-severity rule ended in `warn`. Gates Stretch. */
-  hasPreferenceWarn: boolean;
-  /**
-   * True when the ad was first seen in an earlier week. Repeats are kept out
-   * of the curated tiers (Top / Read / Stretch) — the weekly digest answers
-   * "what's new this week", not "what's still around". A repeat that scores
-   * high enough surfaces separately in `stillOpen` instead. Optional so
-   * existing test fixtures and callers pre-dating this field still compile
-   * (default: false — treated as a new ad).
-   */
-  repeat?: boolean;
 }
 
-export interface Tiered<T extends ScoredAd> {
-  topPicks: T[];
-  worthAReading: T[];
-  stretch: T[];
-  /**
-   * Repeat ads that scored above the worth-a-read threshold, ordered by score
-   * desc, capped by `STILL_OPEN_CAP`. Repeats that don't fit here fall into
-   * `explore` alongside the low-scoring new ads.
-   */
-  stillOpen: T[];
+export interface Placement<T extends ScoredAd> {
+  /** Every ad at or above the match threshold, best first. */
+  matches: T[];
+  /** Every ad below it, best first. */
   explore: T[];
 }
-
-/**
- * Repeat-suppression history: a lookup of ad ids that were in Top pick the
- * previous week and are therefore ineligible for Top pick this week (I25).
- */
-export type TopPickHistory = ReadonlySet<string>;
-
-interface DiversityCaps {
-  maxPerCompany: number;
-  maxPerPlatform: number;
-  maxPerDirection: number;
-}
-
-const TIER_CAPS = { topPicks: 2, worthAReading: 6, stretch: 2 } as const;
-
-/**
- * Maximum ads shown under "Still open from earlier weeks". Kept below the
- * curated total (10) so a stale corpus of week-old repeats doesn't dominate
- * the page. Excess repeats fall through to explore.
- */
-export const STILL_OPEN_CAP = 6;
-
-const DIVERSITY: DiversityCaps = {
-  maxPerCompany: 2,
-  maxPerPlatform: 5,
-  maxPerDirection: 6,
-};
-
-const TOP_PICK_COMPANY_CAP = 1;
 
 /**
  * Sort key: score desc, then id asc for stability (same score, same order
@@ -815,145 +667,30 @@ function byScoreDesc<T extends ScoredAd>(a: T, b: T): number {
 }
 
 /**
- * Greedy pick with caps. Walks the candidates in the given order; each ad
- * that would not exceed a cap is taken and its counters incremented. An ad
- * that would exceed a cap is skipped, not moved — it stays in the pool for
- * the next tier (or for Explore).
+ * Split the scored pool at the match threshold. Pure.
  *
- * Returns the picks and the pool of ads that were not picked (either
- * skipped by a cap, or ran out of slots).
+ * I29 — placement is a monotone function of the displayed score: an ad with
+ * a higher score is never in a lower section than an ad with a lower score.
+ * That is the whole rule. There are no slot caps, no per-company /
+ * per-platform / per-direction caps, no repeat split and no second metric
+ * (ADR-003 §9). Every earlier version of this function put something between
+ * the number on the card and the section the card landed in, and each of
+ * those rules showed up as a bug report of the same shape: "this 74% is in
+ * a different place than that 74%".
+ *
+ * The only reasons an ad is kept out of `matches` besides its score are the
+ * pre-filters in getDigest (muted company, direction miss, below target
+ * level), and those ads carry no score at all — they are labelled with their
+ * reason, not ranked against the rest.
  */
-function pickWithCaps<T extends ScoredAd>(
-  candidates: readonly T[],
-  slots: number,
-  caps: DiversityCaps,
-  state: {
-    perCompany: Map<string, number>;
-    perPlatform: Map<string, number>;
-    perDirection: Map<string, number>;
-  },
-): { picks: T[]; rest: T[] } {
-  const picks: T[] = [];
-  const rest: T[] = [];
-  for (const ad of candidates) {
-    if (picks.length >= slots) {
-      rest.push(ad);
-      continue;
-    }
-    const companyKey = ad.company ?? `__null:${ad.id}`;
-    if ((state.perCompany.get(companyKey) ?? 0) >= caps.maxPerCompany) {
-      rest.push(ad);
-      continue;
-    }
-    if ((state.perPlatform.get(ad.source) ?? 0) >= caps.maxPerPlatform) {
-      rest.push(ad);
-      continue;
-    }
-    const dirOverflow = ad.matchedDirectionIds.some(
-      (d) => (state.perDirection.get(d) ?? 0) >= caps.maxPerDirection,
-    );
-    if (dirOverflow) {
-      rest.push(ad);
-      continue;
-    }
-    picks.push(ad);
-    state.perCompany.set(companyKey, (state.perCompany.get(companyKey) ?? 0) + 1);
-    state.perPlatform.set(ad.source, (state.perPlatform.get(ad.source) ?? 0) + 1);
-    for (const d of ad.matchedDirectionIds) {
-      state.perDirection.set(d, (state.perDirection.get(d) ?? 0) + 1);
-    }
-  }
-  return { picks, rest };
-}
-
-/**
- * Rank-order into the three tiers, respecting eligibility gates and
- * diversity caps. Pure — the same inputs produce the same tiering.
- *
- * Selection order matters: Top picks first (they get the pick of the litter,
- * with the tighter per-company cap of 1), then Worth-a-read from what's
- * left, then Stretch from what's left after that. An ad qualified for both
- * Top and Read lands in Top because Top is picked first.
- *
- * Ads culled by diversity or that fall below every threshold land in
- * `explore` (I24 — culled by diversity does not become a lower tier).
- *
- * Empty slots are legitimate output (ADR-003 §2.3): the caller renders the
- * tier as "no strong pick this week" rather than padding.
- */
-export function selectTiers<T extends ScoredAd>(
+export function selectMatches<T extends ScoredAd>(
   scored: readonly T[],
-  history: TopPickHistory,
   calibration: Calibration,
-): Tiered<T> {
-  const state = {
-    perCompany: new Map<string, number>(),
-    perPlatform: new Map<string, number>(),
-    perDirection: new Map<string, number>(),
-  };
-
+): Placement<T> {
   const sorted = [...scored].sort(byScoreDesc);
-
-  // Repeats (first seen in an earlier week) never compete for the curated
-  // tiers — they can only land in `stillOpen` or `explore`. This is I25
-  // extended: the previous rule blocked Top-pick re-promotion; the weekly-
-  // digest promise ("what's new this week") makes the same split honest for
-  // Read and Stretch too.
-  const newSorted = sorted.filter((a) => !a.repeat);
-  const repeatSorted = sorted.filter((a) => a.repeat === true);
-
-  // Top-pick candidates: score >= threshold, certain on the facts the
-  // calibration asks for (I23, §8.9), not repeated (I25).
-  const topEligible = newSorted.filter(
-    (ad) =>
-      ad.score.total >= calibration.tierThresholds.topPick &&
-      isCertain(ad.verdicts, calibration.topPickCertainty) &&
-      !history.has(ad.id),
-  );
-  const topPicked = pickWithCaps(topEligible, TIER_CAPS.topPicks, {
-    ...DIVERSITY,
-    maxPerCompany: TOP_PICK_COMPANY_CAP,
-  }, state);
-
-  const takenIds = new Set(topPicked.picks.map((a) => a.id));
-  const remainder = newSorted.filter((a) => !takenIds.has(a.id));
-
-  // Worth-a-read: score >= threshold. Uses the full diversity caps.
-  const readEligible = remainder.filter(
-    (ad) => ad.score.total >= calibration.tierThresholds.worthAReading,
-  );
-  const readPicked = pickWithCaps(readEligible, TIER_CAPS.worthAReading, DIVERSITY, state);
-  readPicked.picks.forEach((a) => takenIds.add(a.id));
-
-  const remainderAfterRead = remainder.filter((a) => !takenIds.has(a.id));
-
-  // Stretch: directionFit is the gate, not total. A high-direction ad with a
-  // failed preference is exactly the "high match, one gap" case (§2.3).
-  const stretchEligible = remainderAfterRead.filter(
-    (ad) =>
-      ad.hasPreferenceWarn &&
-      ad.score.directionFit * 100 >= calibration.tierThresholds.stretch,
-  );
-  const stretchPicked = pickWithCaps(stretchEligible, TIER_CAPS.stretch, DIVERSITY, state);
-  stretchPicked.picks.forEach((a) => takenIds.add(a.id));
-
-  // Still-open: repeats scoring above worth-a-read, capped. No diversity gate
-  // — this section is small enough that a company/platform cap would leave it
-  // half-empty for no gain.
-  const stillOpen = repeatSorted
-    .filter((a) => a.score.total >= calibration.tierThresholds.worthAReading)
-    .slice(0, STILL_OPEN_CAP);
-  const stillOpenIds = new Set(stillOpen.map((a) => a.id));
-
-  // Explore = every ad that didn't land in a tier or in stillOpen — new ads
-  // below the thresholds, and repeats that didn't fit under the cap.
-  const explore = sorted.filter((a) => !takenIds.has(a.id) && !stillOpenIds.has(a.id));
-
+  const cut = calibration.matchThreshold;
   return {
-    topPicks: topPicked.picks,
-    worthAReading: readPicked.picks,
-    stretch: stretchPicked.picks,
-    stillOpen,
-    explore,
+    matches: sorted.filter((a) => a.score.total >= cut),
+    explore: sorted.filter((a) => a.score.total < cut),
   };
 }

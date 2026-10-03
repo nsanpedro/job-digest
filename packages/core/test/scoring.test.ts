@@ -1,23 +1,21 @@
 /**
  * Scoring suite — one describe block per component, then composed scoreAd
- * and selectTiers. Same table-driven style as evaluate.test.ts. Every
+ * and selectMatches. Same table-driven style as evaluate.test.ts. Every
  * component has a dedicated boundary case; composition tests pin the
- * invariants ADR-003 introduces (I21–I25).
+ * placement invariant ADR-003 §9 introduces (I29).
  */
 import { describe, expect, it } from 'vitest';
 import {
   CALIBRATION_V2,
   CALIBRATION_V3,
   CALIBRATION_V4,
-  CALIBRATION_V5,
   DEFAULT_CALIBRATION,
   directionFit,
   effectiveWeights,
   freshness,
-  isCertain,
   ruleMargin,
   scoreAd,
-  selectTiers,
+  selectMatches,
   seniorityFit,
   signalCompleteness,
   sourceQuality,
@@ -413,49 +411,6 @@ describe('sourceQuality', () => {
   });
 });
 
-// ── isCertain ───────────────────────────────────────────────────────────────
-
-describe('isCertain', () => {
-  const v = (key: Verdict['key'], state: Verdict['state']): Verdict => ({
-    key,
-    severity: 'hard',
-    state,
-    because: [],
-  });
-
-  it('true when Pay and Onsite are both non-unknown', () => {
-    expect(isCertain([v('Pay', 'pass'), v('Onsite', 'pass')])).toBe(true);
-    expect(isCertain([v('Pay', 'warn'), v('Onsite', 'pass')])).toBe(true);
-  });
-
-  it('false when Pay is unknown', () => {
-    expect(isCertain([v('Pay', 'unknown'), v('Onsite', 'pass')])).toBe(false);
-  });
-
-  it('false when Onsite is unknown', () => {
-    expect(isCertain([v('Pay', 'pass'), v('Onsite', 'unknown')])).toBe(false);
-  });
-
-  it('true when other rules are unknown but Pay and Onsite are known', () => {
-    expect(
-      isCertain([
-        v('Pay', 'pass'),
-        v('Onsite', 'pass'),
-        v('German', 'unknown'),
-        v('Contract', 'unknown'),
-        v('Shift', 'unknown'),
-      ]),
-    ).toBe(true);
-  });
-
-  it('missing Pay/Onsite verdicts (a malformed evaluation) is treated as certain — the caller is expected to always run evaluate() first', () => {
-    // Defensive check: isCertain does not require the caller to always
-    // have both. A missing Pay verdict cannot be `unknown`, so it does
-    // not trip the gate.
-    expect(isCertain([])).toBe(true);
-  });
-});
-
 // ── DEFAULT_CALIBRATION invariants ──────────────────────────────────────────
 
 describe('DEFAULT_CALIBRATION', () => {
@@ -472,14 +427,9 @@ describe('DEFAULT_CALIBRATION', () => {
     }
   });
 
-  it('tier thresholds are in [0, 100] and ordered top ≥ stretch ≥ read', () => {
-    const t = DEFAULT_CALIBRATION.tierThresholds;
-    for (const value of Object.values(t)) {
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThanOrEqual(100);
-    }
-    expect(t.topPick).toBeGreaterThanOrEqual(t.stretch);
-    expect(t.stretch).toBeGreaterThanOrEqual(t.worthAReading);
+  it('the match threshold is in [0, 100]', () => {
+    expect(DEFAULT_CALIBRATION.matchThreshold).toBeGreaterThanOrEqual(0);
+    expect(DEFAULT_CALIBRATION.matchThreshold).toBeLessThanOrEqual(100);
   });
 });
 
@@ -732,9 +682,9 @@ describe('scoreAd with a location (v4)', () => {
     expect(home).toBeGreaterThan(country);
     expect(country).toBeGreaterThan(europe);
     expect(europe).toBeGreaterThan(far);
-    // A strong role match abroad still clears Worth-a-read — ranked lower,
+    // A strong role match abroad still clears a match — ranked lower,
     // not filtered out (the whole point of v4).
-    expect(far).toBeGreaterThanOrEqual(DEFAULT_CALIBRATION.tierThresholds.worthAReading);
+    expect(far).toBeGreaterThanOrEqual(DEFAULT_CALIBRATION.matchThreshold);
   });
 
   it('an unplaceable location scores exactly as under v3', () => {
@@ -755,13 +705,11 @@ describe('scoreAd with a location (v4)', () => {
   });
 });
 
-// ── selectTiers ──────────────────────────────────────────────────────────────
+// ── selectMatches (I29) ──────────────────────────────────────────────────────
 
-describe('selectTiers', () => {
-  const mk = (
-    p: Omit<Partial<ScoredAd>, 'score'> & { id: string; total: number; score?: Partial<ScoreBreakdown> },
-  ): ScoredAd => ({
-    id: p.id,
+describe('selectMatches', () => {
+  const mk = (id: string, total: number): ScoredAd => ({
+    id,
     score: {
       ruleMargin: 1,
       directionFit: 1,
@@ -770,425 +718,59 @@ describe('selectTiers', () => {
       sourceQuality: 1,
       seniorityFit: null,
       stackFit: null,
-      total: p.total,
-      ...(p.score ?? {}),
-    } as ScoreBreakdown,
-    verdicts: p.verdicts ?? [
-      { key: 'Pay', severity: 'hard', state: 'pass', because: [] },
-      { key: 'Onsite', severity: 'preference', state: 'pass', because: [] },
-    ],
-    company: p.company ?? `Company-${p.id}`,
-    source: p.source ?? 'Greenhouse',
-    matchedDirectionIds: p.matchedDirectionIds ?? [],
-    hasPreferenceWarn: p.hasPreferenceWarn ?? false,
-    repeat: p.repeat ?? false,
-  });
-
-  const empty: ReadonlySet<string> = new Set();
-
-  it('caps top picks at 2, reads at 6, stretch at 2, rest to explore', () => {
-    // Rotate sources so the per-platform cap (5) does not fire before the
-    // per-tier caps do — this test is about tier caps in isolation.
-    const platforms = ['Greenhouse', 'Lever', 'Ashby', 'Personio'] as const;
-    const src = (i: number): string => platforms[i % platforms.length]!;
-    const pool: ScoredAd[] = [
-      ...Array.from({ length: 5 }, (_, i) => mk({ id: `top-${i}`, total: 90, source: src(i) })),
-      ...Array.from({ length: 10 }, (_, i) => mk({ id: `read-${i}`, total: 60, source: src(i) })),
-      ...Array.from({ length: 5 }, (_, i) => mk({
-        id: `stretch-${i}`,
-        total: 40,
-        score: { ruleMargin: 0.1, directionFit: 0.9, signalCompleteness: 0.5, freshness: 1, sourceQuality: 0.6, total: 40 },
-        hasPreferenceWarn: true,
-        source: src(i),
-      })),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks).toHaveLength(2);
-    expect(result.worthAReading).toHaveLength(6);
-    expect(result.stretch).toHaveLength(2);
-    expect(result.explore).toHaveLength(pool.length - 10);
-  });
-
-  it('I23 — an ad with unknown Pay cannot be a top pick even at score 99', () => {
-    const uncertain: Verdict[] = [
-      { key: 'Pay', severity: 'hard', state: 'unknown', because: [] },
-      { key: 'Onsite', severity: 'preference', state: 'pass', because: [] },
-    ];
-    const pool = [
-      mk({ id: 'a', total: 99, verdicts: uncertain }),
-      mk({ id: 'b', total: 80 }),
-      mk({ id: 'c', total: 76 }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).toEqual(['b', 'c']);
-    // 'a' still qualifies for read (score 99 >= 50) — I23 only gates Top.
-    expect(result.worthAReading.map((a) => a.id)).toContain('a');
-  });
-
-  it('I25 — an ad in the history is ineligible for Top pick but can appear in Read', () => {
-    const pool = [
-      mk({ id: 'a', total: 95 }),
-      mk({ id: 'b', total: 90 }),
-      mk({ id: 'c', total: 80 }),
-    ];
-    const history: ReadonlySet<string> = new Set(['a']);
-    const result = selectTiers(pool, history, DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).toEqual(['b', 'c']);
-    expect(result.worthAReading.map((a) => a.id)).toContain('a');
-  });
-
-  it('I24 — top-pick per-company cap is 1: two ads from same company do not both make Top', () => {
-    const pool = [
-      mk({ id: 'a', total: 95, company: 'Stripe' }),
-      mk({ id: 'b', total: 94, company: 'Stripe' }),
-      mk({ id: 'c', total: 80, company: 'Datadog' }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).toEqual(['a', 'c']);
-    // b is culled by top's per-company cap, but should reappear in Read.
-    expect(result.worthAReading.map((a) => a.id)).toContain('b');
-  });
-
-  it('I24 — worth-a-read per-company cap is 2', () => {
-    const pool = Array.from({ length: 5 }, (_, i) =>
-      mk({ id: `n26-${i}`, total: 65, company: 'N26' }),
-    );
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    // Score 65 is under the top threshold (70), so all five compete for Read.
-    // At most 2 per company can be in Read.
-    expect(result.worthAReading).toHaveLength(2);
-    expect(result.explore).toHaveLength(3);
-  });
-
-  it('I24 — per-platform cap is 5', () => {
-    const pool = Array.from({ length: 8 }, (_, i) =>
-      mk({ id: `li-${i}`, total: 65, source: 'LinkedIn', company: `C${i}` }),
-    );
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.worthAReading).toHaveLength(5);
-    // 3 overflow → explore (per-platform cap fired before slot cap of 6).
-    expect(result.explore).toHaveLength(3);
-  });
-
-  it('a slot with no qualifying candidate stays empty rather than being padded', () => {
-    // Nothing scores above 70; top picks come back empty and reads absorb.
-    const pool = [
-      mk({ id: 'a', total: 65 }),
-      mk({ id: 'b', total: 60 }),
-      mk({ id: 'c', total: 58 }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks).toHaveLength(0);
-    expect(result.worthAReading.map((a) => a.id)).toEqual(['a', 'b', 'c']);
-    expect(result.stretch).toHaveLength(0);
-  });
-
-  it('stretch requires hasPreferenceWarn AND directionFit >= threshold, not total', () => {
-    const strong = { ruleMargin: 0.2, directionFit: 0.8, signalCompleteness: 0.5, freshness: 1, sourceQuality: 0.6, total: 45 };
-    const weak = { ruleMargin: 0.2, directionFit: 0.4, signalCompleteness: 0.5, freshness: 1, sourceQuality: 0.6, total: 45 };
-    const pool = [
-      mk({ id: 'strong-with-warn', total: 45, score: strong, hasPreferenceWarn: true }),
-      mk({ id: 'strong-no-warn', total: 45, score: strong, hasPreferenceWarn: false }),
-      mk({ id: 'weak-with-warn', total: 45, score: weak, hasPreferenceWarn: true }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.stretch.map((a) => a.id)).toEqual(['strong-with-warn']);
-    // The other two land in Explore (below Read's 50 threshold too).
-    expect(result.explore.map((a) => a.id).sort()).toEqual(['strong-no-warn', 'weak-with-warn']);
-  });
-
-  it('an ad taken as Top pick is not double-counted in Read', () => {
-    const pool = [
-      mk({ id: 'a', total: 90 }),
-      mk({ id: 'b', total: 80 }),
-      mk({ id: 'c', total: 70 }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).toEqual(['a', 'b']);
-    expect(result.worthAReading.map((a) => a.id)).toEqual(['c']);
-  });
-
-  it('tie-broken by id ascending so ordering is deterministic', () => {
-    const pool = [
-      mk({ id: 'zebra', total: 80 }),
-      mk({ id: 'alpha', total: 80 }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).toEqual(['alpha', 'zebra']);
-  });
-
-  it('null-company ads are all treated as distinct — no false diversity collision', () => {
-    const pool = [
-      mk({ id: 'a', total: 95, company: null }),
-      mk({ id: 'b', total: 90, company: null }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    // Both make Top — they are not the same company just because both are null.
-    expect(result.topPicks.map((a) => a.id)).toEqual(['a', 'b']);
-  });
-
-  it('I24 — per-direction cap is 6', () => {
-    // Rotate platforms so per-platform (5) doesn't fire before per-direction (6).
-    const platforms = ['Greenhouse', 'Lever', 'Ashby', 'Personio'] as const;
-    const pool = Array.from({ length: 8 }, (_, i) =>
-      mk({
-        id: `x-${i}`,
-        total: 60,
-        source: platforms[i % platforms.length]!,
-        company: `C${i}`,
-        matchedDirectionIds: ['dir-1'],
-      }),
-    );
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    // With 8 all matching one direction, worth-a-read can only take 6.
-    expect(result.worthAReading).toHaveLength(6);
-    expect(result.explore).toHaveLength(2);
-  });
-
-  it('a repeat ad never enters Top / Read / Stretch, even at score 100', () => {
-    const pool: ScoredAd[] = [
-      // Repeat at the top of the scoreboard — would be a Top pick if new.
-      mk({ id: 'repeat-hi', total: 95, repeat: true }),
-      // A new ad below the top threshold, at Read.
-      mk({ id: 'new-mid', total: 65 }),
-    ];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).not.toContain('repeat-hi');
-    expect(result.worthAReading.map((a) => a.id)).not.toContain('repeat-hi');
-    expect(result.stretch.map((a) => a.id)).not.toContain('repeat-hi');
-    expect(result.stillOpen.map((a) => a.id)).toEqual(['repeat-hi']);
-    // The new ad still lands in Read as usual.
-    expect(result.worthAReading.map((a) => a.id)).toContain('new-mid');
-  });
-
-  it('stillOpen is capped and ordered by score desc; excess repeats fall to explore', () => {
-    // 10 repeats above the read threshold — only the top 6 make stillOpen.
-    const pool: ScoredAd[] = Array.from({ length: 10 }, (_, i) =>
-      mk({ id: `r-${i}`, total: 90 - i, repeat: true }),
-    );
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.stillOpen.map((a) => a.id)).toEqual(['r-0', 'r-1', 'r-2', 'r-3', 'r-4', 'r-5']);
-    expect(result.explore.map((a) => a.id)).toEqual(['r-6', 'r-7', 'r-8', 'r-9']);
-    // None of the repeats leaked into a curated tier.
-    expect(result.topPicks).toHaveLength(0);
-    expect(result.worthAReading).toHaveLength(0);
-  });
-
-  it('a repeat scoring below the read threshold goes straight to explore, not stillOpen', () => {
-    const pool: ScoredAd[] = [mk({ id: 'r-low', total: 40, repeat: true })];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.stillOpen).toHaveLength(0);
-    expect(result.explore.map((a) => a.id)).toEqual(['r-low']);
-  });
-
-  it('an ad with repeat:undefined is treated as new (default), competing for curated tiers', () => {
-    // Backwards-compat: existing fixtures don't set `repeat` — they still work.
-    const pool: ScoredAd[] = [mk({ id: 'legacy', total: 85 })];
-    const result = selectTiers(pool, empty, DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).toEqual(['legacy']);
-    expect(result.stillOpen).toHaveLength(0);
-  });
-
-  it('an ad using a custom calibration with weight 0 for source still totals correctly', () => {
-    const noSourceEffect: Calibration = {
-      ...DEFAULT_CALIBRATION,
-      weights: {
-        ruleMargin: 0.35,
-        directionFit: 0.35,
-        signalCompleteness: 0.15,
-        freshness: 0.15,
-        sourceQuality: 0,
-        seniorityFit: 0,
-        stackFit: 0,
-        locationFit: 0,
-      },
-    };
-    const now = new Date('2026-08-24T12:00:00Z');
-    const result = scoreAd({
-      facts: NO_FACTS,
-      verdicts: [],
-      ruleset: defaultRuleset(),
-      directions: [],
-      title: 'anything',
-      source: 'LinkedIn',
-      receivedAt: now,
-      now,
-      calibration: noSourceEffect,
-    });
-    // No directions → the 0.35 directionFit weight is redistributed
-    // proportionally across the three components with a non-zero base
-    // (sourceQuality here is 0 so it receives no boost). Effective
-    // weights: rm 0.35/0.65 = 0.538, sc 0.15/0.65 = 0.231, fr 0.15/0.65 =
-    // 0.231, sq 0. Values: rm 0.5, sc 0, fr 1.0, sq 0.6.
-    // total = 0.538*0.5 + 0.231*0 + 0.231*1.0 + 0 ≈ 0.500 → 50.
-    // Was 68 under the old phantom-1.0 contract.
-    expect(result.total).toBe(50);
-  });
-});
-
-// ── Top pick eligibility (v5, ADR-003 §8.9) ─────────────────────────────────
-//
-// I23 amended: the Top tier needs the Pay / Onsite facts the user made hard,
-// not every one of them. Verdicts come from the real `evaluate()` so the
-// severity on each is the ruleset's, not a fixture's.
-
-describe('Top pick eligibility — v5 asks for the hard facts only', () => {
-  /** An Engineering-category ruleset: Pay hard, Onsite a preference. */
-  const rules = (over: Partial<Ruleset> = {}): Ruleset => ({
-    ...defaultRuleset(),
-    Onsite: { key: 'Onsite', severity: 'preference', condition: { minHomeDays: 3 } },
-    Pay: { key: 'Pay', severity: 'hard', condition: { minMonthly: 3500, basis: 'fte' } },
-    ...over,
-  });
-  // Shapes measured on the real alert fixtures: Xing / StepStone quote a
-  // salary band but rarely a home-office day count ("Hybrid" reads as
-  // null); LinkedIn quotes neither.
-  const xingShaped = facts({ pay: 4500 });
-  const linkedInShaped = NO_FACTS;
-
-  const ad = (id: string, total: number, verdicts: readonly Verdict[], p: Partial<ScoredAd> = {}): ScoredAd => ({
-    id,
-    score: {
-      ruleMargin: 0.6,
-      directionFit: 1,
-      signalCompleteness: 0.2,
-      freshness: 1,
-      sourceQuality: 0.6,
-      seniorityFit: 1,
-      stackFit: null,
-      locationFit: 1,
       total,
-      weights: DEFAULT_CALIBRATION.weights,
-    },
-    verdicts,
-    company: `Company-${id}`,
-    source: 'Xing',
-    matchedDirectionIds: [],
-    hasPreferenceWarn: false,
-    repeat: false,
-    ...p,
+    } as ScoreBreakdown,
   });
-  const none: ReadonlySet<string> = new Set();
+  const cut = DEFAULT_CALIBRATION.matchThreshold;
 
-  it('isCertain defaults to the v1–v4 reading: both facts, whatever their severity', () => {
-    const v = evaluate(xingShaped, rules());
-    expect(v.find((x) => x.key === 'Onsite')).toMatchObject({ severity: 'preference', state: 'unknown' });
-    expect(isCertain(v)).toBe(false);
-    expect(isCertain(v, 'all')).toBe(false);
+  it('splits at the threshold: at or above is a match, below is explore', () => {
+    const r = selectMatches([mk('a', cut), mk('b', cut - 1), mk('c', 100), mk('d', 0)], DEFAULT_CALIBRATION);
+    expect(r.matches.map((a) => a.id)).toEqual(['c', 'a']);
+    expect(r.explore.map((a) => a.id)).toEqual(['b', 'd']);
   });
 
-  it('pay read, home-office preference unread → certain under v5', () => {
-    expect(isCertain(evaluate(xingShaped, rules()), 'hard')).toBe(true);
+  it('has no slot cap: every ad over the bar is a match', () => {
+    const pool = Array.from({ length: 40 }, (_, i) => mk(`ad-${i}`, 60 + (i % 10)));
+    const r = selectMatches(pool, DEFAULT_CALIBRATION);
+    expect(r.matches).toHaveLength(40);
+    expect(r.explore).toHaveLength(0);
   });
 
-  it('pay unread while Pay is hard → not certain, however strong the match', () => {
-    const v = evaluate(linkedInShaped, rules());
-    expect(isCertain(v, 'hard')).toBe(false);
-    const result = selectTiers([ad('li', 95, v)], none, DEFAULT_CALIBRATION);
-    expect(result.topPicks).toHaveLength(0);
-    // Still in the digest — I23 gates Top only, and unknown never blocks (I4).
-    expect(result.worthAReading.map((a) => a.id)).toEqual(['li']);
+  it('two ads with the same score always land in the same section (the Figma case)', () => {
+    // Same company, same title, same score — under the old caps one of them
+    // went to Explore. Placement now depends on the score and nothing else.
+    const r = selectMatches([mk('figma-a', 74), mk('figma-b', 74), mk('figma-c', 74)], DEFAULT_CALIBRATION);
+    expect(r.matches.map((a) => a.id)).toEqual(['figma-a', 'figma-b', 'figma-c']);
+    expect(r.explore).toHaveLength(0);
   });
 
-  it('pay unread while Pay is a preference → eligible: the user said pay is not a dealbreaker', () => {
-    const v = evaluate(
-      linkedInShaped,
-      rules({ Pay: { key: 'Pay', severity: 'preference', condition: { minMonthly: 3500, basis: 'fte' } } }),
-    );
-    expect(isCertain(v, 'hard')).toBe(true);
-    expect(selectTiers([ad('li', 95, v)], none, DEFAULT_CALIBRATION).topPicks.map((a) => a.id)).toEqual(['li']);
-    // v4 still refused it.
-    expect(selectTiers([ad('li', 95, v)], none, CALIBRATION_V4).topPicks).toHaveLength(0);
+  it('I29: no explore ad outscores a match, for any pool', () => {
+    // Deterministic pseudo-random pool; the property is what is under test.
+    let seed = 7;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    for (let round = 0; round < 50; round++) {
+      const pool = Array.from({ length: 30 }, (_, i) => mk(`r${round}-${i}`, Math.floor(rand() * 101)));
+      const r = selectMatches(pool, DEFAULT_CALIBRATION);
+      const lowestMatch = Math.min(...r.matches.map((a) => a.score.total), Infinity);
+      const highestExplore = Math.max(...r.explore.map((a) => a.score.total), -Infinity);
+      expect(highestExplore).toBeLessThan(lowestMatch);
+      expect(r.matches.length + r.explore.length).toBe(pool.length);
+    }
   });
 
-  it('home office unread while Onsite is hard (a user who needs remote) → not certain', () => {
-    const v = evaluate(xingShaped, rules({ Onsite: { key: 'Onsite', severity: 'hard', condition: { minHomeDays: 5 } } }));
-    expect(v.find((x) => x.key === 'Onsite')).toMatchObject({ severity: 'hard', state: 'unknown' });
-    expect(isCertain(v, 'hard')).toBe(false);
-    expect(selectTiers([ad('x', 95, v)], none, DEFAULT_CALIBRATION).topPicks).toHaveLength(0);
+  it('orders each section by score desc, then id asc, whatever the input order', () => {
+    const r = selectMatches([mk('zebra', 80), mk('alpha', 80), mk('mid', 90), mk('low-b', 10), mk('low-a', 10)], DEFAULT_CALIBRATION);
+    expect(r.matches.map((a) => a.id)).toEqual(['mid', 'alpha', 'zebra']);
+    expect(r.explore.map((a) => a.id)).toEqual(['low-a', 'low-b']);
   });
 
-  it('a hard Pay rule left undecidable (pay read and below the floor, exception unread — I12) is not certain', () => {
-    const v = evaluate(
-      facts({ pay: 3000 }),
-      rules({
-        Pay: {
-          key: 'Pay',
-          severity: 'hard',
-          condition: { minMonthly: 3500, basis: 'fte' },
-          exception: { mode: 'waive', when: { kind: 'homeAtLeast', days: 4 } },
-        },
-      }),
-    );
-    const pay = v.find((x) => x.key === 'Pay')!;
-    expect(pay.state).toBe('unknown');
-    expect(pay.because.some((s) => s.kind === 'undecidable')).toBe(true);
-    expect(isCertain(v, 'hard')).toBe(false);
+  it('does not mutate its input', () => {
+    const pool = [mk('b', 10), mk('a', 90)];
+    selectMatches(pool, DEFAULT_CALIBRATION);
+    expect(pool.map((a) => a.id)).toEqual(['b', 'a']);
   });
 
-  it('other hard rules left unread (Shift) never counted for I23, and still do not', () => {
-    const v = evaluate(xingShaped, rules());
-    expect(v.find((x) => x.key === 'Shift')).toMatchObject({ severity: 'hard', state: 'unknown' });
-    expect(isCertain(v, 'hard')).toBe(true);
-  });
-
-  it('the Xing-shaped ad takes Top under v5 and not under v4; the LinkedIn-shaped one under neither', () => {
-    const pool = [
-      ad('linkedin', 90, evaluate(linkedInShaped, rules()), { source: 'LinkedIn' }),
-      ad('xing', 80, evaluate(xingShaped, rules())),
-    ];
-    const v4 = selectTiers(pool, none, CALIBRATION_V4);
-    expect(v4.topPicks).toHaveLength(0);
-    expect(v4.worthAReading.map((a) => a.id)).toEqual(['linkedin', 'xing']);
-
-    const v5 = selectTiers(pool, none, DEFAULT_CALIBRATION);
-    expect(v5.topPicks.map((a) => a.id)).toEqual(['xing']);
-    expect(v5.worthAReading.map((a) => a.id)).toEqual(['linkedin']);
-  });
-
-  it("I25 still holds under v5: last week's Top pick is not re-promoted, a repeat never enters the tiers", () => {
-    const v = evaluate(xingShaped, rules());
-    const pool = [ad('last-week', 95, v), ad('repeat', 92, v, { repeat: true }), ad('fresh', 75, v)];
-    const result = selectTiers(pool, new Set(['last-week']), DEFAULT_CALIBRATION);
-    expect(result.topPicks.map((a) => a.id)).toEqual(['fresh']);
-    expect(result.worthAReading.map((a) => a.id)).toEqual(['last-week']);
-    expect(result.stillOpen.map((a) => a.id)).toEqual(['repeat']);
-  });
-
-  it('the score threshold still applies — certainty is a gate on top of it, not a substitute', () => {
-    const v = evaluate(xingShaped, rules());
-    expect(selectTiers([ad('x', 69, v)], none, DEFAULT_CALIBRATION).topPicks).toHaveLength(0);
-  });
-});
-
-describe('CALIBRATION_V5', () => {
-  it('is the default, and differs from v4 only in the Top-pick certainty rule', () => {
-    expect(DEFAULT_CALIBRATION).toBe(CALIBRATION_V5);
-    expect(CALIBRATION_V5.version).toBe(5);
-    expect(CALIBRATION_V5.topPickCertainty).toBe('hard');
-    expect({ ...CALIBRATION_V5, version: 4, topPickCertainty: 'all' }).toEqual(CALIBRATION_V4);
-  });
-
-  it('earlier calibrations keep I23 as first written', () => {
-    for (const c of [CALIBRATION_V2, CALIBRATION_V3, CALIBRATION_V4]) expect(c.topPickCertainty).toBe('all');
-  });
-
-  it('scores every ad exactly as v4 does', () => {
-    const now = new Date('2026-08-24T12:00:00Z');
-    const input = {
-      facts: facts({ pay: 4500 }),
-      verdicts: [],
-      ruleset: defaultRuleset(),
-      directions: [direction({ searchTerms: ['frontend engineer'] })],
-      candidate: { seniorities: ['senior'] as const, stack: ['React'], location: { city: 'Hamburg', remoteOk: true } },
-      title: 'Senior Frontend Engineer (React)',
-      locationRaw: 'Hamburg',
-      source: 'Xing',
-      receivedAt: now,
-      now,
-    };
-    expect(scoreAd({ ...input, calibration: CALIBRATION_V5 })).toEqual(
-      scoreAd({ ...input, calibration: CALIBRATION_V4 }),
-    );
+  it('an empty pool is empty output, not an error', () => {
+    expect(selectMatches([], DEFAULT_CALIBRATION)).toEqual({ matches: [], explore: [] });
   });
 });
