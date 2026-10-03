@@ -55,7 +55,7 @@ export interface Direction {
   /**
    * Role titles in the ad languages of the user's market (`adMarket` in
    * market-language.ts), as typed into a platform search. Also the patterns
-   * the matcher reads (`computeMatch`) — ADR-003 §8.13 "Market-language
+   * the matcher reads (`computeMatch`) — ADR-003 §8.15 "Market-language
    * direction terms" records why the two are not split.
    */
   searchTerms: string[];

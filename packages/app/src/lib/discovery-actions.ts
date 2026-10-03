@@ -77,7 +77,7 @@ export async function uploadCv(formData: FormData): Promise<{ profileId: string;
   }
 
   // The account city decides which languages search terms are written in
-  // (`adMarket` in core, ADR-003 §8.13 "Market-language direction terms").
+  // (`adMarket` in core, ADR-003 §8.15 "Market-language direction terms").
   const { adTitles, city } = await withTenant(userId, async (tx) => ({
     adTitles: await getDistinctAdTitles(tx, userId),
     city: (await getAccountOverview(tx, userId))?.city ?? null,

@@ -1,6 +1,6 @@
 /**
  * Pure decisions behind filling `ads.description` for ads that already exist
- * (ADR-003 §8.10 "Descriptions in matching", and the §8.15 "Description
+ * (ADR-003 §8.10 "Descriptions in matching", and the §8.17 "Description
  * backfill" follow-up). No DB, no network — the callers
  * (fetch-apis.ts, enrich/enrich-ad.ts, scripts/backfill-descriptions.ts) do
  * the I/O and ask this module what to write.

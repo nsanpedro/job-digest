@@ -1,5 +1,5 @@
 /**
- * DB side of the description fill (ADR-003 §8.15 "Description backfill"):
+ * DB side of the description fill (ADR-003 §8.17 "Description backfill"):
  * find a user's ads that still have `description IS NULL` among the postings
  * a fetch just returned, and write the fetched text into them. The matching
  * rules are pure and live in description-fill.ts; this file only reads and

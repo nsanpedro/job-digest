@@ -1,6 +1,6 @@
 /**
  * `adMarket` — which languages a derivation writes search terms in
- * (ADR-003 §8.13 "Market-language direction terms"). City first, CV language
+ * (ADR-003 §8.15 "Market-language direction terms"). City first, CV language
  * as fallback, English as the default.
  */
 import { describe, expect, it } from 'vitest';

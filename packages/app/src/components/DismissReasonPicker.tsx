@@ -9,6 +9,7 @@ import {
   type LevelFeedback,
 } from '@job-digest/core';
 import { acceptExcludeSuggestion, removeExcludeFromAd, setDismissReason, unmuteCompany } from '@/lib/feedback-actions';
+import { joinLabels } from '@/lib/format';
 import styles from './DismissReasonPicker.module.css';
 
 /**
@@ -25,11 +26,6 @@ const LEVEL_COPY: Record<LevelFeedback, string> = {
   no_target: 'Your directions name no level, so nothing is filtered by level. Noted.',
   not_gated: 'Noted. Only entry-level titles are filtered by level today.',
 };
-
-function joinLabels(labels: readonly string[]): string {
-  const quoted = labels.map((l) => `“${l}”`);
-  return quoted.length <= 1 ? (quoted[0] ?? '') : `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`;
-}
 
 export function DismissReasonPicker({
   adId,

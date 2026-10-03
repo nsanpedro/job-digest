@@ -9,11 +9,11 @@
  */
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getDirectionCoverage } from '../src/queries/discovery';
 import * as schema from '../src/schema';
+import { migrateToHead } from './migrate';
 
 let container: StartedPostgreSqlContainer;
 let client: postgres.Sql;
@@ -24,7 +24,7 @@ beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:17-alpine').start();
   client = postgres(container.getConnectionUri(), { max: 1 });
   db = drizzle(client, { schema });
-  await migrate(db, { migrationsFolder: new URL('../migrations', import.meta.url).pathname });
+  await migrateToHead(db, client);
 
   const [account] = await db.insert(schema.accounts).values({ email: 'coverage@example.com' }).returning();
   if (!account) throw new Error('seed failed');

@@ -147,6 +147,14 @@ export const directionStateEnum = pgEnum('direction_state', [
   'dismissed',
   'alert_configured',
 ]);
+/**
+ * The states a direction is read in — matched, scored, gating ingest.
+ * Everything but the user's own 'dismissed'. Only the active profile
+ * version's directions count at all (ADR-003 §8.13, I26); this is the
+ * state half of that predicate, shared with the one-off scripts that
+ * inline `listInterestedDirections`' query.
+ */
+export const EFFECTIVE_DIRECTION_STATES = ['suggested', 'interested', 'alert_configured'] as const;
 
 /**
  * Why the user dismissed an ad (ADR-003 §8.11, migration 0019). Closed set,

@@ -49,3 +49,9 @@ export function formatWeekKicker(window: Window): string {
   lastDay.setUTCDate(lastDay.getUTCDate() - 1);
   return `Week ${isoWeek(lastDay)} · ${formatWindow(window)}`;
 }
+
+/** “A”, “B” and “C” — direction labels in running text. */
+export function joinLabels(labels: readonly string[]): string {
+  const quoted = labels.map((l) => `“${l}”`);
+  return quoted.length <= 1 ? (quoted[0] ?? '') : `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`;
+}

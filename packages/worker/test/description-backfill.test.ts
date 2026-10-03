@@ -1,5 +1,5 @@
 /**
- * Description backfill (ADR-003 §8.15): the pure decisions behind filling
+ * Description backfill (ADR-003 §8.17): the pure decisions behind filling
  * `ads.description` for rows that already exist, and each provider adapter
  * against a fixture shaped like its real API response (every field the
  * public endpoint returns, not only the ones we read). No Postgres, no

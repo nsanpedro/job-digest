@@ -9,7 +9,7 @@ import {
   type MatchExplanation,
 } from '@job-digest/core';
 import type { DigestAd } from '@job-digest/db';
-import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
+import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss, undoOverride } from '@/lib/actions';
 import { unmuteCompany } from '@/lib/feedback-actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
 import { RuleLane } from './RuleLane';
@@ -118,9 +118,15 @@ export function AdCard({
       setOptimistic({ justActed: true });
       await undoDismiss(ad.id);
     });
+  const onHideAgain = () =>
+    startTransition(async () => {
+      setOptimistic({ justActed: true });
+      await undoOverride(ad.id);
+    });
+  const blockedBy = ad.verdicts.filter((v) => v.state === 'block').map((v) => v.key);
 
   return (
-    <div className={styles.card} style={{ opacity: optimistic.justActed ? 0.6 : 1 }}>
+    <div id={`ad-${ad.id}`} className={styles.card} style={{ opacity: optimistic.justActed ? 0.6 : 1 }}>
       <div className={styles.body}>
         <div className={styles.titleRow}>
           <button type="button" className={styles.titleBtn} onClick={onToggle}>
@@ -143,6 +149,17 @@ export function AdCard({
             Muted company — in Explore, unscored.{' '}
             <button type="button" className={styles.mutedUndo} disabled={optimistic.justActed} onClick={onUnmute}>
               Unmute
+            </button>
+          </div>
+        )}
+
+        {ad.overridden && (
+          // Same line as a muted company: a blocked ad on screen says why it
+          // is there, and the way back sits next to the reason (ADR-003 §8.14).
+          <div className={styles.mutedLine}>
+            Shown anyway — your {blockedBy.join(' and ')} rule still counts against its score.{' '}
+            <button type="button" className={styles.mutedUndo} disabled={optimistic.justActed} onClick={onHideAgain}>
+              Hide again
             </button>
           </div>
         )}

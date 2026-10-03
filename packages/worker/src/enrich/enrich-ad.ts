@@ -15,7 +15,7 @@
  * description already on the row (e.g. from an API source with the same
  * dedupe key) is not overwritten.
  *
- * Re-runs (ADR-003 §8.15 "Description backfill"): before doing anything this
+ * Re-runs (ADR-003 §8.17 "Description backfill"): before doing anything this
  * reads the ad's description and its existing enrichment row and asks
  * `planEnrichment`. An ad never enriched gets the full run above. An ad
  * whose enrichment predates migration 0018 (row exists, description null)

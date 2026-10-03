@@ -32,10 +32,17 @@ export function DismissedRow({
   ad,
   rules,
   rulesetVersion,
+  onOverridden,
 }: {
   ad: DismissedAd;
   rules: Ruleset;
   rulesetVersion: number;
+  /**
+   * Called as "Show anyway" is clicked, so the section can keep this row's
+   * place as an OverrideFollowUp that says where the ad went (ADR-003 §8.14).
+   * The override itself never waits on it.
+   */
+  onOverridden?: (ad: DismissedAd) => void;
 }) {
   const [, startTransition] = useTransition();
   // Same pattern as AdCard (design: perf pass, Aug 2026): the click can't
@@ -96,13 +103,14 @@ export function DismissedRow({
         type="button"
         className={styles.btn}
         disabled={justActed}
-        onClick={() =>
+        onClick={() => {
+          if (ad.reason.kind === 'rule') onOverridden?.(ad);
           startTransition(async () => {
             setJustActed(true);
             if (ad.reason.kind === 'user') await undoDismiss(ad.id);
             else await overrideRule(ad.id, ad.reason.blockers[0]!.key, rulesetVersion);
-          })
-        }
+          });
+        }}
       >
         {justActed ? '✓' : ad.reason.kind === 'user' ? 'Undo' : 'Show anyway'}
       </button>

@@ -28,6 +28,7 @@ import {
   muteCompany,
   recordDismissReason,
   removeEffectsFromAd,
+  removeExcludeTerm,
   removeFeedbackEffect,
   unmuteCompany as dbUnmuteCompany,
 } from '@job-digest/db';
@@ -106,6 +107,13 @@ export async function removeExcludeFromAd(adId: string): Promise<void> {
 export async function removeFeedback(effectId: string): Promise<void> {
   const userId = await currentUserId();
   await withTenant(userId, (tx) => removeFeedbackEffect(tx, userId, effectId));
+  revalidateFeedback();
+}
+
+/** Remove an excluded word from every direction that holds it (Profile → "From your dismissals"). */
+export async function removeExcludeWord(valueKey: string): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, (tx) => removeExcludeTerm(tx, userId, valueKey));
   revalidateFeedback();
 }
 

@@ -306,7 +306,7 @@ async function upsertAd(
     // A re-sighted ad that links to a Greenhouse/Lever posting but has no
     // description yet (enriched before migration 0018, or never enriched)
     // goes back to enrichAd, which decides between a full run and a
-    // description-only fetch (planEnrichment, ADR-003 §8.15 "Description
+    // description-only fetch (planEnrichment, ADR-003 §8.17 "Description
     // backfill"). Once filled it stops qualifying, so this is at most one
     // extra request per ad.
     if (shouldEnrichExisting(prior)) resolvedExternalUrl = prior.externalUrl;

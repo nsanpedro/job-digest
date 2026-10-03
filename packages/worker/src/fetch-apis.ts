@@ -168,7 +168,7 @@ export interface FetchApisResult {
   skipped: number;
   /**
    * Existing ads whose null `description` this fetch filled — gated-out
-   * jobs included (ADR-003 §8.15 "Description backfill").
+   * jobs included (ADR-003 §8.17 "Description backfill").
    */
   descriptionsFilled: number;
   error: string | null;
@@ -252,7 +252,7 @@ export async function fetchApiSources(
 
       const allJobs = await provider.fetchJobs(source.externalSlug);
 
-      // Description fill for ads we already hold (ADR-003 §8.15 "Description
+      // Description fill for ads we already hold (ADR-003 §8.17 "Description
       // backfill"). Runs over *every* fetched job, before the gate below:
       // the gate decides which jobs are admitted or refreshed, and until
       // this step existed an ad already in the table whose job no longer

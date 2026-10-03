@@ -1,5 +1,5 @@
 // One-off: fill `ads.description` for ads that predate migration 0018, or
-// that the regular refresh never reached (ADR-003 §8.15 "Description
+// that the regular refresh never reached (ADR-003 §8.17 "Description
 // backfill"). 0018 shipped with "no backfill — the next API re-fetch fills
 // it"; that held only for jobs clearing the ingest direction gate, which ran
 // before the upsert (fixed in fetch-apis.ts), and never for email ads

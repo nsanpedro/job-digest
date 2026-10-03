@@ -1,7 +1,7 @@
 /**
  * Which languages job ads in the user's market are written in — the input
  * role discovery (`deriveDirections`) receives so its search terms are the
- * words ads in that market actually use (ADR-003 §8.13 "Market-language
+ * words ads in that market actually use (ADR-003 §8.15 "Market-language
  * direction terms").
  *
  * Before this, the derivation prompt asked for German search terms for every

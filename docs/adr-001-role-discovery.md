@@ -214,7 +214,7 @@ type Direction = {
   label: string;                       // "Qualitätsmanagement im Gesundheitswesen"
   bridge: string[];                    // ≥2 skill texts from `skills` — the premises
   rationale: string;                   // one sentence, shown under the label
-  searchTerms: string[];               // ad languages of the user's market (German-only before prompt v2 — ADR-003 §8.13 "Market-language direction terms")
+  searchTerms: string[];               // ad languages of the user's market (German-only before prompt v2 — ADR-003 §8.15 "Market-language direction terms")
   excludeTerms: string[];              // prompt v2: neighbouring role families, gated in parseDerivation
   distance: 'adjacent' | 'stretch';    // honest; a stretch is never sold as adjacent
   seenTitles: string[];                // existing ad titles the model places here — verifiable
