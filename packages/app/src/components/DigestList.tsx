@@ -15,10 +15,11 @@ import styles from './DigestList.module.css';
  * expanded alongside the main matches. The remaining explore entries fall
  * into the collapsed "Hidden" disclosure below.
  *
- * Rule: top-N by score. Explore is already sorted by `compareAds` in
- * `packages/db/src/queries/digest.ts` (score desc first, then rule-outcome
- * quality, then recency), so `slice(0, N)` picks the N strongest that just
- * missed the tier threshold. N = 3 keeps the promoted slice small — the
+ * Rule: the top-N *scored* explore ads. Explore is sorted by `compareAds` in
+ * `packages/db/src/queries/digest.ts` (score desc first), so these are the N
+ * strongest that just missed the match threshold — every one of them scores
+ * below every match (I29). Unscored pre-filter misses are never promoted.
+ * N = 3 keeps the promoted slice small — the
  * point is to surface a couple of near-misses that a test PM user would
  * otherwise never see because they lived behind an obscure link, not to
  * restart the digest with a second batch of full-weight cards.
@@ -76,28 +77,37 @@ function matchCountLine(n: number): string {
  */
 function ExplorePromoted({
   explore,
+  threshold,
   expandedId,
   onToggle,
 }: {
   explore: DigestAd[];
+  threshold: number;
   expandedId: string | null;
   onToggle: (id: string) => void;
 }) {
   if (explore.length === 0) return null;
 
-  const worthALook = explore.slice(0, WORTH_A_LOOK_TOP_N);
-  const hidden = explore.slice(WORTH_A_LOOK_TOP_N);
+  // Only ads that were scored can be a near-miss. Pre-filter misses (wrong
+  // direction, below target level, muted company) have no score to be close
+  // with; they stay under Hidden with their reason (ADR-003 §9).
+  const scored = explore.filter((a) => a.scoreBreakdown !== null);
+  const worthALook = scored.slice(0, WORTH_A_LOOK_TOP_N);
+  const lookIds = new Set(worthALook.map((a) => a.id));
+  const hidden = explore.filter((a) => !lookIds.has(a.id));
 
   return (
     <>
-      <section className={styles.worthALook}>
-        <div className={styles.sectionHead}>
-          <h2 className={styles.sectionLabel}>Worth a look</h2>
-          <span className={styles.sectionGloss}>close to the bar, not over it</span>
-          <span className={`mesh-rule ${styles.sectionRule}`} />
-        </div>
-        <AdList ads={worthALook} expandedId={expandedId} onToggle={onToggle} />
-      </section>
+      {worthALook.length > 0 && (
+        <section className={styles.worthALook}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionLabel}>Worth a look</h2>
+            <span className={styles.sectionGloss}>just under the {threshold}% bar</span>
+            <span className={`mesh-rule ${styles.sectionRule}`} />
+          </div>
+          <AdList ads={worthALook} expandedId={expandedId} onToggle={onToggle} />
+        </section>
+      )}
 
       {hidden.length > 0 && (
         // Native <details>/<summary>: the count stays visible when collapsed
@@ -127,13 +137,9 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggle = (id: string) => setExpandedId((cur) => (cur === id ? null : id));
 
-  // Merge all curated tiers into a single flat list sorted by score desc.
-  const matches: DigestAd[] = [
-    ...digest.topPicks,
-    ...digest.worthAReading,
-    ...digest.stretch,
-    ...digest.stillOpen,
-  ].sort((a, b) => (b.scoreBreakdown?.total ?? 0) - (a.scoreBreakdown?.total ?? 0));
+  // One list, already sorted by score desc — the section an ad is in is
+  // fully determined by the number on its card (I29).
+  const matches = digest.matches;
 
   // The empty case has two flavors — nothing at all, and "we saw ads but none
   // tiered". Both used to collapse to a single line ("No matches this week." /
@@ -151,7 +157,7 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
           without realising an explore bucket existed at all. The diagnostic
           still explains the count above; these are the concrete near-misses.
         */}
-        <ExplorePromoted explore={digest.explore} expandedId={expandedId} onToggle={toggle} />
+        <ExplorePromoted explore={digest.explore} threshold={digest.matchThreshold} expandedId={expandedId} onToggle={toggle} />
         <FilteredSection
           dismissed={digest.dismissed}
           rules={rules}
@@ -169,7 +175,7 @@ export function DigestList({ digest, rules }: { digest: Digest; rules: Ruleset }
         <AdList ads={matches} expandedId={expandedId} onToggle={toggle} />
       )}
 
-      <ExplorePromoted explore={digest.explore} expandedId={expandedId} onToggle={toggle} />
+      <ExplorePromoted explore={digest.explore} threshold={digest.matchThreshold} expandedId={expandedId} onToggle={toggle} />
 
       <FilteredSection
         dismissed={digest.dismissed}

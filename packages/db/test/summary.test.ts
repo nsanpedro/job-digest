@@ -54,10 +54,8 @@ function digest(visible: DigestAd[], dismissed: DigestAd[] = []): Digest {
       dismissedByUser: 0,
       alreadySeen: 0,
     },
-    topPicks: visible,
-    worthAReading: [],
-    stretch: [],
-    stillOpen: [],
+    matches: visible,
+    matchThreshold: 50,
     explore: [],
     dismissed: dismissed.map((a) => ({ ...a, reason: { kind: 'user' as const } })),
     parse: {
