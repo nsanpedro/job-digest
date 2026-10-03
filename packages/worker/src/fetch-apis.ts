@@ -218,6 +218,46 @@ export async function fetchApiSources(
 ): Promise<FetchApisResult[]> {
   const { userId, runId } = params;
 
+  // The run row is the only channel back to a client that is polling it
+  // (RefreshButton waits for both the Gmail run and this one to leave
+  // 'running'). Until Oct 2026 nothing here ever closed it: every API run
+  // since the first one stayed 'running' forever, and once the button
+  // started waiting on it "Update now" hung after the last source. So the
+  // run is closed on every exit — 'ok' when the loop completes (a source
+  // that failed is recorded on `sources.last_error`, not here), 'error'
+  // when something outside the per-source try throws.
+  try {
+    const results = await fetchAllSources(db, userId, runId);
+    await closeRun(db, userId, runId, { status: 'ok' });
+    return results;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await closeRun(db, userId, runId, { status: 'error', errorKind: 'internal', message }).catch((closeErr) =>
+      console.error(`fetch-apis: could not close run ${runId}:`, closeErr),
+    );
+    throw err;
+  }
+}
+
+async function closeRun(
+  db: Db,
+  userId: string,
+  runId: string,
+  outcome: { status: 'ok' } | { status: 'error'; errorKind: 'internal'; message: string },
+): Promise<void> {
+  await withTenant(db, userId, (tx) =>
+    tx
+      .update(runs)
+      .set(
+        outcome.status === 'ok'
+          ? { status: 'ok', finishedAt: new Date() }
+          : { status: 'error', errorKind: outcome.errorKind, errorDetail: { message: outcome.message }, finishedAt: new Date() },
+      )
+      .where(eq(runs.id, runId)),
+  );
+}
+
+async function fetchAllSources(db: Db, userId: string, runId: string): Promise<FetchApisResult[]> {
   // Read sources + directions in one transaction — same connection, same role scope.
   // Directions gate which jobs we ingest (see below); if empty, everything passes.
   const [userSources, interestedDirs] = await withTenant(db, userId, async (tx) => {
