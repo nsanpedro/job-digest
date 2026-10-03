@@ -5,16 +5,20 @@ import {
   companyKey,
   dismissedBefore,
   effectsBefore,
+  excludeCoveredBy,
+  groupExcludeEffects,
   isDismissReason,
   isMutedCompany,
   levelFeedback,
   mutedCompanyKeys,
   planDismissFeedback,
+  planExcludeCarryOver,
   suggestExcludeTerms,
   withExcludeEffects,
   withoutExcludeEffects,
   type FeedbackDirection,
   type FeedbackEffect,
+  type RetiredExclude,
 } from '../src/feedback';
 
 const dir = (
@@ -258,5 +262,126 @@ describe('planDismissFeedback', () => {
   it('location and other → recorded only', () => {
     expect(planDismissFeedback({ ...base, reason: 'location' })).toEqual({ kind: 'noted' });
     expect(planDismissFeedback({ ...base, reason: 'other' })).toEqual({ kind: 'noted' });
+  });
+});
+
+describe('re-derivation: excludes on retired directions (ADR-003 §8.13)', () => {
+  const retired = (id: string, value: string, day: number, adId: string | null = `ad-${id}`): RetiredExclude => ({
+    id,
+    adId,
+    value,
+    valueKey: value.toLowerCase(),
+    createdAt: new Date(Date.UTC(2026, 8, day)),
+  });
+  const next = [
+    dir('Frontend Engineer', ['Frontend Engineer', 'Frontend Developer'], [], 'n1'),
+    dir('Engineering Manager', ['Engineering Manager'], [], 'n2'),
+  ];
+
+  it('carries each word to every new direction', () => {
+    const plan = planExcludeCarryOver([retired('e1', 'Sales', 10)], next);
+    expect(plan.held).toEqual([]);
+    expect(plan.carry).toEqual([
+      {
+        value: 'Sales',
+        valueKey: 'sales',
+        adId: 'ad-e1',
+        createdAt: new Date(Date.UTC(2026, 8, 10)),
+        directionIds: ['n1', 'n2'],
+        sourceIds: ['e1'],
+      },
+    ]);
+  });
+
+  it('collapses one word saved on several old directions onto the earliest row', () => {
+    const plan = planExcludeCarryOver(
+      [retired('late', 'sales', 12, 'ad-late'), retired('early', 'Sales', 10, 'ad-early'), retired('x', 'SAP', 11)],
+      next,
+    );
+    expect(plan.carry.map((c) => [c.valueKey, c.adId, c.createdAt.getUTCDate(), c.sourceIds])).toEqual([
+      ['sales', 'ad-early', 10, ['early', 'late']],
+      ['sap', 'ad-x', 11, ['x']],
+    ]);
+  });
+
+  it('holds a word a new direction searches for, naming that direction', () => {
+    const withSales = [...next, dir('Sales Engineer', ['Sales Engineer', 'Pre-Sales'], [], 'n3')];
+    const plan = planExcludeCarryOver([retired('e1', 'sales', 10), retired('e2', 'recruiting', 10)], withSales);
+    expect(plan.held).toEqual([{ value: 'sales', valueKey: 'sales', coveredBy: 'Sales Engineer', sourceIds: ['e1'] }]);
+    expect(plan.carry.map((c) => c.valueKey)).toEqual(['recruiting']);
+  });
+
+  it('coverage is word-boundary, the exclude gate’s own rule: "lead" is not covered by "Leadership"', () => {
+    const plan = planExcludeCarryOver([retired('e1', 'lead', 10)], [dir('Leadership Coach', ['Leadership'], [], 'n1')]);
+    expect(plan.carry.map((c) => c.directionIds)).toEqual([['n1']]);
+  });
+
+  it('holds everything when the new derivation has no directions', () => {
+    const plan = planExcludeCarryOver([retired('e1', 'sales', 10)], []);
+    expect(plan.carry).toEqual([]);
+    expect(plan.held).toEqual([{ value: 'sales', valueKey: 'sales', coveredBy: null, sourceIds: ['e1'] }]);
+  });
+
+  it('nothing retired, nothing to do', () => {
+    expect(planExcludeCarryOver([], next)).toEqual({ carry: [], held: [] });
+  });
+
+  it('a carried word fires on every new direction, and a held one would have cut a direction’s own matches', () => {
+    const plan = planExcludeCarryOver([retired('e1', 'sales', 10)], next);
+    const applied = next.map((d) => ({ ...d, excludeTerms: plan.carry.map((c) => c.value) }));
+    expect(explainMatch('Frontend Engineer Sales Enablement', null, applied).map((e) => e.kind)).toEqual([
+      'excluded',
+      'excluded',
+    ]);
+    const salesDir = dir('Sales Engineer', ['Sales Engineer'], ['sales'], 'n3');
+    expect(explainMatch('Sales Engineer', null, [salesDir])[0]!.kind).toBe('excluded');
+  });
+
+  it('excludeCoveredBy is the check suggestExcludeTerms uses', () => {
+    const dirs = [dir('UX Designer', ['UX Designer', 'Product Designer'])];
+    expect(excludeCoveredBy('product', dirs)?.label).toBe('UX Designer');
+    expect(excludeCoveredBy('interior', dirs)).toBeNull();
+    expect(suggestExcludeTerms({ title: 'Product Designer Interior' }, dirs)?.terms).toEqual(['interior']);
+  });
+
+  describe('groupExcludeEffects', () => {
+    const at = (day: number) => new Date(Date.UTC(2026, 8, day));
+    const current = [dir('Frontend Engineer', ['Frontend Engineer']), dir('Sales Engineer', ['Sales Engineer'])];
+
+    it('one entry per word, applied to the directions that hold it, dated by the earliest row', () => {
+      const groups = groupExcludeEffects(
+        [
+          { value: 'SAP', valueKey: 'sap', createdAt: at(12), directionLabel: 'Frontend Engineer', applied: true },
+          { value: 'SAP', valueKey: 'sap', createdAt: at(10), directionLabel: 'Sales Engineer', applied: true },
+        ],
+        current,
+      );
+      expect(groups).toEqual([
+        {
+          value: 'SAP',
+          valueKey: 'sap',
+          since: at(10),
+          applied: true,
+          directionLabels: ['Frontend Engineer', 'Sales Engineer'],
+          coveredBy: null,
+        },
+      ]);
+    });
+
+    it('a held word is not applied and names the direction that searches for it', () => {
+      const [g] = groupExcludeEffects(
+        [{ value: 'sales', valueKey: 'sales', createdAt: at(10), directionLabel: 'Old direction', applied: false }],
+        current,
+      );
+      expect(g).toMatchObject({ applied: false, directionLabels: [], coveredBy: 'Sales Engineer' });
+    });
+
+    it('a held word no current direction covers waits for the next analysis', () => {
+      const [g] = groupExcludeEffects(
+        [{ value: 'recruiting', valueKey: 'recruiting', createdAt: at(10), directionLabel: 'Old', applied: false }],
+        current,
+      );
+      expect(g).toMatchObject({ applied: false, coveredBy: null });
+    });
   });
 });

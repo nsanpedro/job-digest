@@ -20,7 +20,7 @@ import {
 const inDigest = (d: Digest) => [...d.topPicks, ...d.worthAReading, ...d.stretch];
 import { and, eq } from 'drizzle-orm';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { migrateToHead } from '../../db/test/migrate';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ingestEmail, withTenant, PARSER_VERSION } from '../src/index';
@@ -55,7 +55,7 @@ beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:17-alpine').start();
   client = postgres(container.getConnectionUri(), { max: 1 });
   db = drizzle(client);
-  await migrate(db, { migrationsFolder: new URL('../../db/migrations', import.meta.url).pathname });
+  await migrateToHead(db, client);
 
   const [account] = await db.insert(schema.accounts).values({ email: 'nico@example.com' }).returning();
   userId = account!.id;

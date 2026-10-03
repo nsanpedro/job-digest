@@ -32,7 +32,12 @@ import postgres from 'postgres';
 // Same reach-through pattern as backfill-title-facts.ts — direct relative
 // path + explicit .ts extension. Both files carry only type-only workspace
 // imports, which strip-types erases before Node resolves anything.
-import { ads, directions as directionsTable } from '../../db/src/schema.ts';
+import {
+  ads,
+  directions as directionsTable,
+  EFFECTIVE_DIRECTION_STATES,
+  profiles as profilesTable,
+} from '../../db/src/schema.ts';
 import {
   computeMatch,
   DESCRIPTION_MATCH_CHARS,
@@ -268,16 +273,26 @@ async function main(): Promise<void> {
     // Inlined to avoid the ../../db/src/queries/discovery.ts import chain
     // — that file value-imports '../schema' extensionless, which raw Node
     // cannot resolve. The query is the same one listInterestedDirections
-    // runs (discovery.ts:214).
-    const directionRows = await tx
-      .select()
-      .from(directionsTable)
-      .where(
-        and(
-          eq(directionsTable.userId, userId),
-          inArray(directionsTable.state, ['suggested', 'interested', 'alert_configured']),
-        ),
-      );
+    // runs (active profile version only, ADR-003 §8.13).
+    const directionRows = (
+      await tx
+        .select({ d: directionsTable })
+        .from(directionsTable)
+        .innerJoin(
+          profilesTable,
+          and(
+            eq(profilesTable.userId, directionsTable.userId),
+            eq(profilesTable.version, directionsTable.profileVersion),
+          ),
+        )
+        .where(
+          and(
+            eq(directionsTable.userId, userId),
+            eq(profilesTable.isActive, true),
+            inArray(directionsTable.state, [...EFFECTIVE_DIRECTION_STATES]),
+          ),
+        )
+    ).map((r) => r.d);
 
     if (directionRows.length === 0) {
       process.stderr.write(
