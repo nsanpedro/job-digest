@@ -51,6 +51,11 @@
   font-weight: 400;
 }
 
+.why {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .meta {
   font-size: 12px;
   color: var(--text-faint);

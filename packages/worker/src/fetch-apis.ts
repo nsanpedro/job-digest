@@ -27,6 +27,8 @@ import { lever } from './providers/lever';
 import { personio } from './providers/personio';
 import type { JobBoardProvider, NormalizedJob } from './providers/types';
 import { mergeFacts } from './merge-facts';
+import { descriptionSources, mergeDescription } from './description-fill';
+import { fillMissingDescriptions } from './fill-descriptions';
 import {
   CURATION_THRESHOLDS,
   directionFitStrength,
@@ -104,7 +106,7 @@ async function ingestJob(
           // The API is the posting's own source: its current description
           // wins over an older one (companies edit ads after posting). A
           // fetch without one keeps what we had — never erase to null.
-          description: job.description ?? prior.description,
+          description: mergeDescription(prior.description, job.description),
         })
         .where(eq(ads.id, prior.id));
       adId = prior.id;
@@ -164,7 +166,32 @@ export interface FetchApisResult {
   created: number;
   /** Jobs skipped because they didn't clear the gate — 0 when user has no directions. */
   skipped: number;
+  /**
+   * Existing ads whose null `description` this fetch filled — gated-out
+   * jobs included (ADR-003 §8.17 "Description backfill").
+   */
+  descriptionsFilled: number;
   error: string | null;
+}
+
+/**
+ * The ingest direction gate, as a pure split. Directions gate which jobs we
+ * *ingest* (create or refresh via ingestJob); with none, everything passes.
+ * What the gate drops is still used — see the description fill in
+ * fetchApiSources.
+ */
+export function gateJobs<J extends Pick<NormalizedJob, 'title' | 'description'>>(
+  allJobs: readonly J[],
+  directions: readonly CurationDirection[],
+): { admitted: J[]; gatedOut: J[] } {
+  if (directions.length === 0) return { admitted: [...allJobs], gatedOut: [] };
+  const threshold = CURATION_THRESHOLDS[inferMode(directions)];
+  const admitted: J[] = [];
+  const gatedOut: J[] = [];
+  for (const job of allJobs) {
+    (directionFitStrength(job.title, job.description, directions) >= threshold ? admitted : gatedOut).push(job);
+  }
+  return { admitted, gatedOut };
 }
 
 /** Project a DirectionRow to the fields the curation gate reads. */
@@ -191,6 +218,46 @@ export async function fetchApiSources(
 ): Promise<FetchApisResult[]> {
   const { userId, runId } = params;
 
+  // The run row is the only channel back to a client that is polling it
+  // (RefreshButton waits for both the Gmail run and this one to leave
+  // 'running'). Until Oct 2026 nothing here ever closed it: every API run
+  // since the first one stayed 'running' forever, and once the button
+  // started waiting on it "Update now" hung after the last source. So the
+  // run is closed on every exit — 'ok' when the loop completes (a source
+  // that failed is recorded on `sources.last_error`, not here), 'error'
+  // when something outside the per-source try throws.
+  try {
+    const results = await fetchAllSources(db, userId, runId);
+    await closeRun(db, userId, runId, { status: 'ok' });
+    return results;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await closeRun(db, userId, runId, { status: 'error', errorKind: 'internal', message }).catch((closeErr) =>
+      console.error(`fetch-apis: could not close run ${runId}:`, closeErr),
+    );
+    throw err;
+  }
+}
+
+async function closeRun(
+  db: Db,
+  userId: string,
+  runId: string,
+  outcome: { status: 'ok' } | { status: 'error'; errorKind: 'internal'; message: string },
+): Promise<void> {
+  await withTenant(db, userId, (tx) =>
+    tx
+      .update(runs)
+      .set(
+        outcome.status === 'ok'
+          ? { status: 'ok', finishedAt: new Date() }
+          : { status: 'error', errorKind: outcome.errorKind, errorDetail: { message: outcome.message }, finishedAt: new Date() },
+      )
+      .where(eq(runs.id, runId)),
+  );
+}
+
+async function fetchAllSources(db: Db, userId: string, runId: string): Promise<FetchApisResult[]> {
   // Read sources + directions in one transaction — same connection, same role scope.
   // Directions gate which jobs we ingest (see below); if empty, everything passes.
   const [userSources, interestedDirs] = await withTenant(db, userId, async (tx) => {
@@ -210,13 +277,41 @@ export async function fetchApiSources(
   const results: FetchApisResult[] = [];
 
   await mapWithConcurrency(userSources, FETCH_CONCURRENCY, async (source) => {
-    const result: FetchApisResult = { sourceId: source.id, fetched: 0, created: 0, skipped: 0, error: null };
+    const result: FetchApisResult = {
+      sourceId: source.id,
+      fetched: 0,
+      created: 0,
+      skipped: 0,
+      descriptionsFilled: 0,
+      error: null,
+    };
 
     try {
       const provider = providerFor(source.provider);
       if (!provider) throw new Error(`No adapter registered for provider "${source.provider}"`);
 
       const allJobs = await provider.fetchJobs(source.externalSlug);
+
+      // Description fill for ads we already hold (ADR-003 §8.17 "Description
+      // backfill"). Runs over *every* fetched job, before the gate below:
+      // the gate decides which jobs are admitted or refreshed, and until
+      // this step existed an ad already in the table whose job no longer
+      // cleared today's gate (stricter since the graduated gate, and now
+      // description-aware — excludes read the lede too) was dropped here
+      // and never learned its description; 0018's "filled on re-fetch" only
+      // held for the jobs that passed. Fill-if-null only — no lastSeenAt,
+      // no sighting, no facts: admission semantics are unchanged. One
+      // SELECT of ids per source (plus one UPDATE while there is a gap),
+      // done first so a run cut short by the route's time budget still
+      // lands the descriptions. Best-effort: a failure here is logged and
+      // does not fail the source.
+      try {
+        result.descriptionsFilled = await withTenant(db, userId, (tx) =>
+          fillMissingDescriptions(tx, userId, descriptionSources(allJobs)),
+        );
+      } catch (err) {
+        console.error(`fetch-apis: description fill failed for source ${source.id}:`, err);
+      }
 
       // Direction gate — Phase 1 of the curated-algo optimization. Was a
       // boolean substring match on title; now a graduated [0, 1] strength
@@ -241,15 +336,7 @@ export async function fetchApiSources(
       // 0.8/0.4 description tiers while EEO/benefits boilerplate further
       // down cannot. A null description degrades to title-only
       // (ADR-003 §8.10 "Descriptions in matching").
-      const jobs = interestedDirs.length > 0
-        ? (() => {
-            const curationDirs = interestedDirs.map(toCurationDirection);
-            const threshold = CURATION_THRESHOLDS[inferMode(curationDirs)];
-            return allJobs.filter(
-              (job) => directionFitStrength(job.title, job.description, curationDirs) >= threshold,
-            );
-          })()
-        : allJobs;
+      const { admitted: jobs } = gateJobs(allJobs, interestedDirs.map(toCurationDirection));
       result.skipped = allJobs.length - jobs.length;
 
       // Narration counters (feat/ingest-live-narration). `items_reviewed` is

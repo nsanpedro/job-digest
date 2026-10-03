@@ -20,7 +20,7 @@ import {
 const inDigest = (d: Digest) => d.matches;
 import { and, eq } from 'drizzle-orm';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import { migrateToHead } from '../../db/test/migrate';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ingestEmail, withTenant, PARSER_VERSION } from '../src/index';
@@ -55,7 +55,7 @@ beforeAll(async () => {
   container = await new PostgreSqlContainer('postgres:17-alpine').start();
   client = postgres(container.getConnectionUri(), { max: 1 });
   db = drizzle(client);
-  await migrate(db, { migrationsFolder: new URL('../../db/migrations', import.meta.url).pathname });
+  await migrateToHead(db, client);
 
   const [account] = await db.insert(schema.accounts).values({ email: 'nico@example.com' }).returning();
   userId = account!.id;
@@ -186,7 +186,7 @@ describe('getDigest', () => {
     expect(after.dismissed[0]?.reason.kind).toBe('user');
   });
 
-  it('an override puts a rule-blocked ad back in the list', async () => {
+  it('an override puts a rule-blocked ad back among the candidates', async () => {
     // Back to a strict floor: the previous test loosened Pay until nothing
     // blocked, which is the correct outcome there and no setup for this one.
     await db
@@ -210,8 +210,22 @@ describe('getDigest', () => {
       });
 
     const after = await getDigest(db, userId, { now: NOW });
-    expect(inDigest(after).find((a) => a.id === blocked.id)).toBeTruthy();
+    expect(after.dismissed.find((d) => d.id === blocked.id)).toBeUndefined();
     expect(after.metrics.filteredByRule).toBe(before.metrics.filteredByRule - 1);
+
+    // "Show anyway" makes the ad eligible again, not guaranteed a slot: it is
+    // scored like any other candidate — the overridden rule still costs it
+    // its ruleMargin — and is placed by that score alone (ADR-003 §9, I29).
+    // Where it lands is the ranking's call, so the test pins only that it is
+    // offered and was scored.
+    const offered = [...inDigest(after), ...after.explore];
+    const back = offered.find((a) => a.id === blocked.id);
+    expect(back).toBeTruthy();
+    expect(back!.scoreBreakdown).not.toBeNull();
+    expect(back!.verdicts.some((v) => v.state === 'block')).toBe(true);
+    // The card needs to say why a blocked ad is on screen (ADR-003 §8.14).
+    expect(back!.overridden).toBe(true);
+    expect(offered.filter((a) => a.id !== blocked.id).every((a) => !a.overridden)).toBe(true);
   });
 
   it('reports off-target as null rather than inventing the number (§13)', async () => {

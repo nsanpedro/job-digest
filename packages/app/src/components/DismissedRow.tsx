@@ -1,9 +1,10 @@
 'use client';
 
-import { useOptimistic, useTransition } from 'react';
+import { useOptimistic, useState, useTransition } from 'react';
 import { DISMISS_REASON_LABEL, describeCondition, type Ruleset } from '@job-digest/core';
 import type { DismissedAd } from '@job-digest/db';
 import { overrideRule, undoDismiss } from '@/lib/actions';
+import { DismissReasonPicker } from './DismissReasonPicker';
 import { STATE_VISUALS } from './rule-visuals';
 import styles from './DismissedRow.module.css';
 
@@ -31,10 +32,17 @@ export function DismissedRow({
   ad,
   rules,
   rulesetVersion,
+  onOverridden,
 }: {
   ad: DismissedAd;
   rules: Ruleset;
   rulesetVersion: number;
+  /**
+   * Called as "Show anyway" is clicked, so the section can keep this row's
+   * place as an OverrideFollowUp that says where the ad went (ADR-003 §8.14).
+   * The override itself never waits on it.
+   */
+  onOverridden?: (ad: DismissedAd) => void;
 }) {
   const [, startTransition] = useTransition();
   // Same pattern as AdCard (design: perf pass, Aug 2026): the click can't
@@ -43,6 +51,12 @@ export function DismissedRow({
   // sitting there ambiguous for however long that round trip takes.
   const [justActed, setJustActed] = useOptimistic(false, (_state: boolean, next: boolean) => next);
   const sv = STATE_VISUALS[ad.reason.kind === 'user' ? 'unknown' : 'block'];
+  // Your own dismissals take a reason here too, any time (ADR-003 §8.11,
+  // "Dismiss reason UX"): the follow-up row under a dismissed card is gone
+  // once closed, and this is where the dismissal is still on record.
+  const [editing, setEditing] = useState(false);
+  const why = ad.reason.kind === 'user' ? (ad.reason.why ?? null) : null;
+  const pickerId = `dismiss-reason-${ad.id}`;
 
   return (
     <div className={styles.row} style={{ opacity: justActed ? 0.6 : 1 }}>
@@ -65,23 +79,46 @@ export function DismissedRow({
         >
           {sv.glyph}
         </span>
-        <span>{reasonText(ad, rules)}</span>
+        <span>
+          {reasonText(ad, rules)}
+          {ad.reason.kind === 'user' && (
+            <>
+              {' '}
+              <button
+                type="button"
+                className={styles.reasonEdit}
+                aria-expanded={editing}
+                aria-controls={pickerId}
+                aria-label={why ? `Change the reason for ${ad.title}` : `Add a reason for ${ad.title}`}
+                onClick={() => setEditing((v) => !v)}
+              >
+                {editing ? 'Done' : why ? 'Change' : 'Add reason'}
+              </button>
+            </>
+          )}
+        </span>
       </div>
       <div className={styles.score}>{ad.score !== null ? `${ad.score}%` : '—'}</div>
       <button
         type="button"
         className={styles.btn}
         disabled={justActed}
-        onClick={() =>
+        onClick={() => {
+          if (ad.reason.kind === 'rule') onOverridden?.(ad);
           startTransition(async () => {
             setJustActed(true);
             if (ad.reason.kind === 'user') await undoDismiss(ad.id);
             else await overrideRule(ad.id, ad.reason.blockers[0]!.key, rulesetVersion);
-          })
-        }
+          });
+        }}
       >
         {justActed ? '✓' : ad.reason.kind === 'user' ? 'Undo' : 'Show anyway'}
       </button>
+      {editing && ad.reason.kind === 'user' && (
+        <div id={pickerId} className={styles.picker}>
+          <DismissReasonPicker adId={ad.id} label="Why?" current={why} />
+        </div>
+      )}
     </div>
   );
 }

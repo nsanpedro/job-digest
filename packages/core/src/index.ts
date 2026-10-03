@@ -5,6 +5,7 @@ export { normalizeWhitespace, verifyQuote } from './verify-quote';
 export {
   DERIVATION_SCHEMA,
   MAX_DIRECTIONS,
+  MAX_EXCLUDE_TERMS,
   MIN_BRIDGE_SKILLS,
   parseDerivation,
   type Derivation,
@@ -59,6 +60,14 @@ export {
   type Region,
   type UserLocation,
 } from './location';
+export {
+  AD_LANGUAGE_NAME,
+  adMarket,
+  detectCvLanguage,
+  type AdLanguage,
+  type AdMarket,
+  type AdMarketSource,
+} from './market-language';
 export { SENIORITY_PATTERNS, STACK_PATTERNS, readSeniority, readStack } from './title-lexicon';
 export {
   LABEL_GAIN,
@@ -103,23 +112,40 @@ export {
   DISMISS_REASON_LABEL,
   companyKey,
   dismissedBefore,
+  effectKindOwnedBy,
   effectsBefore,
+  excludeCoveredBy,
+  groupExcludeEffects,
   isDismissReason,
   isMutedCompany,
   levelFeedback,
   mutedCompanyKeys,
   planDismissFeedback,
+  planExcludeCarryOver,
   suggestExcludeTerms,
   withExcludeEffects,
   withoutExcludeEffects,
   type DismissFeedback,
   type DismissReason,
+  type ExcludeCarryOver,
+  type ExcludeGroup,
   type ExcludeSuggestion,
   type FeedbackDirection,
   type FeedbackEffect,
   type FeedbackEffectKind,
   type LevelFeedback,
+  type ListedExclude,
+  type RetiredExclude,
 } from './feedback';
+export {
+  followUpItems,
+  followUpReducer,
+  hasFollowUps,
+  type FollowUpAction,
+  type FollowUpItem,
+  type FollowUpState,
+  type RecentDismissal,
+} from './dismiss-follow-up';
 export { DEFAULT_RULESET, rulesetForCategory, type OnboardingCategory } from './default-ruleset';
 export {
   DIAGNOSTIC_MIN_CURATED,

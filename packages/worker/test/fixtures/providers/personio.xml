@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workzag-jobs>
+  <position>
+    <id>1843021</id>
+    <subcompany>Nordlicht Software GmbH</subcompany>
+    <office>Hamburg</office>
+    <additionalOffices>
+      <office>Berlin</office>
+    </additionalOffices>
+    <department>Engineering</department>
+    <recruitingCategory>Software Development</recruitingCategory>
+    <name>Software Engineer (m/w/d)</name>
+    <jobDescriptions>
+      <jobDescription>
+        <name>Über uns</name>
+        <value><![CDATA[<p>Nordlicht baut Software f&uuml;r Logistikunternehmen.</p>]]></value>
+      </jobDescription>
+      <jobDescription>
+        <name>Deine Aufgaben</name>
+        <value><![CDATA[<p>Als <strong>Engineering Manager</strong> f&uuml;hrst du unser Frontend-Team (5 Personen).</p><ul><li>Hiring &amp; Coaching</li><li>Roadmap-Planung</li></ul>]]></value>
+      </jobDescription>
+      <jobDescription>
+        <name>Dein Profil</name>
+        <value><![CDATA[<ul><li>Mehrj&auml;hrige F&uuml;hrungserfahrung</li><li>Deutsch auf C1-Niveau</li></ul>]]></value>
+      </jobDescription>
+    </jobDescriptions>
+    <employmentType>permanent</employmentType>
+    <seniority>experienced</seniority>
+    <schedule>full-time</schedule>
+    <yearsOfExperience>5-7</yearsOfExperience>
+    <keywords>Frontend,Leadership</keywords>
+    <occupation>software_development</occupation>
+    <occupationCategory>it_software</occupationCategory>
+    <createdAt>2026-09-03T09:41:22+00:00</createdAt>
+  </position>
+  <position>
+    <id>1843099</id>
+    <subcompany>Nordlicht Software GmbH</subcompany>
+    <office>Hamburg</office>
+    <department>Operations</department>
+    <recruitingCategory>Operations</recruitingCategory>
+    <name>Werkstudent Operations (m/w/d)</name>
+    <jobDescriptions>
+      <jobDescription>
+        <name>Deine Aufgaben</name>
+        <value>&lt;p&gt;Du unterst&amp;uuml;tzt unser Ops-Team.&lt;/p&gt;</value>
+      </jobDescription>
+    </jobDescriptions>
+    <employmentType>working_student</employmentType>
+    <seniority>student</seniority>
+    <schedule>part-time</schedule>
+    <createdAt>2026-09-15T12:00:00+00:00</createdAt>
+  </position>
+</workzag-jobs>

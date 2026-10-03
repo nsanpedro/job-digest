@@ -28,7 +28,12 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { ads, directions as directionsTable } from '../../db/src/schema.ts';
+import {
+  ads,
+  directions as directionsTable,
+  EFFECTIVE_DIRECTION_STATES,
+  profiles as profilesTable,
+} from '../../db/src/schema.ts';
 import {
   computeMatch,
   DESCRIPTION_MATCH_CHARS,
@@ -165,15 +170,25 @@ async function main(): Promise<void> {
   const { userId, forbidden, limit, topK, strengthFloor } = parseArgs(process.argv.slice(2));
 
   await withTenant(db, userId, async (tx) => {
-    const directionRows = await tx
-      .select()
-      .from(directionsTable)
-      .where(
-        and(
-          eq(directionsTable.userId, userId),
-          inArray(directionsTable.state, ['suggested', 'interested', 'alert_configured']),
-        ),
-      );
+    const directionRows = (
+      await tx
+        .select({ d: directionsTable })
+        .from(directionsTable)
+        .innerJoin(
+          profilesTable,
+          and(
+            eq(profilesTable.userId, directionsTable.userId),
+            eq(profilesTable.version, directionsTable.profileVersion),
+          ),
+        )
+        .where(
+          and(
+            eq(directionsTable.userId, userId),
+            eq(profilesTable.isActive, true),
+            inArray(directionsTable.state, [...EFFECTIVE_DIRECTION_STATES]),
+          ),
+        )
+    ).map((r) => r.d);
 
     process.stderr.write(
       `user ${userId} has ${directionRows.length} direction(s): ${

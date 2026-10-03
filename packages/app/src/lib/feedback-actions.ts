@@ -14,6 +14,7 @@ import { revalidatePath } from 'next/cache';
 import {
   companyKey,
   deriveCandidateProfile,
+  effectKindOwnedBy,
   isDismissReason,
   planDismissFeedback,
   suggestExcludeTerms,
@@ -27,6 +28,7 @@ import {
   muteCompany,
   recordDismissReason,
   removeEffectsFromAd,
+  removeExcludeTerm,
   removeFeedbackEffect,
   unmuteCompany as dbUnmuteCompany,
 } from '@job-digest/db';
@@ -43,7 +45,9 @@ function revalidateFeedback() {
  * Records why an ad was dismissed and applies the reason's effect: a mute
  * is saved here; an exclude is only proposed (the user confirms it with
  * `acceptExcludeSuggestion`). Picking a different reason undoes the
- * previous reason's effect for this ad.
+ * previous reason's effect for this ad (`effectKindOwnedBy`). Also the
+ * dismiss itself when the reason comes from the card's "Dismiss because"
+ * strip: `recordDismissReason` dismisses an ad that is not dismissed yet.
  */
 export async function setDismissReason(adId: string, reason: DismissReason): Promise<DismissFeedback> {
   if (!isDismissReason(reason)) throw new Error(`unknown dismiss reason: ${String(reason)}`);
@@ -56,12 +60,7 @@ export async function setDismissReason(adId: string, reason: DismissReason): Pro
     const candidate = deriveCandidateProfile({ skills: profile?.skills ?? [], directions });
     const plan = planDismissFeedback({ reason, ad, directions, candidate });
 
-    await removeEffectsFromAd(
-      tx,
-      userId,
-      adId,
-      reason === 'company' ? 'mute_company' : reason === 'wrong_role' ? 'exclude_term' : null,
-    );
+    await removeEffectsFromAd(tx, userId, adId, effectKindOwnedBy(reason));
     if (plan.kind === 'mute') {
       await muteCompany(tx, userId, { adId, company: plan.company, companyKey: plan.companyKey });
     }
@@ -108,6 +107,13 @@ export async function removeExcludeFromAd(adId: string): Promise<void> {
 export async function removeFeedback(effectId: string): Promise<void> {
   const userId = await currentUserId();
   await withTenant(userId, (tx) => removeFeedbackEffect(tx, userId, effectId));
+  revalidateFeedback();
+}
+
+/** Remove an excluded word from every direction that holds it (Profile → "From your dismissals"). */
+export async function removeExcludeWord(valueKey: string): Promise<void> {
+  const userId = await currentUserId();
+  await withTenant(userId, (tx) => removeExcludeTerm(tx, userId, valueKey));
   revalidateFeedback();
 }
 

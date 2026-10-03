@@ -1,9 +1,15 @@
 'use client';
 
-import { useState, useOptimistic, useTransition } from 'react';
-import { describeMatch, type MatchExplanation } from '@job-digest/core';
+import { useRef, useState, useOptimistic, useTransition } from 'react';
+import {
+  DISMISS_REASONS,
+  DISMISS_REASON_LABEL,
+  describeMatch,
+  type DismissReason,
+  type MatchExplanation,
+} from '@job-digest/core';
 import type { DigestAd } from '@job-digest/db';
-import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss } from '@/lib/actions';
+import { dismissAd, recordApplicationEvent, toggleSaved, toggleSeen, undoDismiss, undoOverride } from '@/lib/actions';
 import { unmuteCompany } from '@/lib/feedback-actions';
 import { formatShortDate, formatTimestamp } from '@/lib/format';
 import { RuleLane } from './RuleLane';
@@ -55,9 +61,11 @@ export function AdCard({
   /**
    * Called as Dismiss is clicked, so the list can put the optional "why?"
    * follow-up in this card's place (DismissFollowUp, ADR-003 §8.11). The
-   * dismiss itself never waits on it.
+   * dismiss itself never waits on it. With a reason when the user picked
+   * one from the "Dismiss because" strip: the follow-up row then saves the
+   * reason, which dismisses the ad in the same request.
    */
-  onDismissed?: (ad: DigestAd) => void;
+  onDismissed?: (ad: DigestAd, reason: DismissReason | null) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useOptimistic<OptimisticState, Partial<OptimisticState>>(
@@ -86,11 +94,19 @@ export function AdCard({
       await recordApplicationEvent(ad.id, 'applied');
     });
   const onDismiss = () => {
-    onDismissed?.(ad);
+    onDismissed?.(ad, null);
     startTransition(async () => {
       setOptimistic({ justActed: true });
       await dismissAd(ad.id);
     });
+  };
+  // "Dismiss because…" — the split half of the Dismiss button. Only where a
+  // list hosts follow-up rows (onDismissed), since the row does the saving.
+  const [askWhy, setAskWhy] = useState(false);
+  const whyToggle = useRef<HTMLButtonElement>(null);
+  const onDismissBecause = (reason: DismissReason) => {
+    setAskWhy(false);
+    onDismissed?.(ad, reason);
   };
   const onUnmute = () =>
     startTransition(async () => {
@@ -102,9 +118,15 @@ export function AdCard({
       setOptimistic({ justActed: true });
       await undoDismiss(ad.id);
     });
+  const onHideAgain = () =>
+    startTransition(async () => {
+      setOptimistic({ justActed: true });
+      await undoOverride(ad.id);
+    });
+  const blockedBy = ad.verdicts.filter((v) => v.state === 'block').map((v) => v.key);
 
   return (
-    <div className={styles.card} style={{ opacity: optimistic.justActed ? 0.6 : 1 }}>
+    <div id={`ad-${ad.id}`} className={styles.card} style={{ opacity: optimistic.justActed ? 0.6 : 1 }}>
       <div className={styles.body}>
         <div className={styles.titleRow}>
           <button type="button" className={styles.titleBtn} onClick={onToggle}>
@@ -127,6 +149,17 @@ export function AdCard({
             Muted company — in Explore, unscored.{' '}
             <button type="button" className={styles.mutedUndo} disabled={optimistic.justActed} onClick={onUnmute}>
               Unmute
+            </button>
+          </div>
+        )}
+
+        {ad.overridden && (
+          // Same line as a muted company: a blocked ad on screen says why it
+          // is there, and the way back sits next to the reason (ADR-003 §8.14).
+          <div className={styles.mutedLine}>
+            Shown anyway — your {blockedBy.join(' and ')} rule still counts against its score.{' '}
+            <button type="button" className={styles.mutedUndo} disabled={optimistic.justActed} onClick={onHideAgain}>
+              Hide again
             </button>
           </div>
         )}
@@ -226,11 +259,60 @@ export function AdCard({
             {optimistic.justActed ? 'Restored' : 'Undo'}
           </button>
         ) : (
-          <button type="button" className={styles.dismissBtn} disabled={optimistic.justActed} onClick={onDismiss}>
-            {optimistic.justActed ? 'Dismissed ✓' : 'Dismiss'}
-          </button>
+          <span className={styles.dismissGroup}>
+            <button type="button" className={styles.dismissBtn} disabled={optimistic.justActed} onClick={onDismiss}>
+              {optimistic.justActed ? 'Dismissed ✓' : 'Dismiss'}
+            </button>
+            {onDismissed && (
+              <button
+                ref={whyToggle}
+                type="button"
+                className={`${styles.dismissMore} ${askWhy ? styles.dismissMoreOn : ''}`}
+                aria-label="Dismiss with a reason"
+                title="Dismiss with a reason"
+                aria-expanded={askWhy}
+                aria-controls={`dismiss-why-${ad.id}`}
+                disabled={optimistic.justActed}
+                onClick={() => setAskWhy((v) => !v)}
+              >
+                <span aria-hidden="true">▾</span>
+              </button>
+            )}
+          </span>
         )}
       </div>
+
+      {askWhy && !dismissed && (
+        <div
+          id={`dismiss-why-${ad.id}`}
+          className={styles.why}
+          role="group"
+          aria-label="Dismiss because"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setAskWhy(false);
+              whyToggle.current?.focus();
+            }
+          }}
+        >
+          <span className={styles.whyAsk}>Dismiss because</span>
+          {DISMISS_REASONS.map((r) => (
+            <button key={r} type="button" className={styles.whyChip} onClick={() => onDismissBecause(r)}>
+              {DISMISS_REASON_LABEL[r]}
+            </button>
+          ))}
+          <button
+            type="button"
+            className={styles.whyCancel}
+            onClick={() => {
+              setAskWhy(false);
+              whyToggle.current?.focus();
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {expanded && <ExpandedPanel ad={ad} />}
     </div>

@@ -266,8 +266,10 @@ const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
  *
  * Not verdict-based: the score needs to know *how far above the floor* an ad
  * clears each rule, which the verdict states (pass/warn/unknown/block) do
- * not encode. A hard-blocked ad never reaches scoring — the caller filters
- * those out first — so `block` is not a case here.
+ * not encode. A hard-blocked ad reaches scoring only when the user overrode
+ * the block ("Show anyway"); the failed rule then scores 0 here, like any
+ * fact below its floor — the override restores eligibility, it does not
+ * make the fact better than it is.
  *
  * `unknown` returns 0.5 (I-ADR003 §2.6): the ad neither gains nor loses on
  * the rule it didn't answer. `signalCompleteness` is the component that

@@ -14,6 +14,15 @@
  * the matcher's description window. Fill-if-null, like the facts merge — a
  * description already on the row (e.g. from an API source with the same
  * dedupe key) is not overwritten.
+ *
+ * Re-runs (ADR-003 §8.17 "Description backfill"): before doing anything this
+ * reads the ad's description and its existing enrichment row and asks
+ * `planEnrichment`. An ad never enriched gets the full run above. An ad
+ * whose enrichment predates migration 0018 (row exists, description null)
+ * gets a description-only fetch — no Haiku call, no `ad_enrichments` or
+ * provenance write: its facts were already extracted from that same text,
+ * and paying the LLM again per ad would buy nothing. Anything else is a
+ * no-op, so calling this for a re-sighted ad is safe.
  */
 import { and, eq, isNull } from 'drizzle-orm';
 import { adEnrichments, ads } from '@job-digest/db';
@@ -23,16 +32,59 @@ import { detectTier1 } from './detect-tier';
 import { fetchGreenhouseJob } from './greenhouse-single';
 import { fetchLeverPosting } from './lever-single';
 import { extractFactsFromText } from './extract-from-text';
+import { planEnrichment } from '../description-fill';
 import type { Facts } from '@job-digest/core';
+import type { Tier1Match } from './types';
+
+/** One request to the posting's own API: structured facts + description text. */
+export function fetchTier1(match: Tier1Match): Promise<{ facts: Partial<Facts>; descriptionText: string | null }> {
+  return match.platform === 'greenhouse'
+    ? fetchGreenhouseJob(match.slug, match.jobId)
+    : fetchLeverPosting(match.slug, match.postingId);
+}
 
 export async function enrichAd(
   db: Db,
   userId: string,
   adId: string,
   externalUrl: string,
+  opts: { retryFailed?: boolean } = {},
 ): Promise<void> {
   const match = detectTier1(externalUrl);
   if (!match) return;
+
+  const state = await withTenant(db, userId, async (tx) => {
+    const rows = await tx
+      .select({ description: ads.description, enrichmentStatus: adEnrichments.status })
+      .from(ads)
+      .leftJoin(adEnrichments, and(eq(adEnrichments.adId, ads.id), eq(adEnrichments.userId, ads.userId)))
+      .where(eq(ads.id, adId))
+      .limit(1);
+    return rows[0];
+  });
+  if (!state) return;
+  const plan = planEnrichment(
+    { enrichmentStatus: state.enrichmentStatus, hasDescription: state.description !== null },
+    opts,
+  );
+  if (plan === 'skip') return;
+  if (plan === 'description_only') {
+    try {
+      const { descriptionText } = await fetchTier1(match);
+      if (!descriptionText) return;
+      await withTenant(db, userId, (tx) =>
+        tx
+          .update(ads)
+          .set({ description: descriptionText })
+          .where(and(eq(ads.id, adId), isNull(ads.description))),
+      );
+    } catch (err) {
+      // Description-only is best-effort: the ad keeps its earlier
+      // enrichment outcome and provenance untouched.
+      console.error(`enrich-ad: description fetch failed for ad ${adId} (${externalUrl}):`, err);
+    }
+    return;
+  }
 
   let extractedFacts: Partial<Facts> | null = null;
   let rawExcerpt: string | null = null;
@@ -40,11 +92,7 @@ export async function enrichAd(
   let status: 'fetched' | 'fetch_failed' = 'fetch_failed';
 
   try {
-    if (match.platform === 'greenhouse') {
-      ({ facts: extractedFacts, descriptionText } = await fetchGreenhouseJob(match.slug, match.jobId));
-    } else {
-      ({ facts: extractedFacts, descriptionText } = await fetchLeverPosting(match.slug, match.postingId));
-    }
+    ({ facts: extractedFacts, descriptionText } = await fetchTier1(match));
     status = 'fetched';
 
     // Tier 1.5: LLM extraction from description text fills fields the structured

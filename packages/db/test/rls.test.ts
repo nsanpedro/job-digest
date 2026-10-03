@@ -12,10 +12,10 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { sql } from 'drizzle-orm';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../src/schema';
+import { migrateToHead } from './migrate';
 
 let container: StartedPostgreSqlContainer;
 let client: postgres.Sql;
@@ -28,7 +28,7 @@ beforeAll(async () => {
   // Single connection so SET ROLE / set_config stick to the session under test.
   client = postgres(container.getConnectionUri(), { max: 1 });
   db = drizzle(client, { schema });
-  await migrate(db, { migrationsFolder: new URL('../migrations', import.meta.url).pathname });
+  await migrateToHead(db, client);
 
   // Seed as the table owner (bypasses RLS — that is what seeding is).
   const [a] = await db.insert(schema.accounts).values({ email: 'a@example.com' }).returning();

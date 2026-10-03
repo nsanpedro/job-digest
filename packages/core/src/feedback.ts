@@ -183,6 +183,21 @@ function titleWords(title: string): string[] {
 }
 
 /**
+ * The first direction whose label or a search term contains `term` at a word
+ * boundary (the exclude gate's own rule), or null. Excluding such a word
+ * would drop that direction's own matches — and since the ingest gate reads
+ * the union of every direction's excludes, a word saved on any direction
+ * would drop them. So a covered word is never proposed (`suggestExcludeTerms`)
+ * and never carried over to a new derivation (`planExcludeCarryOver`).
+ */
+export function excludeCoveredBy<D extends Pick<FeedbackDirection, 'label' | 'searchTerms'>>(
+  term: string,
+  directions: readonly D[],
+): D | null {
+  return directions.find((d) => [d.label, ...d.searchTerms].some((text) => excludeHits(text, term))) ?? null;
+}
+
+/**
  * `wrong_role` → which word in this title to exclude, and from which
  * direction(s). Null when there is nothing honest to propose: the title
  * matched none of the directions (nothing to exclude it from), or every
@@ -212,7 +227,6 @@ export function suggestExcludeTerms(
   const matched = directions.filter((_, i) => explanations[i]!.kind === 'matched');
   if (matched.length === 0) return null;
 
-  const covered = directions.flatMap((d) => [d.label, ...d.searchTerms]);
   const context = new Set([
     ...(ad.company ? tokenize(ad.company) : []),
     ...(ad.location ? tokenize(ad.location) : []),
@@ -225,7 +239,7 @@ export function suggestExcludeTerms(
       !NOISE_WORDS.has(w) &&
       !context.has(w) &&
       readSeniority(w) === null &&
-      !covered.some((text) => excludeHits(text, w)) &&
+      excludeCoveredBy(w, directions) === null &&
       explainMatch(
         ad.title,
         null,
@@ -284,6 +298,133 @@ export function withoutExcludeEffects<D extends { id: string; excludeTerms: read
   });
 }
 
+// ── Re-derivation (ADR-003 §8.13) ────────────────────────────────────────────
+
+/** A saved exclude whose direction a newer derivation retired — a `feedback_effects` row. */
+export interface RetiredExclude {
+  id: string;
+  adId: string | null;
+  value: string;
+  valueKey: string;
+  createdAt: Date;
+}
+
+export interface ExcludeCarryOver {
+  /** One entry per word, to be saved on every direction in `directionIds`; `sourceIds` are the rows it replaces. */
+  carry: Array<{
+    value: string;
+    valueKey: string;
+    adId: string | null;
+    createdAt: Date;
+    directionIds: string[];
+    sourceIds: string[];
+  }>;
+  /**
+   * Words that stay on their retired direction, inert, and are planned again
+   * at the next derivation: there is no new direction to carry them to, or
+   * `coveredBy` searches for the word.
+   */
+  held: Array<{ value: string; valueKey: string; coveredBy: string | null; sourceIds: string[] }>;
+}
+
+/**
+ * What happens to the excludes on retired directions when a derivation
+ * completes. An exclude is the user's statement about a word ("titles with
+ * this are the wrong role"); §8.11 stores it on directions only because that
+ * is where the matcher reads excludes. So each word moves to *every* new
+ * direction — the ingest gate already applied it to all of them through the
+ * union — unless a new direction searches for it, the same check that gated
+ * its proposal.
+ *
+ * One row per word per direction (the table's unique index), so duplicates
+ * of a word collapse onto the earliest: its `createdAt` keeps the eval's
+ * temporal split (`effectsBefore`) true, and its `adId` keeps Undo on that
+ * dismissal working. Same first-row-wins rule `addExcludeFromDismissal`
+ * applies when a second dismissal saves a word a direction already has.
+ */
+export function planExcludeCarryOver(
+  retired: readonly RetiredExclude[],
+  next: readonly Pick<FeedbackDirection, 'id' | 'label' | 'searchTerms'>[],
+): ExcludeCarryOver {
+  const byWord = new Map<string, RetiredExclude[]>();
+  for (const e of [...retired].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
+    byWord.set(e.valueKey, [...(byWord.get(e.valueKey) ?? []), e]);
+  }
+
+  const plan: ExcludeCarryOver = { carry: [], held: [] };
+  for (const [valueKey, rows] of byWord) {
+    const first = rows[0]!;
+    const sourceIds = rows.map((r) => r.id);
+    const coveredBy = excludeCoveredBy(first.value, next);
+    if (next.length === 0 || coveredBy) {
+      plan.held.push({ value: first.value, valueKey, coveredBy: coveredBy?.label ?? null, sourceIds });
+      continue;
+    }
+    plan.carry.push({
+      value: first.value,
+      valueKey,
+      adId: first.adId,
+      createdAt: first.createdAt,
+      directionIds: next.map((d) => d.id),
+      sourceIds,
+    });
+  }
+  return plan;
+}
+
+/** A saved exclude as Profile lists it: `applied` when its direction is one the matcher reads. */
+export interface ListedExclude {
+  value: string;
+  valueKey: string;
+  createdAt: Date;
+  directionLabel: string | null;
+  applied: boolean;
+}
+
+/** One word in Profile → "From your dismissals", however many directions hold it. */
+export interface ExcludeGroup {
+  value: string;
+  valueKey: string;
+  since: Date;
+  applied: boolean;
+  /** Current directions the word is applied to. */
+  directionLabels: string[];
+  /** Not applied because this current direction searches for the word. */
+  coveredBy: string | null;
+}
+
+/**
+ * Groups exclude rows by word. A word is removed as a whole (every direction
+ * at once): with the ingest gate reading the union of excludes, taking it off
+ * one direction while another keeps it would leave it filtering at ingest.
+ */
+export function groupExcludeEffects(
+  rows: readonly ListedExclude[],
+  current: readonly Pick<FeedbackDirection, 'label' | 'searchTerms'>[],
+): ExcludeGroup[] {
+  const groups = new Map<string, ExcludeGroup>();
+  for (const r of rows) {
+    const g = groups.get(r.valueKey) ?? {
+      value: r.value,
+      valueKey: r.valueKey,
+      since: r.createdAt,
+      applied: false,
+      directionLabels: [],
+      coveredBy: null,
+    };
+    if (r.createdAt < g.since) g.since = r.createdAt;
+    if (r.applied) {
+      g.applied = true;
+      if (r.directionLabel && !g.directionLabels.includes(r.directionLabel)) g.directionLabels.push(r.directionLabel);
+    }
+    groups.set(r.valueKey, g);
+  }
+  for (const g of groups.values()) {
+    if (!g.applied) g.coveredBy = excludeCoveredBy(g.value, current)?.label ?? null;
+  }
+  return [...groups.values()];
+}
+
 // ── Level ────────────────────────────────────────────────────────────────────
 
 /**
@@ -339,5 +480,27 @@ export function planDismissFeedback(input: {
     case 'location':
     case 'other':
       return { kind: 'noted' };
+  }
+}
+
+/**
+ * The stored effect kind a reason owns for its ad, if any. Setting or
+ * changing a reason — from the follow-up row, the card's "Dismiss because"
+ * strip or the Dismissed list — removes every effect this ad produced except
+ * the kind the new reason owns: Company → Location takes the mute back;
+ * Wrong role → Company drops a confirmed exclude. Mirrors
+ * `planDismissFeedback`: `mute` ↔ `mute_company`, `suggest_exclude` ↔
+ * `exclude_term`.
+ */
+export function effectKindOwnedBy(reason: DismissReason): FeedbackEffectKind | null {
+  switch (reason) {
+    case 'company':
+      return 'mute_company';
+    case 'wrong_role':
+      return 'exclude_term';
+    case 'wrong_level':
+    case 'location':
+    case 'other':
+      return null;
   }
 }

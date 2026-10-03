@@ -297,6 +297,87 @@
   color: oklch(0.42 0.14 25);
 }
 
+/* Split button: "Dismiss" stays one click; the chevron opens the reasons. */
+.dismissGroup {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.dismissGroup .dismissBtn {
+  padding-right: 8px;
+}
+
+.dismissMore {
+  font-size: 11px;
+  line-height: 1;
+  padding: 7px 8px;
+  border-radius: var(--radius-chip);
+  border: 1px solid transparent;
+  background: transparent;
+  color: oklch(0.5 0.13 25);
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.dismissMore:hover,
+.dismissMoreOn {
+  background: oklch(0.97 0.02 25);
+  color: oklch(0.42 0.14 25);
+}
+
+.dismissBtn:disabled,
+.dismissMore:disabled {
+  cursor: default;
+}
+
+/* "Dismiss because" strip under the action bar — wraps on narrow screens. */
+.why {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px 10px 22px;
+  border-top: 1px dashed var(--border-soft-2);
+}
+
+.whyAsk {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.whyChip {
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+.whyChip:hover {
+  border-color: oklch(0.8 0.06 25);
+  color: oklch(0.42 0.14 25);
+}
+
+.whyCancel {
+  font-size: 12px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.whyCancel:hover {
+  color: var(--text);
+}
+
 /* Expanded panel */
 .panel {
   border-top: 1px solid var(--border);

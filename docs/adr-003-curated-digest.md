@@ -465,6 +465,140 @@ Same account as §8.6/§8.8, 13 weeks, now with the eval's temporal split (§8.1
 - **Top pick (§8.9)** is the measurable change: the tier was empty 10 of 11 weeks, now 1 of 11, and the 3 ads it picked across those weeks are ads the user applied to or saved — none dismissed. Ranking metrics are unchanged by construction (v5 scores exactly as v4).
 - **Descriptions (§8.10)** and **dismiss reasons (§8.11)** show no effect yet, correctly: production has no stored descriptions (the column arrives with migration 0018 and fills as API ads are re-fetched) and no dismiss reasons (0019). Re-measure after a few weeks of both.
 
+### 8.13 Re-derivation retires the previous directions (Sep 2026)
+
+**Problem.** Each CV analysis (`uploadCv` → `completeDerivation`) writes a new `profiles` version and new `directions` rows under it. Nothing retired the earlier version's rows. `listInterestedDirections` returned every non-dismissed direction of every version, and the digest, the API ingest gate and the dismiss follow-up all read it; Profile lists only the active version. After a second analysis, the first analysis's directions kept matching and their excludes stayed in the ingest union, but the user could no longer see or dismiss them. This has to be fixed before prompt v2 ("Market-language direction terms") asks existing users to re-derive: otherwise the German-only terms it replaces stay in force next to the new ones.
+
+**Options.**
+
+| | Change | Decision |
+| --- | --- | --- |
+| (a) | `listInterestedDirections` reads only the active profile version | **Chosen** |
+| (b) | `completeDerivation` moves earlier versions' directions to a retired or dismissed state | Rejected. Reusing `dismissed` writes a system action into the one column the user owns (`directions.state`), so the UI would show a decision nobody made. A new `retired` value is an `ALTER TYPE … ADD VALUE`, which Postgres cannot undo, needs a backfill for every user who has already re-derived, and every future writer of `directions` has to remember to retire. |
+| (c) | Show earlier versions' directions on Profile | Rejected. The stale terms keep matching until the user dismisses each old direction by hand, which is what a re-derivation is meant to avoid, and Profile would list the same role once per version. |
+
+With (a), retirement follows from activation, which `completeDerivation` already does under the `profiles_one_active_per_user` unique index. What is read and what Profile lists use the same predicate (the active version), so they cannot drift apart. Users who re-derived before this change are fixed at deploy without a backfill. A failed derivation never activates its version, so the previous directions stay in force.
+
+**I26 — only the active profile version's directions are read.** `listInterestedDirections` joins `profiles` on (user, version), requires `is_active`, and keeps the state filter (`EFFECTIVE_DIRECTION_STATES`: every state but the user's `dismissed`). All its readers go through it: the digest (`getDigest`), the ingest gate (`fetch-apis.ts`) and the dismiss follow-up (`feedback-actions.ts`). The two scripts that inline the query (`audit-match.ts`, `validate-matcher.ts`) use the same join. Profile lists `listDirections(activeVersion)`, so every direction that matches is one the user can see and dismiss. Retired rows stay unchanged as the derivation history.
+
+**Excludes carry over.** An exclude from a dismissal (§8.11) is a word the user said marks the wrong role. It is stored on directions only because that is where the matcher reads excludes. Filtering to the active version alone would drop every such word at the next analysis without telling the user. So `completeDerivation` calls `carryOverExcludes` in its transaction, after the new directions are inserted. The decision is a pure function, `planExcludeCarryOver` (core/feedback.ts):
+
+- Every `exclude_term` row whose direction is outside the new version is a candidate. That covers the previous active version, older versions (see Rollout), and directions the user dismissed: Profile already listed those words as standing effects, so they stay standing.
+- A word moves to **every** new direction, unless one of them has it in its label or search terms at a word boundary (`excludeCoveredBy`, the same check `suggestExcludeTerms` runs before proposing a word). It goes to every direction, not only to those the original title would match now, for two reasons. The ingest gate already applied the word to all directions through the union of excludes, so the read path now matches what ingest did. And the new directions have new terms, so the old word-to-direction mapping no longer describes anything.
+- A covered word, or any word when the new analysis produced no directions, is **held**. It stays on its retired direction, is not read, and is planned again at the next analysis.
+- Duplicates of a word collapse onto the earliest row, because the unique index allows one row per word per direction. That row's `created_at` is kept, so the eval's temporal split (`effectsBefore`) still sees when the user said it. Its `ad_id` is kept too, so Undo on that dismissal still removes the word. A later dismissal that saved the same word loses its provenance, which is the first-row-wins rule `addExcludeFromDismissal` already applies.
+- The source rows of a moved word are deleted. The retired directions' own `exclude_terms` are left as they were.
+
+**I27 — every exclude is listed, and listed as applied only when it is.** After any derivation completes, each `exclude_term` row either points at a direction the matcher reads (I26) and is listed under "Excluded words", or is held outside it and listed under "Not applied" with the reason: which current direction searches for the word, or that it moves at the next CV analysis. `listFeedbackEffects` computes `applied` from the same predicate as I26.
+
+**Remove works per word.** Profile lists a word once, with the directions that hold it, and Remove takes it off all of them (`removeExcludeTerm`). Per-row removal made sense when a word sat on one or two directions. After a carry-over it can sit on every direction, and removing it from some would leave it filtering at ingest through the rest. Undo on a dismissal (by `ad_id`) and the follow-up's own Remove are unchanged.
+
+**Rollout.** Users with more than one version lose the older versions' directions at deploy, which is the fix. An exclude saved on an older version while it was still read (possible since §8.11, because the follow-up proposed words across every version) stops applying until the user's next analysis carries it. It shows under "Not applied" meanwhile. `packages/db/scripts/carry-over-excludes.ts` carries such words now; `--dry-run` prints the plan and rolls back. It runs the same `carryOverExcludes` for each affected user's active version, as `app_user` with the tenant set, and is idempotent. Run against a seeded local database, it carried one word, held one covered word, and moved nothing on a second run.
+
+**Cost.** Two statements per word per new direction, plus one delete per word, inside the completion transaction. With 5 directions and 20 words that is about 220 statements, roughly one second at 5 ms per round trip through the pooler. It runs in `after()` after a model call that already takes seconds, within the 60-second limit on Hobby.
+
+**Verification.** Pure tests for the plan, the coverage check and the Profile grouping (core/test/feedback.test.ts). Integration tests against Postgres 17 under `app_user` and `worker` with RLS (db/test/direction-retirement.test.ts): only the active version is read by both roles; a failed derivation keeps the previous directions; excludes move with their `ad_id` and `created_at`; Undo and Remove clear every direction; a covered word is held and moves once the covering direction is gone; an empty derivation holds everything; the carry-over is idempotent; a pre-§8.13 exclude is repaired. Removing the active-version filter fails 4 of the 9. The worker's `getDigest` suite, which reads `listInterestedDirections`, runs again after the migrations fix in the same change set.
+
+**Limitations.**
+
+- A suggestion accepted while a derivation is completing can land on the directions being retired, because the follow-up read them before the switch. The word is then held, listed as not applied, and moves at the next analysis. The window is the completion transaction. Closing it would take a lock on the active profile row in both paths.
+- A carried word applies at read time to directions it was never saved on. It is still a word no current direction searches for, and ingest already applied it to them.
+- A held word stays held until a later analysis no longer covers it or the user removes it. Nothing re-plans it in between.
+
+### 8.14 An override restores eligibility, not a slot (Sep 2026)
+
+**Problem.** "Show anyway" on a rule-blocked ad (system-design §7.5) predates the curated digest. Back then, every ad that was not dismissed was in the one visible list, so an override meant the ad was on screen. Under the tiers, the ad goes back into ranking and competes for capped slots (I21, I24). On the fixture corpus the overridden ad (Pay 4.333 € against a 4.500 € floor) scores 53. That clears Worth a read (50), but the six Read slots already hold 54–59, so it lands in Explore. `getDigest`'s own test still expected it in a tier. The test had not run since migration 0013 (§8.13), so nobody noticed. In the UI the row disappeared from "Held by the sift", and the ad could reappear inside the collapsed "Hidden" list. That read as the ad vanishing.
+
+**Options.**
+
+| | Change | Decision |
+| --- | --- | --- |
+| (a) | Rank the ad like any candidate, and tell the user where it went | **Chosen** |
+| (b) | Reserve a slot: an overridden ad bypasses the thresholds and caps | Rejected. An override would push a better-fitting ad out of a scarce tier, and I21's cap would no longer bound the page. The user asked to see this ad, not to rank it above others. |
+| (c) | Score the overridden rule as neutral (`unknown`, 0.5) instead of 0 | Rejected. The override records a decision and does not change the fact. An ad paying below the floor would outrank one whose pay was not stated, which reverses §2.6. |
+
+**I28 — an override restores eligibility, not a slot.** An overridden ad leaves `dismissed` (`filteredByRule` drops by one) and goes through the pre-filters, scoring and `selectTiers` unchanged. The failed rule still scores 0 in `ruleMargin`. The ad carries `DigestAd.overridden` while a hard rule still blocks it. If a looser ruleset outlives the override, the flag is dropped, because the ad is then an ordinary pass.
+
+**Telling the user.** The held row becomes an `OverrideFollowUp` in place, the same pattern as the dismiss follow-up (§8.11). It says whether the ad is in the matches, under Worth a look or under Hidden, and that the blocking rule still counts against its score. It offers Go to it (opens Hidden if needed, expands the card and scrolls to it), Undo, and close. The card carries a "Shown anyway" line with Hide again, so the reason survives a reload and also shows on the Explore page.
+
+**Verification.** `worker/test/digest.test.ts` checks that the overridden ad leaves `dismissed`, that it is offered (tiers, still open or Explore), that it is scored, that it keeps its `block` verdict, and that it is the only ad with `overridden`. It does not pin a tier, because that is the ranking's call.
+
+**Limitation.** Overrides are recorded but not yet counted. The loosen-this-rule proposal in §7.5 does not exist yet.
+
+### 8.15 Market-language direction terms (Sep 2026)
+
+A direction's `searchTerms` do two jobs: they are what the user types into a job-board alert, and they are the patterns every gate and score reads (`computeMatch` via the ingest gate, the digest read gate and `directionFit`). Role discovery's prompt (v1) asked for "2-4 realistic German search terms" for every account. Two of the three production accounts are in Buenos Aires and Barcelona, where ads are posted in Spanish and English. Their German terms reached Spanish and English titles only through the `ROLE_SYNONYMS` families in `matching.ts`. Those families cover a handful of role words ("engineer", "designer", "manager", "analyst"), so any other part of a German term matched nothing. The model also never proposed `excludeTerms` (migration 0016), so that column stayed empty until the user added words from dismissals (§8.11).
+
+**The market is data the prompt receives, not something the model guesses.** `adMarket` (`packages/core/src/market-language.ts`, pure) decides the ad languages:
+
+1. The account's city, through the same closed lexicon `locationFit` uses (`homeCountry`), then a closed country → languages table. The local language comes first, then English, because tech and management ads in these markets are posted in English as often as in the local language (the same observation behind `ROLE_SYNONYMS`). For example, Hamburg, Wien and Zürich give German + English, and Barcelona and Buenos Aires give Spanish + English. A placeable city in a country the table does not list (London, Toronto, …) gives English.
+2. If the city is unset or the lexicon cannot place it, the CV's language (function-word counts, German / Spanish / English only; a bilingual or short CV reads as unknown) plus English.
+3. Otherwise English.
+
+The city wins over the CV, because a Spanish CV in Hamburg still has to find German and English ads. `deriveDirections` takes `city` and puts the result in an `<ad_market>` block at the end of the **system** prompt (`buildSystemPrompt`). The block comes from our closed tables, not from the CV, so it goes with the operator instructions and not in the user turn, where untrusted CV text could imitate it. Because the block comes last, the static instructions are a byte-identical prefix for every account. The market is stored in the `profiles.data` snapshot next to `promptVersion`.
+
+**Prompt v2** (`PROMPT_VERSION` 1 → 2):
+
+- Step 5 asks for 2-3 search terms per ad language (at most 8). Each is the title ads in that language actually use, not a word-for-word translation. Each must be a job title as it would appear in an ad title, never a bare skill or keyword ("Python", "agile"), because the matcher's long-word tier would read a keyword as evidence for every ad that mentions it.
+- The new step 6 asks for 0-5 `excludeTerms`: role titles of neighbouring families the person plausibly does not want that share a word with the search terms (for "Engineering Manager": "Account Manager", "Sales Manager"). It lists the constraints the gate below enforces.
+- `DERIVATION_SCHEMA` gains `excludeTerms: string[]` (required, basic types only).
+
+**Excludes are gated in `parseDerivation`, like skills and seen titles.** An exclude term is ad-level: the union of all directions' excludes is applied to the title and the 400-character description lede (curation.ts, explain-match.ts), and a hit removes the ad for *every* direction. So each proposed exclude is checked against every direction that survives the I17 gate and the cap, not only its own direction. An exclude is dropped, and recorded in `dropped` as `kind: 'excludeTerm'` with the reason, when:
+
+- it collides with any kept direction's label or search terms. The check reads the text two ways: the exclude gate's own word-boundary regex after the spelling pre-pass, and the matcher's reading (every exclude token is `containsWord` of the text, `ROLE_SYNONYMS` included). The second reading is stricter than the gate needs, on purpose: "Entwickler" collides with "Software Engineer". This is the same "not covered by the user's directions" rule `suggestExcludeTerms` applies to dismissal words (§8.11);
+- it has no token `tokenize` keeps ("HR", "QA"), which is too short to gate on a word boundary safely;
+- it is only seniority words ("Junior", "Senior"). Level belongs to the level gate (§8.7), and "junior" in a description lede hits "you will mentor junior engineers" (§8.10);
+- it is past `MAX_EXCLUDE_TERMS` (5) for its direction (the first ones are kept) or duplicates a kept term (dropped silently).
+
+A missing `excludeTerms` field reads as none; the direction is kept. The gates I17/I18 are unchanged.
+
+**Persistence.** `completeDerivation` writes the gated excludes into `directions.exclude_terms` (`directionInsertValues`, pure and tested). No schema change. A re-derivation writes new rows under a new `profile_version`, and a retried completion of the same version is `onConflictDoNothing`. So no path rewrites an existing direction row, and excludes a user added to an earlier direction (§8.11) are never overwritten. There is nothing to merge them into, because the new rows are separate rows.
+
+**Search terms and match terms stay one list.** We considered splitting them: search terms written for recall (what goes into an alert) and match terms written for precision (what the gates read). We decided against it for now:
+
+- The language problem is fixed by writing the terms in the market's languages. A separate match list would not change that.
+- The precision failures recorded in §8.8/§8.10 came from how the matcher read a term (a bag of words, a role suffix treated as evidence, generic halves like "front"/"end"). They did not come from the terms themselves, and the matcher now guards against those (word order, segments, `NON_DISCRIMINATIVE_ROLE_WORDS`, spelling pass). v2 also asks for titles, not keywords, which is what a precise pattern needs anyway.
+- A split needs a new `directions.match_terms` column (a migration), a backfill rule for existing rows, and changes in every reader of `searchTerms`: ingest gate, digest gate, explanations, ranking, dismiss suggestions, the eval and audit scripts. Part of that code is being changed in parallel.
+- The model-proposed excludes are the cheap precision lever this change adds, and they use the column that already exists.
+
+Revisit when an eval on re-derived v2 directions shows false positives that come from a search term that is good for alerts but too broad for matching.
+
+**Existing users are not re-derived.** v1 directions keep their German-only terms and empty model excludes until the user uploads the CV again on Profile → Role discovery (`uploadCv`, rate-limited to 5 per rolling 24 h by `countDerivationsSince`). Two things to know:
+
+- The city must be set (Profile → Location) *before* the upload. Otherwise the market falls back to the CV language.
+- A re-derivation adds a profile version, and since §8.13 activating it retires the previous version's directions (only the active version is read, I26) and carries the user's dismissal excludes over (I27). Nothing needs dismissing by hand first.
+
+Not yet measured: the eval can only grade v2 terms once the accounts re-derive.
+
+### 8.16 Dismiss reason UX (Sep 2026)
+
+In the first days in production: 2 dismissals, 0 with a reason. Two gaps made a reason easy to miss. Once the follow-up row was closed, nothing could set or change the reason. And dismissing the last curated ad switched the digest to its empty layout, which unmounted the list and its follow-up row with it. Dismiss still takes one click; a reason is still optional. Three changes, no schema change:
+
+1. **"Dismiss because" on the card.** The Dismiss button is a split button: "Dismiss" dismisses in one click as before; the chevron next to it ("Dismiss with a reason", `aria-expanded`) opens a strip under the action bar with the five reasons and Cancel (Escape also closes it). Picking a reason turns the card into its follow-up row with that chip already pressed; the row calls `setDismissReason`, which dismisses and records the reason in one request (`recordDismissReason` dismisses an ad that is not dismissed yet) and shows the effect as usual. Only lists that host follow-up rows offer the chevron.
+2. **The follow-up row stays.** It stays until the user closes it, presses Undo or leaves the page. Its state now lives once per page (`useDismissFollowUps`, above every list) instead of inside each list, and each dismissal is tagged with the list it came from. A list the server empties keeps its rows: the digest renders one tree for both layouts, the curated list stays mounted and shows the row above the empty-state diagnostic; "Worth a look", "Hidden" and the Explore page keep their sections mounted while they hold a row. The bookkeeping is pure and tested: `followUpReducer` / `followUpItems` in `packages/core/src/dismiss-follow-up.ts`.
+3. **Set or change the reason from the Dismissed list.** Every row you dismissed yourself (the Dismissed page and the digest's "Held by the sift" section) has "Add reason" or "Change" after its reason text. It opens the same chips and effect line as the follow-up row (`DismissReasonPicker`), backed by the same server actions. Changing a reason removes the effects this ad produced except the kind the new reason owns (`effectKindOwnedBy`: Company owns the mute, Wrong role the exclude), so Company → Location unmutes, as it already did in the follow-up row.
+
+There is still no way to clear a reason without undoing the dismissal; "Other" records no effect.
+
+### 8.17 Description backfill
+
+Two days after §8.10 shipped, production had 10 of 2 330 ads with a description, all Greenhouse. The adapters were not at fault: each one produces a description from its real response shape (pinned by fixture tests in `packages/worker/test/description-backfill.test.ts`). The gap was in what reaches the write.
+
+- **The ingest gate ran before the upsert.** `fetch-apis.ts` filtered each board through `directionFitStrength` and only the jobs that passed reached `ingestJob`, the one place that wrote `description`. An ad already in the table whose job no longer clears the gate was never touched again. That covers ads admitted before the user had directions, ads admitted by an earlier looser gate, and ads a description exclude now refuses. "Filled on re-fetch" held only for the few jobs that passed that day's gate.
+- **Enrichment only ran for new email ads.** `enrichAd` ran for ads created in the current run. An email ad enriched before 0018, or never enriched, stayed null. `detectTier1` also missed Greenhouse's current `job-boards.greenhouse.io` links.
+- **Most of the 2 330 cannot have one.** LinkedIn, Xing, Indeed and StepStone alert links have no keyless API. Those ads stay null and title-only, as §8.10 already said. The reachable set is ads from API sources whose posting is still open, plus email ads that link to one Greenhouse or Lever posting.
+
+**Fix.**
+- *API fetch.* Before the gate, every fetched job with a description fills the user's ads that match it by externalId or dedupe key and still have a null description. This is one SELECT of ids per source, plus one batched `UPDATE … WHERE description IS NULL` while a gap remains. It never sets `lastSeenAt`, adds a sighting or changes facts, so admission works as before. It also runs before the per-job loop, so a refresh that hits the 60 s `after()` budget behind Gmail still writes the descriptions. For admitted jobs the current text still wins, and null never erases a description (`mergeDescription`).
+- *Enrichment.* A re-sighted email ad with a null description and a Greenhouse or Lever link goes back to `enrichAd`, which now asks `planEnrichment` what to do:
+  - No enrichment row: full run, as before.
+  - Row exists, description null: fetch the description only. There is no Haiku call, because the facts were already extracted from that same text, and no enrichment or provenance write.
+  - Any other case: nothing.
+
+  A failed fetch is not retried on every sighting.
+- *One-off.* `packages/worker/scripts/backfill-descriptions.ts` handles rows that no refresh will touch soon. Run it with tsx, `--dry-run` first. It fetches each board once, however many accounts share it, and each lone Greenhouse or Lever posting once. It makes one request at a time with a `--delay-ms` pause, writes only `description IS NULL` rows and never calls the LLM. It is idempotent.
+
+Not addressed here: the EU Greenhouse instance (`*.eu.greenhouse.io`, which has its own API host) and forwarded email (`forwarding.ts`), which does not enrich at all. The §8.10 eval can run once the backfill has been applied.
 ---
 
 ## 9. Placement is a cut on the displayed score (Oct 2026)

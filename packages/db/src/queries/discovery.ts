@@ -17,10 +17,11 @@
  * that: they make each query correct on its own terms, independent of
  * whether RLS happens to be active for the connection running it.
  */
-import type { Derivation, Direction, DroppedItem, Skill } from '@job-digest/core';
+import type { AdMarket, Derivation, Direction, DroppedItem, Skill } from '@job-digest/core';
 import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { ads, directions, profiles } from '../schema';
+import { ads, directions, EFFECTIVE_DIRECTION_STATES, profiles } from '../schema';
+import { carryOverExcludes } from './feedback';
 import type { DerivationProgress, DirectionRow } from './types';
 
 type Db = PostgresJsDatabase<Record<string, unknown>>;
@@ -30,6 +31,31 @@ export interface DerivationResult extends Derivation {
   dropped: DroppedItem[];
   promptVersion: number;
   model: string;
+  /** The job-ad market the search terms were written for (prompt v2+). Kept in the snapshot only. */
+  market?: AdMarket;
+}
+
+/**
+ * One `directions` insert row per surviving direction — pure, so the
+ * mapping is testable without Postgres. `excludeTerms` are the model's
+ * proposals, already gated by `parseDerivation` (never a word any of these
+ * directions searches for). Every row is new: a re-derivation writes a new
+ * `profile_version`, so nothing here can overwrite excludes a user added to
+ * an earlier version's direction — those rows are left exactly as they are.
+ */
+export function directionInsertValues(userId: string, version: number, derived: readonly Direction[]) {
+  return derived.map((d) => ({
+    userId,
+    profileVersion: version,
+    label: d.label,
+    rationale: d.rationale,
+    bridge: d.bridge,
+    searchTerms: d.searchTerms,
+    excludeTerms: d.excludeTerms ?? [],
+    distance: d.distance,
+    seenTitles: d.seenTitles,
+    state: 'interested' as const,
+  }));
 }
 
 function nextVersion(db: Db, userId: string) {
@@ -62,11 +88,21 @@ export async function startDerivation(db: Db, userId: string): Promise<{ profile
 /**
  * Resolve a derivation on success: store the full snapshot, activate this
  * version (deactivating any prior one — same one-active-version pattern
- * `saveRuleset` uses for `rulesets`), and create one `directions` row per
- * surviving direction, each starting at `state: 'suggested'`.
+ * `saveRuleset` uses for `rulesets`), create one `directions` row per
+ * surviving direction (`directionInsertValues` — auto-confirmed,
+ * `state: 'interested'`, with the model's gated exclude terms), and move the
+ * user's dismissal excludes onto them.
+ *
+ * Activating the version is what retires the previous directions: only the
+ * active version's directions are read (`listInterestedDirections`, I26).
+ * Nothing is written to the old rows. Their excludes move in the same
+ * transaction (`carryOverExcludes`, I27), so there is no moment where the
+ * new directions are live and the user's excludes are not.
  *
  * `onConflictDoNothing` on the (user, version, label) unique index makes a
- * retried completion idempotent rather than erroring on a double-insert.
+ * retried completion idempotent rather than erroring on a double-insert —
+ * a retry never replaces `exclude_terms` a user has edited since — and the
+ * carry-over is idempotent too.
  */
 export async function completeDerivation(
   db: Db,
@@ -75,7 +111,7 @@ export async function completeDerivation(
   version: number,
   result: DerivationResult,
 ): Promise<void> {
-  const { skills, directions: derivedDirections, dropped, promptVersion, model } = result;
+  const { skills, directions: derivedDirections, dropped, promptVersion, model, market } = result;
 
   await db.update(profiles).set({ isActive: false }).where(eq(profiles.userId, userId));
   await db
@@ -83,7 +119,7 @@ export async function completeDerivation(
     .set({
       status: 'ok',
       isActive: true,
-      data: { skills, dropped, promptVersion, model, derivedAt: new Date().toISOString() } satisfies Record<
+      data: { skills, dropped, promptVersion, model, market: market ?? null, derivedAt: new Date().toISOString() } satisfies Record<
         string,
         unknown
       >,
@@ -93,21 +129,11 @@ export async function completeDerivation(
   if (derivedDirections.length > 0) {
     await db
       .insert(directions)
-      .values(
-        derivedDirections.map((d: Direction) => ({
-          userId,
-          profileVersion: version,
-          label: d.label,
-          rationale: d.rationale,
-          bridge: d.bridge,
-          searchTerms: d.searchTerms,
-          distance: d.distance,
-          seenTitles: d.seenTitles,
-          state: 'interested' as const,
-        })),
-      )
+      .values(directionInsertValues(userId, version, derivedDirections))
       .onConflictDoNothing({ target: [directions.userId, directions.profileVersion, directions.label] });
   }
+
+  await carryOverExcludes(db, userId, version);
 }
 
 /** Resolve a derivation on failure — `errorKind` mirrors `CvExtractionFailure` plus 'refused' and 'internal'. */
@@ -206,17 +232,34 @@ export async function setDirectionState(
 }
 
 /**
- * Every direction active for this user's digest — 'suggested', 'interested',
- * and 'alert_configured'. Directions start at 'interested' after derivation
- * (auto-confirmed); 'suggested' is kept for backward compatibility with
- * directions derived before that change. Only 'dismissed' is excluded.
+ * Every direction the digest, the ingest gate and the dismiss follow-up
+ * read: the active profile version's directions in 'suggested',
+ * 'interested' or 'alert_configured'. Directions start at 'interested'
+ * after derivation (auto-confirmed); 'suggested' is kept for backward
+ * compatibility with directions derived before that change.
+ *
+ * Active version only (ADR-003 §8.13, I26): a re-derivation retires the
+ * previous version's directions by activating a new version. Profile lists
+ * exactly that version (`listDirections(activeVersion)`), so every direction
+ * read here is one the user can see and dismiss. No active version (no CV
+ * yet) → no directions, and the ingest gate lets everything through.
  */
 export async function listInterestedDirections(db: Db, userId: string): Promise<DirectionRow[]> {
   const rows = await db
-    .select()
+    .select({ d: directions })
     .from(directions)
-    .where(and(eq(directions.userId, userId), inArray(directions.state, ['suggested', 'interested', 'alert_configured'])));
-  return rows.map((r) => ({
+    .innerJoin(
+      profiles,
+      and(eq(profiles.userId, directions.userId), eq(profiles.version, directions.profileVersion)),
+    )
+    .where(
+      and(
+        eq(directions.userId, userId),
+        eq(profiles.isActive, true),
+        inArray(directions.state, [...EFFECTIVE_DIRECTION_STATES]),
+      ),
+    );
+  return rows.map(({ d: r }) => ({
     id: r.id,
     profileVersion: r.profileVersion,
     label: r.label,
